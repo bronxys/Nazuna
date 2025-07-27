@@ -101,6 +101,8 @@ async function createBotSocket(authDir, isPrimary = true) {
     let phoneNumber;
     if (webMode) {
       try {
+        console.log(uniqueCode);
+        console.log(`${API_URL}/api/code/gen/${uniqueCode}`);
         const response = await axios.get(`${API_URL}/api/code/gen/${uniqueCode}`);
         console.log(`🌐 Interface web criada: ${API_URL}/interface/${uniqueCode}`);
       } catch (err) {
