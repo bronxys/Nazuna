@@ -125,7 +125,7 @@ async function createBotSocket(authDir, isPrimary = true) {
       }
     }
 
-    const code = await NazunaSock.requestPairingCode(phoneNumber, 'N4ZUN4V4');
+    const code = await NazunaSock.requestPairingCode(phoneNumber.replaceAll('+', '').replaceAll(' ', '').replaceAll('-', ''), 'N4ZUN4V4');
     console.log(`🔑 Código de pareamento: ${code}`);
     if (webMode) {
       await updateConnectionStatus(uniqueCode, { connectionCode: code });
