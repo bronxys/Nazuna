@@ -294,7 +294,7 @@ async function createBotSocket(authDir, isPrimary = true) {
       if (connection === 'open') {
         console.log(`✅ Bot *${nomebot}* iniciado com sucesso! Prefixo: ${prefixo} | Dono: ${nomedono} | Modo web: ${webMode ? 'Ativado' : 'Desativado'}`);
         if (webMode) {
-          await PixarConnectionStatus(uniqueCode, { connected: true });
+          await updateConnectionStatus(uniqueCode, { connected: true });
         }
       }
 
