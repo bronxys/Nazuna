@@ -232,53 +232,6 @@ async function createBotSocket(authDir, isPrimary = true) {
                   .setAvatar(profilePic)
                   .setTitle('Bem-vindo(a)!')
                   .setMessage('Aceita um cafézinho enquanto lê as regras?')
-                 moves('remove');
-          await NazunaSock.sendMessage(from, {
-            text: `🇵🇹 @${participant.split('@')[0]} foi removido por ser um número de Portugal (anti-PT ativado).`,
-            mentions: [participant],
-          });
-        }
-      }
-
-      if (inf.action === 'add' && jsonGp.blacklist?.[inf.participants[0]]) {
-        const sender = inf.participants[0];
-        try {
-          await NazunaSock.groupParticipantsUpdate(from, [sender], 'remove');
-          await NazunaSock.sendMessage(from, {
-            text: `🚫 @${sender.split('@')[0]} foi removido do grupo por estar na lista negra. Motivo: ${jsonGp.blacklist[sender].reason}`,
-            mentions: [sender],
-          });
-        } catch (e) {
-          console.error(`❌ Erro ao remover usuário da lista negra no grupo ${from}: ${e.message}`);
-        }
-        return;
-      }
-
-      if (inf.action === 'add' && jsonGp.bemvindo) {
-        const sender = inf.participants[0];
-        const welcomeText = jsonGp.textbv && jsonGp.textbv.length > 1
-          ? jsonGp.textbv
-          : `🎉 Bem-vindo(a), @${sender.split('@')[0]}! Você entrou no grupo *${groupMetadata.subject}*. Leia as regras e aproveite! Membros: ${groupMetadata.participants.length}. Descrição: ${groupMetadata.desc || 'Nenhuma'}.`;
-
-        const formattedText = welcomeText
-          .replaceAll('#numerodele#', `@${sender.split('@')[0]}`)
-          .replaceAll('#nomedogp#', groupMetadata.subject)
-          .replaceAll('#desc#', groupMetadata.desc || '')
-          .replaceAll('#membros#', groupMetadata.participants.length);
-
-        try {
-          const message = { text: formattedText, mentions: [sender] };
-          if (jsonGp.welcome?.image) {
-            let profilePic = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1747053564257_bzswae.bin';
-            try {
-              profilePic = await NazunaSock.profilePictureUrl(sender, 'image');
-            } catch (error) {}
-            const image = jsonGp.welcome.image !== 'banner'
-              ? { url: jsonGp.welcome.image }
-              : await new Banner.welcomeLeave()
-                  .setAvatar(profilePic)
-                  .setTitle('Bem-vindo(a)!')
-                  .setMessage('Aceita um cafézinho enquanto lê as regras?')
                   .build();
             message.image = image;
             message.caption = formattedText;
