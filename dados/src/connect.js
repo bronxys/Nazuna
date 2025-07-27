@@ -2,7 +2,7 @@
 ═════════════════════════════
   Nazuna - Conexão WhatsApp
   Autor: Hiudy
-  Revisão: 21/07/2025
+  Revisão: 24/07/2025
 ═════════════════════════════
 */
 
@@ -12,7 +12,6 @@ const {
   proto,
   DisconnectReason,
   getAggregateVotesInPollMessage,
-  makeInMemoryStore,
   fetchLatestBaileysVersion,
 } = require('@cognima/walib');
 const Banner = require('@cognima/banners');
@@ -27,7 +26,8 @@ const logger = pino({ level: 'silent' });
 const AUTH_DIR_PRIMARY = path.join(__dirname, '..', 'database', 'qr-code');
 const AUTH_DIR_SECONDARY = path.join(__dirname, '..', 'database', 'qr-code-secondary');
 const DATABASE_DIR = path.join(__dirname, '..', 'database', 'grupos');
-const msgRetryCounterCache = new NodeCache({ stdTTL: 120, useClones: false });
+const msgRetryCounterCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
+const groupCache = new NodeCache({stdTTL: 5 * 60, useClones: false});
 const { prefixo, nomebot, nomedono, numerodono } = require('./config.json');
 const indexModule = require(path.join(__dirname, 'index.js'));
 
@@ -45,16 +45,8 @@ const ask = (question) => {
   }));
 };
 
-const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
-
-const store = makeInMemoryStore({ logger });
 let secondaryNazunaSock = null;
 let useSecondary = false;
-
-async function getMessage(key) {
-  const msg = await store.loadMessage(key.remoteJid, key.id);
-  return msg?.message || proto.Message.fromObject({});
-}
 
 async function createBotSocket(authDir, isPrimary = true) {
   await fs.mkdir(DATABASE_DIR, { recursive: true });
@@ -75,14 +67,13 @@ async function createBotSocket(authDir, isPrimary = true) {
     keepAliveIntervalMs: 10000,
     defaultQueryTimeoutMs: 0,
     msgRetryCounterCache,
+    cachedGroupMetadata: async (jid) => groupCache.get(jid),
     auth: state,
     printQRInTerminal: !codeMode,
     logger,
     browser: ['Ubuntu', 'Edge', '110.0.1587.56'],
-    getMessage,
   });
 
-  store.bind(NazunaSock.ev);
   NazunaSock.ev.on('creds.update', saveCreds);
 
   if (codeMode && !NazunaSock.authState.creds.registered) {
@@ -240,7 +231,7 @@ async function createBotSocket(authDir, isPrimary = true) {
             messagesCache.set(info.key.id, info.message);
             const activeNazunaSock = dualMode && useSecondary && secondarySocket?.user ? secondarySocket : NazunaSock;
             useSecondary = !useSecondary;
-            await indexModule(activeNazunaSock, info, store, groupCache, messagesCache);
+            await indexModule(activeNazunaSock, info, null, groupCache, messagesCache);
           }
         } else {
           console.error('⚠️ Módulo index.js inválido ou não encontrado.');

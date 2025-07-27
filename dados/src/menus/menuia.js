@@ -6,17 +6,38 @@ async function menuIa(prefix, botName = "MeuBot", userName = "Usuário") {
 
 ╭┈❪🍧ฺꕸ▸ *TEXTOS*
 ┊
-┊•.̇𖥨֗🍓⭟${prefix}nazu
-┊•.̇𖥨֗🍓⭟${prefix}gpt
-┊•.̇𖥨֗🍓⭟${prefix}gpt4
 ┊•.̇𖥨֗🍓⭟${prefix}cog
+┊•.̇𖥨֗🍓⭟${prefix}yi
+┊•.̇𖥨֗🍓⭟${prefix}kimi
+┊•.̇𖥨֗🍓⭟${prefix}kimik2
 ┊•.̇𖥨֗🍓⭟${prefix}gemma
+┊•.̇𖥨֗🍓⭟${prefix}gemma2
+┊•.̇𖥨֗🍓⭟${prefix}codegemma
+┊•.̇𖥨֗🍓⭟${prefix}phi
+┊•.̇𖥨֗🍓⭟${prefix}phi3
+┊•.̇𖥨֗🍓⭟${prefix}qwen
+┊•.̇𖥨֗🍓⭟${prefix}qwen2
+┊•.̇𖥨֗🍓⭟${prefix}qwen3
+┊•.̇𖥨֗🍓⭟${prefix}qwencoder
+┊•.̇𖥨֗🍓⭟${prefix}llama
+┊•.̇𖥨֗🍓⭟${prefix}llama3
+┊•.̇𖥨֗🍓⭟${prefix}baichuan
+┊•.̇𖥨֗🍓⭟${prefix}marin
+┊•.̇𖥨֗🍓⭟${prefix}mistral
+┊•.̇𖥨֗🍓⭟${prefix}magistral
+┊•.̇𖥨֗🍓⭟${prefix}rakutenai
+┊•.̇𖥨֗🍓⭟${prefix}rocket
+┊•.̇𖥨֗🍓⭟${prefix}swallow
+┊•.̇𖥨֗🍓⭟${prefix}falcon
 ╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯
 
 ╭┈❪🍧ฺꕸ▸ FERRAMENTAS*
 ┊
-┊•.̇𖥨֗🍓⭟${prefix}code-gen
 ┊•.̇𖥨֗🍓⭟${prefix}resumir
+┊•.̇𖥨֗🍓⭟${prefix}corrigir
+┊•.̇𖥨֗🍓⭟${prefix}ideias
+┊•.̇𖥨֗🍓⭟${prefix}explicar
+┊•.̇𖥨֗🍓⭟${prefix}resumirurl
 ╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯
 `;
 }

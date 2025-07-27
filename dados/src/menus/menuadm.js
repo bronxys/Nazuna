@@ -74,6 +74,7 @@ async function menuadm(prefix, botName = "MeuBot", userName = "Usuário", isLite
 ┊•.̇𖥨֗🍓⭟${prefix}autosticker
 ┊•.̇𖥨֗🍓⭟${prefix}soadm
 ┊•.̇𖥨֗🍓⭟${prefix}x9
+┊•.̇𖥨֗🍓⭟${prefix}assistente
 ┊•.̇𖥨֗🍓⭟${prefix}modolite
 ┊•.̇𖥨֗🍓⭟${prefix}cmdlimit
 ┊•.̇𖥨֗🍓⭟${prefix}antilinkgp
