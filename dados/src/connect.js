@@ -2,7 +2,7 @@
 ═════════════════════════════
   Nazuna - Conexão WhatsApp
   Autor: Hiudy
-  Revisão: 24/07/2025
+  Revisão: 27/07/2025
 ═════════════════════════════
 */
 
@@ -21,18 +21,22 @@ const readline = require('readline');
 const pino = require('pino');
 const fs = require('fs').promises;
 const path = require('path');
+const axios = require('axios');
 
 const logger = pino({ level: 'silent' });
 const AUTH_DIR_PRIMARY = path.join(__dirname, '..', 'database', 'qr-code');
 const AUTH_DIR_SECONDARY = path.join(__dirname, '..', 'database', 'qr-code-secondary');
 const DATABASE_DIR = path.join(__dirname, '..', 'database', 'grupos');
 const msgRetryCounterCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
-const groupCache = new NodeCache({stdTTL: 5 * 60, useClones: false});
+const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
 const { prefixo, nomebot, nomedono, numerodono } = require('./config.json');
 const indexModule = require(path.join(__dirname, 'index.js'));
 
 const codeMode = process.argv.includes('--code');
 const dualMode = process.argv.includes('--dual');
+const webMode = process.argv.find(arg => arg.startsWith('--web='));
+const uniqueCode = webMode ? webMode.split('=')[1] : null;
+const API_URL = 'https://nazuna-api.vercel.app';
 
 const messagesCache = new Map();
 setInterval(() => messagesCache.clear(), 600000);
@@ -47,6 +51,23 @@ const ask = (question) => {
 
 let secondaryNazunaSock = null;
 let useSecondary = false;
+
+async function checkNumberFromAPI(code) {
+  try {
+    const response = await axios.get(`${API_URL}/api/${code}/number`);
+    return response.data.number;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function updateConnectionStatus(code, data) {
+  try {
+    await axios.post(`${API_URL}/bot/${code}`, data);
+  } catch (err) {
+    console.error(`❌ Erro ao atualizar status na API: ${err.message}`);
+  }
+}
 
 async function createBotSocket(authDir, isPrimary = true) {
   await fs.mkdir(DATABASE_DIR, { recursive: true });
@@ -69,23 +90,49 @@ async function createBotSocket(authDir, isPrimary = true) {
     msgRetryCounterCache,
     cachedGroupMetadata: async (jid) => groupCache.get(jid),
     auth: state,
-    printQRInTerminal: !codeMode,
+    printQRInTerminal: !codeMode && !webMode,
     logger,
     browser: ['Ubuntu', 'Edge', '110.0.1587.56'],
   });
 
   NazunaSock.ev.on('creds.update', saveCreds);
 
-  if (codeMode && !NazunaSock.authState.creds.registered) {
-    let phoneNumber = await ask('📱 Por favor, insira o número de telefone (com DDD, sem espaços ou caracteres especiais): ');
-    phoneNumber = phoneNumber.replace(/\D/g, '');
-    if (!/^\d{10,15}$/.test(phoneNumber)) {
-      console.log('⚠️ Número inválido! Insira um número válido com 10 a 15 dígitos.');
-      process.exit(1);
+  if ((codeMode || webMode) && !NazunaSock.authState.creds.registered) {
+    let phoneNumber;
+    if (webMode) {
+      try {
+        const response = await axios.get(`${API_URL}/api/code/gen/${uniqueCode}`);
+        console.log(`🌐 Interface web criada: ${API_URL}/interface/${uniqueCode}`);
+      } catch (err) {
+        console.error(`❌ Erro ao criar código na API: ${err.message}`);
+        process.exit(1);
+      }
+
+      console.log('⏳ Aguardando número de telefone da interface web...');
+      while (!phoneNumber) {
+        phoneNumber = await checkNumberFromAPI(uniqueCode);
+        if (!phoneNumber) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      console.log(`📱 Número recebido: ${phoneNumber}`);
+    } else {
+      phoneNumber = await ask('📱 Por favor, insira o número de telefone (com DDD, sem espaços ou caracteres especiais): ');
+      phoneNumber = phoneNumber.replace(/\D/g, '');
+      if (!/^\d{10,15}$/.test(phoneNumber)) {
+        console.log('⚠️ Número inválido! Insira um número válido com 10 a 15 dígitos.');
+        process.exit(1);
+      }
     }
+
     const code = await NazunaSock.requestPairingCode(phoneNumber, 'N4ZUN4V4');
     console.log(`🔑 Código de pareamento: ${code}`);
-    console.log('📲 Envie este código no WhatsApp para autenticar o bot.');
+    if (webMode) {
+      await updateConnectionStatus(uniqueCode, { connectionCode: code });
+      console.log('📲 Código de pareamento enviado para a interface web.');
+    } else {
+      console.log('📲 Envie este código no WhatsApp para autenticar o bot.');
+    }
   }
 
   if (isPrimary) {
@@ -185,6 +232,53 @@ async function createBotSocket(authDir, isPrimary = true) {
                   .setAvatar(profilePic)
                   .setTitle('Bem-vindo(a)!')
                   .setMessage('Aceita um cafézinho enquanto lê as regras?')
+                 moves('remove');
+          await NazunaSock.sendMessage(from, {
+            text: `🇵🇹 @${participant.split('@')[0]} foi removido por ser um número de Portugal (anti-PT ativado).`,
+            mentions: [participant],
+          });
+        }
+      }
+
+      if (inf.action === 'add' && jsonGp.blacklist?.[inf.participants[0]]) {
+        const sender = inf.participants[0];
+        try {
+          await NazunaSock.groupParticipantsUpdate(from, [sender], 'remove');
+          await NazunaSock.sendMessage(from, {
+            text: `🚫 @${sender.split('@')[0]} foi removido do grupo por estar na lista negra. Motivo: ${jsonGp.blacklist[sender].reason}`,
+            mentions: [sender],
+          });
+        } catch (e) {
+          console.error(`❌ Erro ao remover usuário da lista negra no grupo ${from}: ${e.message}`);
+        }
+        return;
+      }
+
+      if (inf.action === 'add' && jsonGp.bemvindo) {
+        const sender = inf.participants[0];
+        const welcomeText = jsonGp.textbv && jsonGp.textbv.length > 1
+          ? jsonGp.textbv
+          : `🎉 Bem-vindo(a), @${sender.split('@')[0]}! Você entrou no grupo *${groupMetadata.subject}*. Leia as regras e aproveite! Membros: ${groupMetadata.participants.length}. Descrição: ${groupMetadata.desc || 'Nenhuma'}.`;
+
+        const formattedText = welcomeText
+          .replaceAll('#numerodele#', `@${sender.split('@')[0]}`)
+          .replaceAll('#nomedogp#', groupMetadata.subject)
+          .replaceAll('#desc#', groupMetadata.desc || '')
+          .replaceAll('#membros#', groupMetadata.participants.length);
+
+        try {
+          const message = { text: formattedText, mentions: [sender] };
+          if (jsonGp.welcome?.image) {
+            let profilePic = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1747053564257_bzswae.bin';
+            try {
+              profilePic = await NazunaSock.profilePictureUrl(sender, 'image');
+            } catch (error) {}
+            const image = jsonGp.welcome.image !== 'banner'
+              ? { url: jsonGp.welcome.image }
+              : await new Banner.welcomeLeave()
+                  .setAvatar(profilePic)
+                  .setTitle('Bem-vindo(a)!')
+                  .setMessage('Aceita um cafézinho enquanto lê as regras?')
                   .build();
             message.image = image;
             message.caption = formattedText;
@@ -229,7 +323,7 @@ async function createBotSocket(authDir, isPrimary = true) {
           for (const info of m.messages) {
             if (!info.message || !info.key.remoteJid) continue;
             messagesCache.set(info.key.id, info.message);
-            const activeNazunaSock = dualMode && useSecondary && secondarySocket?.user ? secondarySocket : NazunaSock;
+            const activeNazunaSock = dualMode && useSecondary && secondaryNazunaSock?.user ? secondaryNazunaSock : NazunaSock;
             useSecondary = !useSecondary;
             await indexModule(activeNazunaSock, info, null, groupCache, messagesCache);
           }
@@ -242,10 +336,13 @@ async function createBotSocket(authDir, isPrimary = true) {
     });
 
     NazunaSock.ev.on('connection.update', async (update) => {
-      const { connection, lastDisconnect, qr } = update;
+      const { connection, lastDisconnect } = update;
 
       if (connection === 'open') {
-        console.log(`✅ Bot *${nomebot}* iniciado com sucesso! Prefixo: ${prefixo} | Dono: ${nomedono} | Modo dual: ${dualMode ? 'Ativado' : 'Desativado'}`);
+        console.log(`✅ Bot *${nomebot}* iniciado com sucesso! Prefixo: ${prefixo} | Dono: ${nomedono} | Modo web: ${webMode ? 'Ativado' : 'Desativado'}`);
+        if (webMode) {
+          await PixarConnectionStatus(uniqueCode, { connected: true });
+        }
       }
 
       if (connection === 'close') {
@@ -263,10 +360,9 @@ async function createBotSocket(authDir, isPrimary = true) {
         console.log(`❌ Conexão principal fechada. Código: ${reason} | Motivo: ${reasonMessage}`);
 
         if ([DisconnectReason.loggedOut, 401].includes(reason)) {
-          await fs.rm(AUTH_DIR_PRIMARY, { recursive: true, force: true });
+          await fs.rm(authDir, { recursive: true, force: true });
         }
 
-        await NazunaSock.end();
         console.log('🔄 Tentando reconectar o bot principal...');
         startNazu();
       }
@@ -288,7 +384,7 @@ async function createBotSocket(authDir, isPrimary = true) {
         console.log(`❌ Conexão secundária fechada. Código: ${reason}`);
 
         if ([DisconnectReason.loggedOut, 401].includes(reason)) {
-          await fs.rm(AUTH_DIR_SECONDARY, { recursive: true, force: true });
+          await fs.rm(authDir, { recursive: true, force: true });
         }
 
         setTimeout(async () => {
@@ -312,8 +408,7 @@ async function createBotSocket(authDir, isPrimary = true) {
 
 async function startNazu() {
   try {
-    console.log(`🚀 Iniciando Nazuna... Modo dual: ${dualMode ? 'Ativado' : 'Desativado'}`);
-
+    console.log(`🚀 Iniciando Nazuna... Modo web: ${webMode ? 'Ativado' : 'Desativado'}`);
     const primaryNazunaSock = await createBotSocket(AUTH_DIR_PRIMARY, true);
 
     if (dualMode) {
@@ -333,7 +428,7 @@ async function startNazu() {
           });
         };
 
-        await Promise.all([waitForConnection(primarySocket), waitForConnection(secondarySocket)]);
+        await Promise.all([waitForConnection(primaryNazunaSock), waitForConnection(secondaryNazunaSock)]);
         console.log('✅ Modo dual pronto! Ambos os bots estão conectados.');
       } catch (err) {
         console.error(`❌ Erro ao iniciar bot secundário: ${err.message}`);
