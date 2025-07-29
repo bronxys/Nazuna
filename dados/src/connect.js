@@ -314,10 +314,6 @@ async function createBotSocket(authDir, isPrimary = true) {
         }[reason] || 'Motivo desconhecido';
         console.log(`❌ Conexão principal fechada. Código: ${reason} | Motivo: ${reasonMessage}`);
 
-        if ([DisconnectReason.loggedOut, 401].includes(reason)) {
-          await fs.rm(authDir, { recursive: true, force: true });
-        }
-
         console.log('🔄 Tentando reconectar o bot principal...');
         startNazu();
       }
@@ -337,10 +333,6 @@ async function createBotSocket(authDir, isPrimary = true) {
       if (connection === 'close') {
         const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
         console.log(`❌ Conexão secundária fechada. Código: ${reason}`);
-
-        if ([DisconnectReason.loggedOut, 401].includes(reason)) {
-          await fs.rm(authDir, { recursive: true, force: true });
-        }
 
         setTimeout(async () => {
           try {
