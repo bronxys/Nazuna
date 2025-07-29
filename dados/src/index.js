@@ -2855,7 +2855,7 @@ case 'ytmp4':
   if (!isOwner) return reply("Este comando é apenas para o meu dono");
   try {
     if (!q) return reply('❌ Digite o nome do comando. Exemplo: '+prefix+'getcase menu');
-    caseCode = (fs.readFileSync("./index.js", "utf-8").match(new RegExp(`case\\s*["'\`]${q}["'\`]\\s*:[\\s\\S]*?break\\s*;?`, "i")) || [])[0];
+    caseCode = (fs.readFileSync(__dirname+"/index.js", "utf-8").match(new RegExp(`case\\s*["'\`]${q}["'\`]\\s*:[\\s\\S]*?break\\s*;?`, "i")) || [])[0];
     await nazu.sendMessage(from, { document: Buffer.from(caseCode, 'utf-8'), mimetype: 'text/plain', fileName: `${q}.txt` }, { quoted: info });
   } catch (e) {
     console.error(e);
