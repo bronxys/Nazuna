@@ -3019,7 +3019,7 @@ case 'ytmp4':
   try {
     const botStateFile = __dirname + '/../database/botState.json';
     
-    const isOn = botState.status === 'on';
+    const isOn = botState.status === 'on'; 
     if (command === 'boton' && isOn) {
       return reply('🌟 O bot já está ativado!');
     } 
