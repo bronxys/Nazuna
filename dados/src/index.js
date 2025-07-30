@@ -3022,7 +3022,7 @@ case 'ytmp4':
     const isOn = botState.status === 'on';
     if (command === 'boton' && isOn) {
       return reply('🌟 O bot já está ativado!');
-    }
+    } 
     if (command === 'botoff' && !isOn) {
       return reply('🌙 O bot já está desativado!');
     }
