@@ -1691,7 +1691,7 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
     text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
   });
   return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
-}
+} 
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Mistral... ✨`);
       const response = await ia.makeCognimaRequest('mistralai/mistral-small-24b-instruct', q, null, KeyCog || null);
