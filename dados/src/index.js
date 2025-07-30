@@ -2285,7 +2285,7 @@ case 'listaaluguel':
           status = 'Permanente';
         } else if (new Date(info.expiresAt) > new Date()) {
           status = 'Ativo';
-        }
+        } 
 
         const shouldInclude =
           !filtro ||
