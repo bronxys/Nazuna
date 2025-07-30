@@ -1664,7 +1664,7 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
       await reply(`😓 Poxa, algo deu errado com o Marin! Tente novamente em alguns instantes, tá? 🌈`);
     }
     break;
-
+ 
   case 'kimi':
   case 'kimik2':
     if (!q) return reply(`🤔 Qual sua dúvida para o Kimi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
