@@ -3011,7 +3011,7 @@ case 'ytmp4':
     console.error(e);
     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
   }
-  break;
+  break; 
   
   case 'boton':
   case 'botoff':
