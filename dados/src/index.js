@@ -1431,7 +1431,7 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'equalizar':
   case 'reverse':
   case 'audioreverso':
-  case 'pitch':
+  case 'pitch': 
   case 'flanger':
   case 'grave':
   case 'vozgrave':
