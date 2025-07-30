@@ -1415,7 +1415,7 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'slowvoice':
   case 'vozlenta':
   case 'audiolento':
-  case 'fastvoice':
+  case 'fastvoice': 
   case 'vozrapida':
   case 'audiorapido':
   case 'cavevoice':
