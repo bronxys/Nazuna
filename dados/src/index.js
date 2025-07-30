@@ -1427,7 +1427,7 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'aumentarvolume':
   case 'reverb':
   case 'drive':
-  case 'equalizer':
+  case 'equalizer': 
   case 'equalizar':
   case 'reverse':
   case 'audioreverso':
