@@ -3033,7 +3033,7 @@ case 'ytmp4':
     const message = command === 'boton' ? '✅ *Bot ativado!* Agora todos podem usar os comandos.' : '✅ *Bot desativado!* Apenas o dono pode usar comandos.';
     
     await reply(message);
-  } catch (e) {
+  } catch (e) { 
     console.error(e);
     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
   }
