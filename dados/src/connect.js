@@ -2,7 +2,7 @@
 ═════════════════════════════
   Nazuna - Conexão WhatsApp
   Autor: Hiudy
-  Revisão: 28/07/2025
+  Revisão: 30/07/2025
 ═════════════════════════════
 */
 
@@ -85,7 +85,7 @@ async function createBotSocket(authDir, isPrimary = true) {
     markOnlineOnConnect: true,
     connectTimeoutMs: 60000,
     qrTimeout: 180000,
-    keepAliveIntervalMs: 10000,
+    keepAliveIntervalMs: 20000,
     defaultQueryTimeoutMs: 0,
     msgRetryCounterCache,
     cachedGroupMetadata: async (jid) => groupCache.get(jid),
@@ -294,7 +294,7 @@ async function createBotSocket(authDir, isPrimary = true) {
       const { connection, lastDisconnect } = update;
 
       if (connection === 'open') {
-        console.log(`✅ Bot *${nomebot}* iniciado com sucesso! Prefixo: ${prefixo} | Dono: ${nomedono} | Modo web: ${webMode ? 'Ativado' : 'Desativado'}`);
+        console.log(`✅ Bot ${nomebot} iniciado com sucesso! Prefixo: ${prefixo} | Dono: ${nomedono} | Modo web: ${webMode ? 'Ativado' : 'Desativado'}`);
         if (webMode) {
           await updateConnectionStatus(uniqueCode, { connected: true });
         }

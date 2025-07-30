@@ -7,25 +7,21 @@ const { spawn } = require('child_process');
 const readline = require('readline');
 const os = require('os');
 
-// Configuration paths and constants
 const CONFIG_PATH = path.join(process.cwd(), 'dados', 'src', 'config.json');
 const NODE_MODULES_PATH = path.join(process.cwd(), 'node_modules');
 const QR_CODE_DIR = path.join(process.cwd(), 'dados', 'database', 'qr-code');
 const CONNECT_FILE = path.join(process.cwd(), 'dados', 'src', 'connect.js');
-const RESTART_DELAY = 50; // milliseconds
+const RESTART_DELAY = 50;
 const isWindows = os.platform() === 'win32';
 const dualMode = process.argv.includes('dual');
 
-// Version extraction from package.json
 let version = 'Desconhecida';
 try {
   const packageJson = JSON.parse(fsSync.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
   version = packageJson.version;
 } catch (error) {
-  // Silently handle missing package.json
 }
 
-// ANSI color codes for console output
 const colors = {
   reset: '\x1b[0m',
   green: '\x1b[1;32m',
@@ -38,7 +34,6 @@ const colors = {
   bold: '\x1b[1m',
 };
 
-// Console message helpers
 function mensagem(text) {
   console.log(`${colors.green}${text}${colors.reset}`);
 }
@@ -59,13 +54,11 @@ function separador() {
   console.log(`${colors.blue}============================================${colors.reset}`);
 }
 
-// Bot process management
 let botProcess = null;
 let restartCount = 0;
 const MAX_RESTART_COUNT = 10;
 const RESTART_COUNT_RESET_INTERVAL = 60000;
 
-// Graceful shutdown setup
 function setupGracefulShutdown() {
   const shutdown = () => {
     console.log('\n');
@@ -89,7 +82,6 @@ function setupGracefulShutdown() {
   }
 }
 
-// Display startup header
 async function displayHeader() {
   const header = [
     `${colors.bold}🚀 Nazuna - Conexão WhatsApp${colors.reset}`,
@@ -107,7 +99,6 @@ async function displayHeader() {
   console.log();
 }
 
-// Check prerequisites and auto-run npm run config:install if node_modules is missing
 async function checkPrerequisites() {
   if (!fsSync.existsSync(CONFIG_PATH)) {
     aviso('⚠️ Arquivo de configuração (config.json) não encontrado!');
@@ -151,7 +142,6 @@ async function checkPrerequisites() {
   }
 }
 
-// Start the bot process
 function startBot(codeMode = false) {
   const args = ['--expose-gc', CONNECT_FILE];
   if (codeMode) args.push('--code');
@@ -179,7 +169,6 @@ function startBot(codeMode = false) {
   return botProcess;
 }
 
-// Restart the bot with exponential backoff
 function restartBot(codeMode) {
   restartCount++;
   let delay = RESTART_DELAY;
@@ -201,7 +190,6 @@ function restartBot(codeMode) {
   }, delay);
 }
 
-// Check for existing session
 async function checkAutoConnect() {
   try {
     if (!fsSync.existsSync(QR_CODE_DIR)) {
@@ -217,7 +205,6 @@ async function checkAutoConnect() {
   }
 }
 
-// Prompt user for connection method
 async function promptConnectionMethod() {
   return new Promise((resolve) => {
     const rl = readline.createInterface({
@@ -255,7 +242,6 @@ async function promptConnectionMethod() {
   });
 }
 
-// Main function to initialize the bot
 async function main() {
   try {
     setupGracefulShutdown();
@@ -275,7 +261,6 @@ async function main() {
   }
 }
 
-// Execute main function
 main().catch((error) => {
   aviso(`❌ Erro fatal: ${error.message}`);
   process.exit(1);

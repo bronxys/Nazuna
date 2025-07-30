@@ -2,8 +2,7 @@
 // Nazuna Bot - Index principal
 // Criado por: Hiudy
 // Versão: 4.0.0
-// Atualizado: 27/07/2025
-// Donate: https://cognima.com.br/donate
+// Atualizado: 30/07/2025
 // ====================
 
 
@@ -19,9 +18,6 @@ const Banner = require("@cognima/banners");
 const cron = require('node-cron');
 
 
-let SocketActions = null;
-
-
 const { version: botVersion } = JSON.parse(fs.readFileSync(pathz.join(__dirname, '..', '..', 'package.json')));
 
 
@@ -29,7 +25,6 @@ const DATABASE_DIR = __dirname + '/../database';
 const GRUPOS_DIR = DATABASE_DIR + '/grupos';
 const USERS_DIR = DATABASE_DIR + '/users';
 const DONO_DIR = DATABASE_DIR + '/dono';
-const DIR_PROGRAM = pathz.join(DATABASE_DIR, 'prog_actions.json');
 const PARCERIAS_DIR = pathz.join(DATABASE_DIR, 'parcerias');
 const LEVELING_FILE = pathz.join(DATABASE_DIR, 'leveling.json');
 
@@ -458,17 +453,16 @@ function checkLevelDown(userId, userData, levelingData) {
   userData.patent = getPatent(userData.level, levelingData.patents);
 }
 
-async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
-  SocketActions = nazu;
-  
+async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {  
   var config = JSON.parse(fs.readFileSync(__dirname+'/config.json'));
   var { numerodono, nomedono, nomebot, prefixo, debug } = config;
+  var KeyCog = config.apikey || false;
   var { menu, menudown, menuadm, menubn, menuDono, menuMembros, menuFerramentas, menuSticker, menuIa, menuAlterador, menuLogos, menuTopCmd } = require(`${__dirname}/menus/index.js`);
   var prefix = prefixo;
   var numerodono = String(numerodono);
   
   const { youtube, tiktok, pinterest, igdl, sendSticker, FilmesDL, styleText, emojiMix, upload, mcPlugin, tictactoe, toolsJson, vabJson, apkMod, google, Lyrics, commandStats, ia, VerifyUpdate } = await require(__dirname+'/funcs/exports.js');
-    
+  
   const antipvData = loadJsonFile(DATABASE_DIR + '/antipv.json');
   const premiumListaZinha = loadJsonFile(DONO_DIR + '/premium.json');
   const banGpIds = loadJsonFile(DONO_DIR + '/bangp.json');
@@ -490,13 +484,13 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const from = info.key.remoteJid;
     const isGroup = from?.endsWith('@g.us') || false;
     if(!info.key.participant && !info.key.remoteJid) return;  
-    const sender = isGroup ? (info.key.participant?.includes(':') ? info.key.participant.split(':')[0] + '@s.whatsapp.net' : info.key.participant) : info.key.remoteJid;
+    const sender = isGroup ? (info.key.participant?.includes('whatsapp.net') ? info.key.participant : info.key.participantPn) : info.key.remoteJid;
     const pushname = info.pushName || '';
     const isStatus = from?.endsWith('@broadcast') || false;  
     const nmrdn = numerodono.replace(/[^\d]/g, "") + '@s.whatsapp.net';  
     const subDonoList = loadSubdonos();
     const isSubOwner = isSubdono(sender);
-    const isOwner = (nmrdn === sender) || (sender === "200416646160578@lid") || info.key.fromMe || isSubOwner;
+    const isOwner = (nmrdn === sender) || info.key.fromMe || isSubOwner;
     const isOwnerOrSub = isOwner || isSubOwner;
  
     const WaLib = require('@cognima/walib');
@@ -587,8 +581,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       return;
     };
  
-    const AllgroupMembers = !isGroup ? [] : groupMetadata.participants?.map(p => p.id) || [];
-    const groupAdmins = !isGroup ? [] : groupMetadata.participants?.filter(p => p.admin).map(p => p.id) || [];
+    const AllgroupMembers = !isGroup ? [] : groupMetadata.participants?.map(p => p.jid) || [];
+    const groupAdmins = !isGroup ? [] : groupMetadata.participants?.filter(p => p.admin).map(p => p.jid) || [];
   
     const botNumber = nazu.user.id.split(':')[0] + '@s.whatsapp.net';
     const isBotAdmin = !isGroup ? false : groupAdmins.includes(botNumber);
@@ -1265,7 +1259,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
  
     if(budy2.match(/^(\d+)d(\d+)$/))reply(+budy2.match(/^(\d+)d(\d+)$/)[1]>50||+budy2.match(/^(\d+)d(\d+)$/)[2]>100?"❌ Limite: max 50 dados e 100 lados":"🎲 Rolando "+budy2.match(/^(\d+)d(\d+)$/)[1]+"d"+budy2.match(/^(\d+)d(\d+)$/)[2]+"...\n🎯 Resultados: "+(r=[...Array(+budy2.match(/^(\d+)d(\d+)$/)[1])].map(_=>1+Math.floor(Math.random()*+budy2.match(/^(\d+)d(\d+)$/)[2]))).join(", ")+"\n📊 Total: "+r.reduce((a,b)=>a+b,0));
 
-if ((!info.key.fromMe && isAssistente && !isCmd) && ((budy2.includes('@' + nazu.user.id.split(':')[0])) || (menc_os2 && menc_os2 == (nazu.user.id.split(':')[0]+'@s.whatsapp.net')))) {
+if (((!info.key.fromMe && isAssistente && !isCmd) && ((budy2.includes('@' + nazu.user.id.split(':')[0])) || (menc_os2 && menc_os2 == (nazu.user.id.split(':')[0]+'@s.whatsapp.net')))) && KeyCog) {
   if (budy2.replaceAll('@' + nazu.user.id.split(':')[0], '').length > 2) {
     const jSoNzIn = {
       texto: budy2.replaceAll('@' + nazu.user.id.split(':')[0], '').trim(),
@@ -1291,7 +1285,7 @@ if ((!info.key.fromMe && isAssistente && !isCmd) && ((budy2.includes('@' + nazu.
       jSoNzIn.id_enviou_marcada = jsonO.participant;
       jSoNzIn.marcou_sua_mensagem = (jsonO.participant == (nazu.user.id.split(':')[0]+'@s.whatsapp.net'));
     };
-    const respAssist = await ia.makeAssistentRequest({mensagens: [jSoNzIn]}, pathz.join(__dirname, 'index.js'));
+    const respAssist = await ia.makeAssistentRequest({mensagens: [jSoNzIn]}, pathz.join(__dirname, 'index.js'), KeyCog || null);
     if(respAssist.resp && respAssist.resp.length > 0) {
       for(msgza of respAssist.resp) {
         if(msgza.react) await nazu.react(msgza.react.replaceAll(' ', '').replaceAll('\n', ''));
@@ -1543,9 +1537,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   
   case 'gemma':
     if (!q) return reply(`🤔 Qual sua dúvida para o Gemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Gemma... ✨`);
-      const response = await ia.makeCognimaRequest('google/gemma-7b', q);
+      const response = await ia.makeCognimaRequest('google/gemma-7b', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Gemma:', e);
@@ -1556,9 +1556,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'phi':
   case 'phi3':
     if (!q) return reply(`🤔 Qual sua dúvida para o Phi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Phi... ✨`);
-      const response = await ia.makeCognimaRequest('microsoft/phi-3-medium-4k-instruct', q);
+      const response = await ia.makeCognimaRequest('microsoft/phi-3-medium-4k-instruct', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Phi:', e);
@@ -1568,9 +1574,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'qwen2':
     if (!q) return reply(`🤔 Qual sua dúvida para o Qwen2? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Qwen2... ✨`);
-      const response = await ia.makeCognimaRequest('qwen/qwen2-7b-instruct', q);
+      const response = await ia.makeCognimaRequest('qwen/qwen2-7b-instruct', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Qwen2:', e);
@@ -1581,9 +1593,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'qwen':
   case 'qwen3':
     if (!q) return reply(`🤔 Qual sua dúvida para o Qwen? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Qwen... ✨`);
-      const response = await ia.makeCognimaRequest('qwen/qwen3-235b-a22b', q);
+      const response = await ia.makeCognimaRequest('qwen/qwen3-235b-a22b', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Qwen:', e);
@@ -1594,9 +1612,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'llama':
   case 'llama3':
     if (!q) return reply(`🤔 Qual sua dúvida para o Llama? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Llama... ✨`);
-      const response = await ia.makeCognimaRequest('abacusai/dracarys-llama-3.1-70b-instruct', q);
+      const response = await ia.makeCognimaRequest('abacusai/dracarys-llama-3.1-70b-instruct', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Llama:', e);
@@ -1607,9 +1631,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'baichuan':
   case 'baichuan2':
     if (!q) return reply(`🤔 Qual sua dúvida para o Baichuan? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Baichuan... ✨`);
-      const response = await ia.makeCognimaRequest('baichuan-inc/baichuan2-13b-chat', q);
+      const response = await ia.makeCognimaRequest('baichuan-inc/baichuan2-13b-chat', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Baichuan:', e);
@@ -1619,9 +1649,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'marin':
     if (!q) return reply(`🤔 Qual sua dúvida para o Marin? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Marin... ✨`);
-      const response = await ia.makeCognimaRequest('marin/marin-8b-instruct', q);
+      const response = await ia.makeCognimaRequest('marin/marin-8b-instruct', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Marin:', e);
@@ -1632,9 +1668,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'kimi':
   case 'kimik2':
     if (!q) return reply(`🤔 Qual sua dúvida para o Kimi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Kimi... ✨`);
-      const response = await ia.makeCognimaRequest('moonshotai/kimi-k2-instruct', q);
+      const response = await ia.makeCognimaRequest('moonshotai/kimi-k2-instruct', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Kimi:', e);
@@ -1644,9 +1686,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'mistral':
     if (!q) return reply(`🤔 Qual sua dúvida para o Mistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Mistral... ✨`);
-      const response = await ia.makeCognimaRequest('mistralai/mistral-small-24b-instruct', q);
+      const response = await ia.makeCognimaRequest('mistralai/mistral-small-24b-instruct', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Mistral:', e);
@@ -1656,9 +1704,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'magistral':
     if (!q) return reply(`🤔 Qual sua dúvida para o Magistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Magistral... ✨`);
-      const response = await ia.makeCognimaRequest('mistralai/magistral-small-2506', q);
+      const response = await ia.makeCognimaRequest('mistralai/magistral-small-2506', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Magistral:', e);
@@ -1669,9 +1723,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'rakutenai':
   case 'rocket':
     if (!q) return reply(`🤔 Qual sua dúvida para o RakutenAI? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o RakutenAI... ✨`);
-      const response = await ia.makeCognimaRequest('rakuten/rakutenai-7b-instruct', q);
+      const response = await ia.makeCognimaRequest('rakuten/rakutenai-7b-instruct', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API RakutenAI:', e);
@@ -1681,9 +1741,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'yi':
     if (!q) return reply(`🤔 Qual sua dúvida para o Yi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Yi... ✨`);
-      const response = await ia.makeCognimaRequest('01-ai/yi-large', q);
+      const response = await ia.makeCognimaRequest('01-ai/yi-large', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Yi:', e);
@@ -1693,9 +1759,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'gemma2':
     if (!q) return reply(`🤔 Qual sua dúvida para o Gemma2? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Gemma2... ✨`);
-      const response = await ia.makeCognimaRequest('google/gemma-2-27b-it', q);
+      const response = await ia.makeCognimaRequest('google/gemma-2-27b-it', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Gemma2:', e);
@@ -1705,9 +1777,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'swallow':
     if (!q) return reply(`🤔 Qual sua dúvida para o Swallow? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Swallow... ✨`);
-      const response = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', q);
+      const response = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Swallow:', e);
@@ -1717,9 +1795,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'falcon':
     if (!q) return reply(`🤔 Qual sua dúvida para o Falcon? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Falcon... ✨`);
-      const response = await ia.makeCognimaRequest('tiiuae/falcon3-7b-instruct', q);
+      const response = await ia.makeCognimaRequest('tiiuae/falcon3-7b-instruct', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Falcon:', e);
@@ -1729,9 +1813,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'qwencoder':
     if (!q) return reply(`🤔 Qual sua dúvida para o Qwencoder? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Qwencoder... ✨`);
-      const response = await ia.makeCognimaRequest('qwen/qwen2.5-coder-32b-instruct', q);
+      const response = await ia.makeCognimaRequest('qwen/qwen2.5-coder-32b-instruct', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API Qwencoder:', e);
@@ -1741,9 +1831,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'codegemma':
     if (!q) return reply(`🤔 Qual sua dúvida para o CodeGemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply(`⏳ Só um segundinho, estou consultando o CodeGemma... ✨`);
-      const response = await ia.makeCognimaRequest('google/codegemma-7b', q);
+      const response = await ia.makeCognimaRequest('google/codegemma-7b', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API CodeGemma:', e);
@@ -1753,10 +1849,16 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'resumir':
     if (!q) return reply(`📝 Quer um resumo? Envie o texto logo após o comando ${prefix}resumir! Exemplo: ${prefix}resumir [seu texto aqui] 😊`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply('⏳ Aguarde enquanto preparo um resumo bem caprichado... ✨');
       const prompt = `Resuma o seguinte texto em poucos parágrafos, de forma clara e objetiva, destacando as informações mais importantes:\n\n${q}`;
-      const response = await ia.makeCognimaRequest('cognima/CognimAI', prompt);
+      const response = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', prompt, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro ao resumir texto:', e);
@@ -1766,6 +1868,12 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
     
   case 'resumirurl':
     if (!q) return reply(`🌐 Quer resumir uma página? Envie a URL após o comando ${prefix}resumirurl! Exemplo: ${prefix}resumirurl https://exemplo.com/artigo 😊`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       if (!q.startsWith('http://') && !q.startsWith('https://')) {
         return reply(`🚫 Ops, parece que a URL é inválida! Certifique-se de incluir http:// ou https://. Exemplo: ${prefix}resumirurl https://exemplo.com/artigo 😊`);
@@ -1788,9 +1896,9 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
         return reply(`😓 Ops, não encontrei conteúdo suficiente para resumir nessa página! Tente outra URL, tá? 🌐`);
       }
 
-      const prompt = `Resuma o seguinte conteúdo extraído de uma página web em poucos parágrafos, de forma clara e objetiva, destacando os pontos principais:\n\n${cleanText.substring(0, 5000)}`; // Limita a 5000 caracteres
+      const prompt = `Resuma o seguinte conteúdo extraído de uma página web em poucos parágrafos, de forma clara e objetiva, destacando os pontos principais:\n\n${cleanText.substring(0, 5000)}`;
 
-      const iaResponse = await ia.makeCognimaRequest('cognima/CognimAI', prompt);
+      const iaResponse = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', prompt, null, KeyCog || null);
       await reply(iaResponse.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro ao resumir URL:', e.message);
@@ -1806,10 +1914,16 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
     case 'ideias': case 'ideia':
   if (!q) return reply(`💡 Quer ideias criativas? Diga o tema após o comando ${prefix}ideias! Exemplo: ${prefix}ideias nomes para um aplicativo de receitas 😊`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
   try {
     await reply('⏳ Um segundinho, estou pensando em ideias incríveis... ✨');
     const prompt = `Gere 15 ideias criativas e detalhadas para o seguinte tema: ${q}`;
-    const response = await ia.makeCognimaRequest('cognima/CognimAI', prompt);
+    const response = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', prompt, null, KeyCog || null);
     await reply(response.data.choices[0].message.content);
   } catch (e) {
     console.error('Erro ao gerar ideias:', e);
@@ -1819,10 +1933,16 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   
   case 'explicar': case 'explique':
   if (!q) return reply(`🤓 Quer entender algo? Diga o que deseja explicar após o comando ${prefix}explicar! Exemplo: ${prefix}explicar o que é inteligência artificial 😊`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
   try {
     await reply('⏳ Um momentinho, estou preparando uma explicação bem clara... ✨');
     const prompt = `Explique o seguinte conceito de forma simples e clara, como se fosse para alguém sem conhecimento prévio: ${q}`;
-    const response = await ia.makeCognimaRequest('cognima/CognimAI', prompt);
+    const response = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', prompt, null, KeyCog || null);
     await reply(response.data.choices[0].message.content);
   } catch (e) {
     console.error('Erro ao explicar conceito:', e);
@@ -1832,10 +1952,16 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   
   case 'corrigir': case 'correcao':
   if (!q) return reply(`✍️ Quer corrigir um texto? Envie o texto após o comando ${prefix}corrigir! Exemplo: ${prefix}corrigir Eu foi no mercado e comprei frutas. 😊`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
   try {
     await reply('⏳ Aguarde enquanto dou um polimento no seu texto... ✨');
     const prompt = `Corrija os erros gramaticais, ortográficos e de estilo no seguinte texto, mantendo o significado original: ${q}`;
-    const response = await ia.makeCognimaRequest('cognima/CognimAI', prompt);
+    const response = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', prompt, null, KeyCog || null);
     await reply(response.data.choices[0].message.content);
   } catch (e) {
     console.error('Erro ao corrigir texto:', e);
@@ -1845,9 +1971,15 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
 
   case 'cog':
     if (!q) return reply(`📢 Ei, falta a pergunta! Me diga o que quer saber após o comando ${prefix}cog! 😴`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply('⏳ Um momentinho, estou pensando na melhor resposta... 🌟');
-      const response = await ia.makeCognimaRequest('cognima/CognimAI', q);
+      const response = await ia.makeCognimaRequest('cognima/CognimAI', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
     } catch (e) {
       console.error('Erro na API CognimAI:', e);
@@ -1858,6 +1990,12 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'tradutor': case 'translator':
     if (!q) return reply(`🌍 Quer traduzir algo? Me diga o idioma e o texto assim: ${prefix}${command} idioma | texto
 Exemplo: ${prefix}tradutor inglês | Bom dia! 😊`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     try {
       await reply('Aguarde um momentinho... ☀️');
       const partes = q.split('|');
@@ -1868,7 +2006,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       const idioma = partes[0].trim();
       const texto = partes.slice(1).join('|').trim();
       const prompt = `Traduza o seguinte texto para ${idioma}:\n\n${texto}\n\nForneça apenas a tradução, sem explicações adicionais.`;
-      const bahz = await ia.makeCognimaRequest('cognima/CognimAI', prompt);
+      const bahz = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', prompt, null, KeyCog || null);
       await reply(`🌐✨ *Prontinho! Sua tradução para ${idioma.toUpperCase()} está aqui:*\n\n${bahz.data.choices[0].message.content}`);
     } catch (e) {
       console.error("Erro ao traduzir texto:", e);
@@ -1945,6 +2083,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
   
   case 'dicionario': case 'dictionary':
     if (!q) return reply(`📔 Qual palavra você quer procurar no dicionário? Me diga após o comando ${prefix}${command}! 😊`);
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     reply("📔 Procurando no dicionário... Aguarde um pouquinho! ⏳");
     try {
       const palavra = q.trim().toLowerCase();
@@ -1975,7 +2119,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       }
       if (!definicaoEncontrada) {
         const prompt = `Defina a palavra "${palavra}" em português de forma completa e fofa. Inclua a classe gramatical, os principais significados e um exemplo de uso em uma frase curta e bonitinha.`;
-        const bahz = await ia.makeCognimaRequest('cognima/CognimAI', prompt);
+        const bahz = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', prompt, null, KeyCog || null);
         await reply(`${bahz.data.choices[0].message.content}`);
         definicaoEncontrada = true;
       }
@@ -2046,7 +2190,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       let participantsInfo = {};
       if (isGroup && groupMetadata.participants) {
           groupMetadata.participants.forEach(p => {
-              participantsInfo[p.id] = p.pushname || p.id.split('@')[0];
+              participantsInfo[p.jid] = p.pushname || p.jid.split('@')[0];
           });
       }
       subdonos.forEach((jid, index) => {
@@ -2372,6 +2516,12 @@ case 'ranklevel':
   break
   
   case 'shazam':
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
   try {
     if ((isMedia && !info.message.imageMessage && !info.message.videoMessage) || isQuotedAudio) {
       const muk = isQuotedAudio ? info.message.extendedTextMessage.contextInfo.quotedMessage.audioMessage : info.message.audioMessage;
@@ -2993,19 +3143,71 @@ case 'ytmp4':
   await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
   };
   break
+   
+  case 'prefixo': case 'prefix': try {
+  if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
+  if (!q) return reply(`Por favor, digite o novo prefixo.\nExemplo: ${prefix}${command} /`);
+  let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
+  config.prefixo = q;
+  fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
+  await reply(`Prefixo alterado com sucesso para "${q}"!`);
+} catch (e) {
+  console.error(e);
+  await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes, por favor! 🥺");
+}
+break;
 
-   case 'prefixo':case 'numerodono':case 'nomedono':case 'nomebot': try {
-    if(!isOwner) return reply("Este comando é apenas para o meu dono");
-    if (!q) return reply(`Uso correto: ${prefix}${command} <valor>`);
-     let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
-     config[command] = q;
-     fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
-     reply(`✅ ${command} atualizado para: *${q}*`);
-   } catch (e) {
-   console.error(e);
-   reply("ocorreu um erro 💔");
-   };
-  break;
+case 'numerodono': case 'numero-dono': try {
+  if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
+  if (!q) return reply(`Por favor, digite o novo número do dono.\nExemplo: ${prefix}${command} +553399285117`);
+  let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
+  config.numerodono = q;
+  fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
+  await reply(`Número do dono alterado com sucesso para "${q}"!`);
+} catch (e) {
+  console.error(e);
+  await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes, por favor! 🥺");
+}
+break;
+
+case 'nomedono': case 'nome-dono': try {
+  if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
+  if (!q) return reply(`Por favor, digite o novo nome do dono.\nExemplo: ${prefix}${command} Hiudy`);
+  let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
+  config.nomedono = q;
+  fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
+  await reply(`Nome do dono alterado com sucesso para "${q}"!`);
+} catch (e) {
+  console.error(e);
+  await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes, por favor! 🥺");
+}
+break;
+
+case 'nomebot': case 'botname': case 'nome-bot': try {
+  if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
+  if (!q) return reply(`Por favor, digite o novo nome do bot.\nExemplo: ${prefix}${command} Nazuna`);
+  let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
+  config.nomebot = q;
+  fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
+  await reply(`Nome do bot alterado com sucesso para "${q}"!`);
+} catch (e) {
+  console.error(e);
+  await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes, por favor! 🥺");
+}
+break;
+
+case 'apikey': case 'api-key': try {
+  if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
+  if (!q) return reply(`Por favor, digite a nova API key.\nExemplo: ${prefix}${command} abc123xyz`);
+  let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
+  config.apikey = q;
+  fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
+  await reply(`API key alterada com sucesso para "${q}"!`);
+} catch (e) {
+  console.error(e);
+  await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes, por favor! 🥺");
+}
+break;
   
   case 'fotomenu':case 'videomenu':case 'mediamenu':case 'midiamenu': try {
    if(!isOwner) return reply("Este comando é apenas para o meu dono");
@@ -3629,7 +3831,7 @@ break;
       const desc = meta.desc?.toString() || "Sem descrição";
       const createdAt = meta.creation ? new Date(meta.creation * 1000).toLocaleString('pt-BR') : "Desconhecida";
 
-      const ownerJid = meta.owner || meta.participants.find(p => p.admin && p.isCreator)?.id || "unknown@s.whatsapp.net";
+      const ownerJid = meta.owner || meta.participants.find(p => p.admin && p.isCreator)?.jid || "unknown@s.whatsapp.net";
       const ownerTag = `@${ownerJid.split('@')[0]}`;
 
       const totalMembers = meta.participants.length;
@@ -4154,66 +4356,6 @@ case 'ping':
     reply("ocorreu um erro 💔");
   }
   break;
-  
-  case 'fechargp': case 'closegp':
-  try {
-    if (!isGroup) return reply("Este comando só funciona em grupos.");
-    if (!isGroupAdmin) return reply("Apenas administradores podem agendar o fechamento do grupo.");
-    if (!isBotAdmin) return reply("⚠️ Eu preciso ser administrador para fechar o grupo!");
-    if (!q) return reply(`Por favor, forneça o horário no formato HH:MM. Exemplo: ${groupPrefix}fechargp 22:00`);
-
-    const [hour, minute] = q.split(':').map(n => parseInt(n.trim()));
-    if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-      return reply("🤔 Formato de horário inválido! Use HH:MM (ex: 22:00).");
-    }
-
-    const actions = loadJsonFile(DIR_PROGRAM, []);
-    actions.push({
-      tipo: 'acao_repetida',
-      acao: 'FECHAR_GRUPO',
-      frequencia: 'diaria',
-      from: from,
-      sender: sender,
-      hora: { hora: String(hour).padStart(2, '0'), minuto: String(minute).padStart(2, '0') }
-    });
-    
-    fs.writeFileSync(DIR_PROGRAM, JSON.stringify(actions, null, 2));
-    await reply(`✅ Grupo será fechado diariamente às ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} (BRT)!`);
-  } catch (e) {
-    console.error('Erro no comando fechargp:', e);
-    await reply("Ocorreu um erro ao agendar o fechamento do grupo 💔");
-  }
-  break;
-
-  case 'abrirgp': case 'opengp':
-  try {
-    if (!isGroup) return reply("Este comando só funciona em grupos.");
-    if (!isGroupAdmin) return reply("Apenas administradores podem agendar a abertura do grupo.");
-    if (!isBotAdmin) return reply("⚠️ Eu preciso ser administrador para abrir o grupo!");
-    if (!q) return reply(`Por favor, forneça o horário no formato HH:MM. Exemplo: ${groupPrefix}abrirgp 08:00`);
-
-    const [hour, minute] = q.split(':').map(n => parseInt(n.trim()));
-    if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-      return reply("🤔 Formato de horário inválido! Use HH:MM (ex: 08:00).");
-    }
-
-    const actions = loadJsonFile(DIR_PROGRAM, []);
-    actions.push({
-      tipo: 'acao_repetida',
-      acao: 'ABRIR_GRUPO',
-      frequencia: 'diaria',
-      from: from,
-      sender: sender,
-      hora: { hora: String(hour).padStart(2, '0'), minuto: String(minute).padStart(2, '0') }
-    });
-    
-    fs.writeFileSync(DIR_PROGRAM, JSON.stringify(actions, null, 2));
-    await reply(`✅ Grupo será aberto diariamente às ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} (BRT)!`);
-  } catch (e) {
-    console.error('Erro no comando abrirgp:', e);
-    await reply("Ocorreu um erro ao agendar a abertura do grupo 💔");
-  }
-  break;
 
   case 'grupo': case 'gp': case 'group': try {
   if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
@@ -4644,13 +4786,13 @@ case 'dellimitmessage':
 
     if (!fantasmas.length) return reply(`🎉 Nenhum fantasma com até ${limite} msg.`);
 
-    const antes = (await nazu.groupMetadata(from)).participants.map(p => p.id || p.jid);
+    const antes = (await nazu.groupMetadata(from)).participants.map(p => p.jid || p.jid);
     try {
       await nazu.groupParticipantsUpdate(from, fantasmas, 'remove');
     } catch (e) {
       console.error("Erro ao remover:", e);
     }
-    const depois = (await nazu.groupMetadata(from)).participants.map(p => p.id || p.jid);
+    const depois = (await nazu.groupMetadata(from)).participants.map(p => p.jid || p.jid);
     const removidos = fantasmas.filter(jid => antes.includes(jid) && !depois.includes(jid)).length;
 
     reply(removidos === 0 ? `⚠️ Nenhum fantasma pôde ser removido com até ${limite} msg.` : `✅ ${removidos} fantasma(s) removido(s).`);
@@ -5184,6 +5326,12 @@ case 'listadv': case 'warninglist':
    
    case 'assistente': case 'assistent':
     try {
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
     if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
     if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
@@ -6195,104 +6343,5 @@ function getDiskSpaceInfo() {
     return { totalGb: 'N/A', freeGb: 'N/A', usedGb: 'N/A', percentUsed: 'N/A' };
   };
 };
-
-/*
-cron.schedule('* * * * *', async () => {
-  try {
-    if (!fs.existsSync(DIR_PROGRAM)) {
-      fs.writeFileSync(DIR_PROGRAM, JSON.stringify([], null, 2));
-    }
-
-    let actions = [];
-    try {
-      const data = fs.readFileSync(DIR_PROGRAM, 'utf-8');
-      actions = JSON.parse(data);
-    } catch (err) {
-      console.error('Erro ao ler/parsear prog_actions.json:', err);
-      return;
-    }
-
-    const now = new Date();
-    const offsetBRT = -3 * 60;
-    const nowBRT = new Date(now.getTime() + offsetBRT * 60 * 1000);
-    const current = {
-      year: nowBRT.getUTCFullYear(),
-      month: nowBRT.getUTCMonth() + 1,
-      day: nowBRT.getUTCDate(),
-      hour: nowBRT.getUTCHours(),
-      minute: nowBRT.getUTCMinutes(),
-      dayOfWeek: ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'][nowBRT.getUTCDay()]
-    };
-
-    let updatedActions = [...actions];
-    let actionsToRemove = [];
-
-    for (let i = 0; i < actions.length; i++) {
-      const action = actions[i];
-
-      let shouldExecute = false;
-
-      if (action.tipo === 'acao_repetida') {
-        const [actionHour, actionMinute] = [Number(action.hora.hora), Number(action.hora.minuto)];
-        if (actionHour === current.hour && actionMinute === current.minute) {
-          if (action.frequencia === 'diaria') {
-            shouldExecute = true;
-          } else if (action.frequencia === 'semanal' && action.dia_da_semana === current.dayOfWeek) {
-            shouldExecute = true;
-          } else if (action.frequencia === 'mensal' && Number(action.dia_do_mes) === current.day) {
-            shouldExecute = true;
-          }
-        }
-      } else if (action.tipo === 'lembrete' || action.tipo === 'grupo') {
-        if (
-          Number(action.data.ano) === current.year &&
-          Number(action.data.mes) === current.month &&
-          Number(action.data.dia) === current.day &&
-          Number(action.hora.hora) === current.hour &&
-          Number(action.hora.minuto) === current.minute
-        ) {
-          shouldExecute = true;
-          actionsToRemove.push(i);
-        }
-      }
-
-      if (!shouldExecute) continue;
-
-      try {
-        if (action.tipo === 'lembrete') {
-          const destino = action.destino === 'privado' ? action.sender : action.from;
-          const mention = action.sender.startsWith('@') ? action.sender : `@${action.sender}`;
-          await SocketActions.sendMessage(destino, {
-            text: `${action.texto}\n\n${mention}`,
-            mentions: [action.sender]
-          });
-        } else if (action.tipo === 'grupo') {
-          await SocketActions.groupSettingUpdate(
-            action.from,
-            action.acao === 'abrir' ? 'not_announcement' : 'announcement'
-          );
-        } else if (action.tipo === 'acao_repetida') {
-          if (action.acao === 'ENVIAR_LEMBRETE') {
-            const destino = action.dados_acao.destino === 'privado' ? action.sender : action.from;
-            const mention = action.sender.startsWith('@') ? action.sender : `@${action.sender.split('@')[0]}`;
-            await SocketActions.sendMessage(destino, {
-              text: `${action.dados_acao.lembrete}\n\n${mention}`,
-              mentions: [action.sender]
-            });
-          }
-        }
-      } catch (err) {
-        console.error(`Erro ao processar ação ${action.tipo}:`, err);
-      }
-    }
-
-    updatedActions = updatedActions.filter((_, index) => !actionsToRemove.includes(index));
-
-    fs.writeFileSync(DIR_PROGRAM, JSON.stringify(updatedActions, null, 2));
-  } catch (err) {
-    console.error('Erro na execução do cron:', err);
-  }
-});
-*/
 
 module.exports = NazuninhaBotExec;

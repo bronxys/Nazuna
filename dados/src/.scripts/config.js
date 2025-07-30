@@ -9,20 +9,16 @@ const os = require('os');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 
-// Configuration constants
 const CONFIG_FILE = path.join(process.cwd(), 'dados', 'src', 'config.json');
 const isWindows = os.platform() === 'win32';
 
-// Version extraction from package.json
 let version = 'Desconhecida';
 try {
   const packageJson = JSON.parse(fsSync.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
   version = packageJson.version;
 } catch (error) {
-  // Silently handle missing package.json
 }
 
-// ANSI color codes for console output
 const colors = {
   reset: '\x1b[0m',
   green: '\x1b[1;32m',
@@ -36,7 +32,6 @@ const colors = {
   underline: '\x1b[4m',
 };
 
-// Console message helpers
 function printMessage(text) {
   console.log(`${colors.green}${text}${colors.reset}`);
 }
@@ -57,7 +52,6 @@ function printSeparator() {
   console.log(`${colors.blue}============================================${colors.reset}`);
 }
 
-// Validate user input
 function validateInput(input, field) {
   switch (field) {
     case 'prefixo':
@@ -80,7 +74,6 @@ function validateInput(input, field) {
   }
 }
 
-// Graceful shutdown setup
 function setupGracefulShutdown() {
   const shutdown = () => {
     console.log('\n');
@@ -92,7 +85,6 @@ function setupGracefulShutdown() {
   process.on('SIGTERM', shutdown);
 }
 
-// Install dependencies using npm install --no-optional --force --no-bin-links
 async function installDependencies() {
   printSeparator();
   printMessage('📦 Instalando dependências...');
@@ -124,7 +116,6 @@ async function installDependencies() {
   }
 }
 
-// Display startup header
 async function displayHeader() {
   const header = [
     `${colors.bold}🚀 Configurador do Nazuna - Versão ${version}${colors.reset}`,
@@ -142,7 +133,6 @@ async function displayHeader() {
   console.log();
 }
 
-// Main configuration function
 async function main() {
   try {
     setupGracefulShutdown();
@@ -234,7 +224,6 @@ async function main() {
   }
 }
 
-// Prompt user for input with validation
 async function promptInput(rl, prompt, defaultValue, field = null) {
   return new Promise((resolve) => {
     const displayPrompt = `${prompt} ${colors.dim}(atual: ${defaultValue})${colors.reset}: `;
@@ -250,7 +239,6 @@ async function promptInput(rl, prompt, defaultValue, field = null) {
   });
 }
 
-// Prompt user for yes/no input
 async function confirm(rl, prompt, defaultValue = 'n') {
   return new Promise((resolve) => {
     const defaultText = defaultValue.toLowerCase() === 's' ? 'S/n' : 's/N';
@@ -261,7 +249,6 @@ async function confirm(rl, prompt, defaultValue = 'n') {
   });
 }
 
-// Execute main function
 main().catch((error) => {
   printWarning(`❌ Erro fatal: ${error.message}`);
   process.exit(1);

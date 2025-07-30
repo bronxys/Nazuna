@@ -66,6 +66,7 @@ async function menuadm(prefix, botName = "MeuBot", userName = "Usuário", isLite
 ╭┈❪🍧ฺꕸ▸ *ATIVAÇÕES*
 ┊
 ┊•.̇𖥨֗🍓⭟${prefix}autodl
+┊•.̇𖥨֗🍓⭟${prefix}assistente
 ┊•.̇𖥨֗🍓⭟${prefix}modobn
 ┊•.̇𖥨֗🍓⭟${prefix}modonsfw
 ┊•.̇𖥨֗🍓⭟${prefix}modoparceria
@@ -97,8 +98,6 @@ async function menuadm(prefix, botName = "MeuBot", userName = "Usuário", isLite
 ┊•.̇𖥨֗🍓⭟${prefix}fotosaiu
 ┊•.̇𖥨֗🍓⭟${prefix}rmfotosaiu
 ┊•.̇𖥨֗🍓⭟${prefix}setprefix
-┊•.̇𖥨֗🍓⭟${prefix}abrirgp
-┊•.̇𖥨֗🍓⭟${prefix}fechargp
 ╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯
 `;
 }

@@ -10,6 +10,7 @@ async function menuDono(prefix, botName = "MeuBot", userName = "Usuário") {
 ┊•.̇𖥨֗🍓⭟${prefix}numerodono
 ┊•.̇𖥨֗🍓⭟${prefix}nomedono
 ┊•.̇𖥨֗🍓⭟${prefix}nomebot
+┊•.̇𖥨֗🍓⭟${prefix}apikey
 ┊•.̇𖥨֗🍓⭟${prefix}fotomenu
 ┊•.̇𖥨֗🍓⭟${prefix}videomenu
 ╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯

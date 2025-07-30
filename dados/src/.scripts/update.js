@@ -9,13 +9,11 @@ const os = require('os');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 
-// Configuration constants
 const REPO_URL = 'https://github.com/hiudyy/nazuna.git';
 const BACKUP_DIR = path.join(process.cwd(), `backup_${new Date().toISOString().replace(/[:.]/g, '_').replace(/T/, '_')}`);
 const TEMP_DIR = path.join(process.cwd(), 'temp_nazuna');
 const isWindows = os.platform() === 'win32';
 
-// ANSI color codes for console output
 const colors = {
   reset: '\x1b[0m',
   green: '\x1b[1;32m',
@@ -28,7 +26,6 @@ const colors = {
   bold: '\x1b[1m',
 };
 
-// Console message helpers
 function printMessage(text) {
   console.log(`${colors.green}${text}${colors.reset}`);
 }
@@ -49,7 +46,6 @@ function printSeparator() {
   console.log(`${colors.blue}============================================${colors.reset}`);
 }
 
-// Graceful shutdown setup
 function setupGracefulShutdown() {
   const shutdown = () => {
     console.log('\n');
@@ -61,7 +57,6 @@ function setupGracefulShutdown() {
   process.on('SIGTERM', shutdown);
 }
 
-// Display startup header
 async function displayHeader() {
   const header = [
     `${colors.bold}🚀 Nazuna - Atualizador${colors.reset}`,
@@ -79,7 +74,6 @@ async function displayHeader() {
   console.log();
 }
 
-// Check system requirements (git and npm)
 async function checkRequirements() {
   printInfo('🔍 Verificando requisitos do sistema...');
 
@@ -110,7 +104,6 @@ async function checkRequirements() {
   printDetail('✅ Todos os requisitos atendidos.');
 }
 
-// Confirm update with countdown
 async function confirmUpdate() {
   printWarning('⚠️ Atenção: A atualização sobrescreverá arquivos existentes, exceto configurações e dados salvos.');
   printInfo('📂 Um backup será criado automaticamente.');
@@ -132,7 +125,6 @@ async function confirmUpdate() {
   });
 }
 
-// Create backup of critical files
 async function createBackup() {
   printMessage('📁 Criando backup dos arquivos...');
 
@@ -166,7 +158,6 @@ async function createBackup() {
   }
 }
 
-// Recursively copy directory
 async function copyDirectoryAsync(source, destination) {
   if (!fsSync.existsSync(destination)) {
     await fs.mkdir(destination, { recursive: true });
@@ -188,7 +179,6 @@ async function copyDirectoryAsync(source, destination) {
   }
 }
 
-// Download latest version from GitHub
 async function downloadUpdate() {
   printMessage('📥 Baixando a versão mais recente do Nazuna...');
 
@@ -244,7 +234,6 @@ async function downloadUpdate() {
   }
 }
 
-// Clean old files
 async function cleanOldFiles() {
   printMessage('🧹 Limpando arquivos antigos...');
 
@@ -256,6 +245,16 @@ async function cleanOldFiles() {
         execSync(`rmdir /s /q "${gitDir}"`, { stdio: 'ignore' });
       } else {
         await fs.rm(gitDir, { recursive: true, force: true });
+      }
+    }
+    
+    const gitDir2 = path.join(process.cwd(), '.github');
+    if (fsSync.existsSync(gitDir2)) {
+      printDetail('📂 Removendo diretório .github...');
+      if (isWindows) {
+        execSync(`rmdir /s /q "${gitDir2}"`, { stdio: 'ignore' });
+      } else {
+        await fs.rm(gitDir2, { recursive: true, force: true });
       }
     }
 
@@ -284,7 +283,6 @@ async function cleanOldFiles() {
   }
 }
 
-// Clean directory while preserving backup
 async function cleanDirectoryAsync(directory, excludeDir) {
   const files = await fs.readdir(directory);
 
@@ -308,7 +306,6 @@ async function cleanDirectoryAsync(directory, excludeDir) {
   }
 }
 
-// Apply update by copying new files
 async function applyUpdate() {
   printMessage('🚀 Aplicando atualização...');
 
@@ -350,7 +347,6 @@ async function applyUpdate() {
   }
 }
 
-// Restore backup files
 async function restoreBackup() {
   printMessage('📂 Restaurando backup...');
 
@@ -384,7 +380,6 @@ async function restoreBackup() {
   }
 }
 
-// Install dependencies using npm run config:install
 async function installDependencies() {
   printMessage('📦 Instalando dependências...');
 
@@ -415,7 +410,6 @@ async function installDependencies() {
   }
 }
 
-// Cleanup temporary files
 async function cleanup() {
   printMessage('🧹 Finalizando e limpando arquivos temporários...');
 
@@ -434,7 +428,6 @@ async function cleanup() {
   }
 }
 
-// Prompt user for yes/no input
 async function promptYesNo(question, defaultAnswer = 'n') {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -451,7 +444,6 @@ async function promptYesNo(question, defaultAnswer = 'n') {
   });
 }
 
-// Main function to execute update process
 async function main() {
   try {
     setupGracefulShutdown();
@@ -507,5 +499,4 @@ async function main() {
   }
 }
 
-// Execute main function
 main();
