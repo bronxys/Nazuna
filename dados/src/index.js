@@ -1678,7 +1678,7 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
       await reply(`⏳ Só um segundinho, estou consultando o Kimi... ✨`);
       const response = await ia.makeCognimaRequest('moonshotai/kimi-k2-instruct', q, null, KeyCog || null);
       await reply(response.data.choices[0].message.content);
-    } catch (e) {
+    } catch (e) { 
       console.error('Erro na API Kimi:', e);
       await reply(`😓 Poxa, algo deu errado com o Kimi! Tente novamente em alguns instantes, tá? 🌈`);
     }
