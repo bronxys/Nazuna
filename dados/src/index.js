@@ -1421,7 +1421,7 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   case 'cavevoice':
   case 'vozcaverna':
   case 'bass':
-  case 'bass2':
+  case 'bass2': 
   case 'bass3':
   case 'volumeboost':
   case 'aumentarvolume':
