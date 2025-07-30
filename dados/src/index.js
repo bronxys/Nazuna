@@ -2289,7 +2289,7 @@ case 'listaaluguel':
 
         const shouldInclude =
           !filtro ||
-          (filtro === 'ven' && status === 'Expirado') ||
+          (filtro === 'ven' && status === 'Expirado') || 
           (filtro === 'atv' && status === 'Ativo') ||
           (filtro === 'perm' && status === 'Permanente');
 
