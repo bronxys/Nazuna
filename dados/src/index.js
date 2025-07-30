@@ -1682,7 +1682,7 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
       console.error('Erro na API Kimi:', e);
       await reply(`😓 Poxa, algo deu errado com o Kimi! Tente novamente em alguns instantes, tá? 🌈`);
     }
-    break;
+    break; 
 
   case 'mistral':
     if (!q) return reply(`🤔 Qual sua dúvida para o Mistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
