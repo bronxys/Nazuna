@@ -371,7 +371,7 @@ async function startNazu() {
               NazunaSock.ev.on('connection.update', (update) => {
                 if (update.connection === 'open') resolve();
               });
-            }
+            } 
           });
         };
 
