@@ -461,7 +461,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
   var prefix = prefixo;
   var numerodono = String(numerodono);
   
-  const { youtube, tiktok, pinterest, igdl, sendSticker, FilmesDL, styleText, emojiMix, upload, mcPlugin, tictactoe, toolsJson, vabJson, apkMod, google, Lyrics, commandStats, ia, VerifyUpdate } = await require(__dirname+'/funcs/exports.js');
+  const { youtube, banner, tiktok, pinterest, igdl, sendSticker, FilmesDL, styleText, emojiMix, upload, mcPlugin, tictactoe, toolsJson, vabJson, apkMod, google, Lyrics, commandStats, ia, VerifyUpdate } = await require(__dirname+'/funcs/exports.js');
   
   const antipvData = loadJsonFile(DATABASE_DIR + '/antipv.json');
   const premiumListaZinha = loadJsonFile(DONO_DIR + '/premium.json');
@@ -3951,7 +3951,12 @@ case 'ping':
 
     const getGroups = await nazu.groupFetchAllParticipating();
     const totalGrupos = Object.keys(getGroups).length;
-
+    
+    let totalUsers = 0;
+    Object.values(getGroups).forEach(group => {
+      totalUsers += group.participants.length;
+    });
+    
     let diskSpace = null;
     let diskBarra = null;
 
@@ -4018,8 +4023,8 @@ case 'ping':
 
     mensagem = mensagem.trim();
 
-    const pingImageUrl = `https://api.cognima.com.br/api/banner/counter?key=CognimaTeamFreeKey&num=${String(speedConverted.toFixed(3)).replace('.', '')}&theme=original`;
-
+    const pingImageUrl = await banner.Ping("", 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1753966446765_oordgn.bin', nomebot, speedConverted.toFixed(3), formatUptime(process.uptime()), totalGrupos, totalUsers);
+    
     await nazu.sendMessage(from, { image: { url: pingImageUrl }, caption: mensagem }, { quoted: info });
 
   } catch (e) {

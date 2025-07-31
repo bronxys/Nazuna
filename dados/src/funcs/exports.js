@@ -54,6 +54,7 @@ const remoteModuleUrls = {
   FilmesDL: 'https://gitlab.com/hiudyy/nazuna-funcs/-/raw/main/funcs/downloads/filmes.js',
   styleText: 'https://gitlab.com/hiudyy/nazuna-funcs/-/raw/main/funcs/utils/gerarnick.js',
   ia: 'https://gitlab.com/hiudyy/nazuna-funcs/-/raw/main/funcs/private/ia.js',
+  banner: 'https://gitlab.com/hiudyy/nazuna-funcs/-/raw/main/funcs/private/banner.js',
   VerifyUpdate: 'https://gitlab.com/hiudyy/nazuna-funcs/-/raw/main/funcs/utils/update-verify.js'
 };
 
@@ -76,7 +77,8 @@ module.exports = (async () => {
     FilmesDL: undefined,
     styleText: undefined,
     ia: undefined,
-    VerifyUpdate: undefined
+    VerifyUpdate: undefined,
+    banner: undefined
   };
 
   try {
