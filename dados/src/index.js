@@ -2605,8 +2605,10 @@ case 'ranklevel':
     const description = videoInfo.data.description ? videoInfo.data.description.slice(0, 100) + (videoInfo.data.description.length > 100 ? '...' : '') : 'Sem descrição disponível';
     
     const caption = `🎵 *Música Encontrada* 🎵\n\n📌 *Título:* ${videoInfo.data.title}\n👤 *Artista/Canal:* ${videoInfo.data.author.name}\n⏱ *Duração:* ${videoInfo.data.timestamp} (${videoInfo.data.seconds} segundos)\n👀 *Visualizações:* ${views}\n📅 *Publicado:* ${videoInfo.data.ago}\n📜 *Descrição:* ${description}\n🔗 *Link:* ${videoInfo.data.url}\n\n🎧 *Baixando e processando sua música, aguarde...*`;
-
-    await nazu.sendMessage(from, { image: { url: videoInfo.data.thumbnail }, caption: caption, footer: `${nomebot} • Versão ${botVersion}` }, { quoted: info });
+    
+    const PlayImg = await banner.Play(videoInfo.data.thumbnail, videoInfo.data.title, videoInfo.data.author.name, videoInfo.data.timestamp);
+    
+    await nazu.sendMessage(from, { image: { url: PlayImg }, caption: caption, footer: `${nomebot} • Versão ${botVersion}` }, { quoted: info });
     
     const dlRes = await youtube.mp3(videoUrl);
     if (!dlRes.ok) {
@@ -2674,7 +2676,10 @@ case 'ytmp4':
 🔗 *Link:* ${videoInfo.data.url}
 
 📹 *Enviando seu vídeo, aguarde!*`;
-    await nazu.sendMessage(from, { image: { url: videoInfo.data.thumbnail }, caption: caption, footer: `By: ${nomebot}` }, { quoted: info });
+    
+    const PlayImg = await banner.Play(videoInfo.data.thumbnail, videoInfo.data.title, videoInfo.data.author.name, videoInfo.data.timestamp);    
+    
+    await nazu.sendMessage(from, { image: { url: PlayImg }, caption: caption, footer: `By: ${nomebot}` }, { quoted: info });
     const dlRes = await youtube.mp4(videoUrl);
     if (!dlRes.ok) return reply(dlRes.msg);
     try {
