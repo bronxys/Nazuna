@@ -1602,7 +1602,7 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
     try {
       await reply(`⏳ Só um segundinho, estou consultando o Qwen... ✨`);
       const response = await ia.makeCognimaRequest('qwen/qwen3-235b-a22b', q, null, KeyCog || null);
-      await reply(response.data.choices[0].message.content);
+      await reply(response.data.choices[0].message.content); 
     } catch (e) {
       console.error('Erro na API Qwen:', e);
       await reply(`😓 Poxa, algo deu errado com o Qwen! Tente novamente em alguns instantes, tá? 🌈`);
