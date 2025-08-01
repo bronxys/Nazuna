@@ -20,7 +20,7 @@
   "dependencies": {
     "@cacheable/node-cache": "latest",
     "@cognima/banners": "latest", 
-    "@cognima/walib": "github:WhiskeySockets/Baileys",
+    "@cognima/walib": "npm:puki@latest",
     "fluent-ffmpeg": "latest",
     "linkedom": "latest",
     "node-cron": "latest",
