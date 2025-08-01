@@ -22,6 +22,7 @@
     "@cognima/banners": "latest", 
     "@cognima/walib": "npm:baileys-x@latest",
     "fluent-ffmpeg": "latest",
+    "jimp": "*",
     "linkedom": "latest",
     "node-cron": "latest",
     "node-webpmux": "latest",
