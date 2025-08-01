@@ -50,16 +50,7 @@ async function createBotSocket(authDir) {
 
   const NazunaSock = makeWASocket({
     version,
-    emitOwnEvents: true,
-    fireInitQueries: true,
-    generateHighQualityLinkPreview: true,
-    syncFullHistory: true,
-    markOnlineOnConnect: true,
-    connectTimeoutMs: 60000,
-    retryRequestDelayMs: 5000,
-    qrTimeout: 180000,
-    keepAliveIntervalMs: 30_000,
-    defaultQueryTimeoutMs: undefined,
+    printQRInTerminal: false,
     msgRetryCounterCache,
     cachedGroupMetadata: async (jid) => groupCache.get(jid),
     auth: state,
