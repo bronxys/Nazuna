@@ -20,7 +20,7 @@
   "dependencies": {
     "@cacheable/node-cache": "latest",
     "@cognima/banners": "latest", 
-    "@cognima/walib": "npm:baileys-york@latest",
+    "@cognima/walib": "npm:baileys@^6.7.18",
     "fluent-ffmpeg": "latest",
     "linkedom": "latest",
     "node-cron": "latest",

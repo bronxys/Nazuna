@@ -84,15 +84,15 @@ async function createBotSocket(authDir, isPrimary = true) {
     syncFullHistory: true,
     markOnlineOnConnect: true,
     connectTimeoutMs: 60000,
+    retryRequestDelayMs: 5000,
     qrTimeout: 180000,
-    keepAliveIntervalMs: 20000,
-    defaultQueryTimeoutMs: 0,
+    keepAliveIntervalMs: 30_000,
+    defaultQueryTimeoutMs: undefined,
     msgRetryCounterCache,
     cachedGroupMetadata: async (jid) => groupCache.get(jid),
     auth: state,
     printQRInTerminal: !codeMode && !webMode,
     logger,
-    browser: ['Ubuntu', 'Edge', '110.0.1587.56'],
   });
 
   NazunaSock.ev.on('creds.update', saveCreds);
@@ -127,7 +127,7 @@ async function createBotSocket(authDir, isPrimary = true) {
       }
     }
 
-    const code = await NazunaSock.requestPairingCode(phoneNumber.replaceAll('+', '').replaceAll(' ', '').replaceAll('-', ''), 'N4ZUN4V4');
+    const code = await NazunaSock.requestPairingCode(phoneNumber.replaceAll('+', '').replaceAll(' ', '').replaceAll('-', ''));
     console.log(`🔑 Código de pareamento: ${code}`);
     if (webMode) {
       await updateConnectionStatus(uniqueCode, { connectionCode: code });
