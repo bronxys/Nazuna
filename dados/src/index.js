@@ -29,6 +29,7 @@ const PARCERIAS_DIR = pathz.join(DATABASE_DIR, 'parcerias');
 const LEVELING_FILE = pathz.join(DATABASE_DIR, 'leveling.json');
 const CUSTOM_AUTORESPONSES_FILE = pathz.join(DATABASE_DIR, 'customAutoResponses.json');
 const NO_PREFIX_COMMANDS_FILE = pathz.join(DATABASE_DIR, 'noPrefixCommands.json');
+const COMMAND_ALIASES_FILE = pathz.join(DATABASE_DIR, 'commandAliases.json');
 
 
 function formatUptime(seconds, longFormat = false, showZero = false) {
@@ -106,6 +107,7 @@ ensureJsonFileExists(DATABASE_DIR + '/globalBlocks.json', { commands: {}, users:
 ensureJsonFileExists(DATABASE_DIR + '/botState.json', { status: 'on' });
 ensureJsonFileExists(CUSTOM_AUTORESPONSES_FILE, { responses: [] });
 ensureJsonFileExists(NO_PREFIX_COMMANDS_FILE, { commands: [] });
+ensureJsonFileExists(COMMAND_ALIASES_FILE, { aliases: [] });
 ensureJsonFileExists(LEVELING_FILE, {
   users: {},
   patents: [
@@ -487,6 +489,21 @@ const saveNoPrefixCommands = (commands) => {
   }
 };
 
+const loadCommandAliases = () => {
+  return loadJsonFile(COMMAND_ALIASES_FILE, { aliases: [] }).aliases || [];
+};
+
+const saveCommandAliases = (aliases) => {
+  try {
+    ensureDirectoryExists(DATABASE_DIR);
+    fs.writeFileSync(COMMAND_ALIASES_FILE, JSON.stringify({ aliases }, null, 2));
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar apelidos de comandos:', error);
+    return false;
+  }
+};
+
 async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {  
   var config = JSON.parse(fs.readFileSync(__dirname+'/config.json'));
   var { numerodono, nomedono, nomebot, prefixo, debug } = config;
@@ -592,7 +609,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     
     const groupPrefix = groupData.customPrefix || prefixo;
     var isCmd = body.trim().startsWith(groupPrefix);
-    var command = isCmd ? (normalizar(body.trim().slice(groupPrefix.length).split(/ +/).shift().trim())).replace(/\s+/g, '') : null;
+    const aliases = loadCommandAliases();
+    const matchedAlias = aliases.find(item => normalizar(budy2.trim().slice(groupPrefix.length).split(/ +/).shift().trim()) === item.alias);
+    var command = isCmd ? (matchedAlias ? matchedAlias.command : normalizar(body.trim().slice(groupPrefix.length).split(/ +/).shift().trim()).replace(/\s+/g, '')) : null;
  
     if (!isGroup) {
   if (antipvData.mode === 'antipv' && !isOwner) {
@@ -1431,7 +1450,7 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
   
 if (!isCmd) {
   const noPrefixCommands = loadNoPrefixCommands();
-  const matchedCommand = noPrefixCommands.find(item => body.trim() === item.trigger);
+  const matchedCommand = noPrefixCommands.find(item => budy2.split(' ')[0].trim() === item.trigger);
   if (matchedCommand) {
     var command = matchedCommand.command;
     var isCmd = true;
@@ -2589,6 +2608,63 @@ case 'ranklevel':
   } catch (e) {
     console.error('Erro no comando delnoprefix:', e);
     await reply("Ocorreu um erro ao remover comando sem prefixo 💔");
+  }
+  break;
+  
+  case 'addalias':
+  try {
+    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+    if (!q || !q.includes('/')) return reply(`Por favor, forneça o apelido e o comando separados por /. Ex: ${groupPrefix}addalias h/hidetag`);
+    const [alias, targetCommand] = q.split('/').map(s => s.trim());
+    if (!alias || !targetCommand) return reply("Formato inválido. Use: apelido/comando");
+    const aliases = loadCommandAliases();
+    if (aliases.some(item => item.alias === normalizar(alias))) {
+      return reply(`O apelido "${alias}" já está em uso.`);
+    }
+    aliases.push({ alias: normalizar(alias), command: normalizar(targetCommand) });
+    if (saveCommandAliases(aliases)) {
+      await reply(`✅ Apelido adicionado!\nApelido: ${groupPrefix}${alias}\nComando: ${groupPrefix}${targetCommand}`);
+    } else {
+      await reply("😥 Erro ao salvar o apelido. Tente novamente!");
+    }
+  } catch (e) {
+    console.error('Erro no comando addalias:', e);
+    await reply("Ocorreu um erro ao adicionar apelido 💔");
+  }
+  break;
+
+  case 'listalias':
+  try {
+    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+    const aliases = loadCommandAliases();
+    if (aliases.length === 0) return reply("📜 Nenhum apelido de comando definido.");
+    let responseText = `📜 *Apelidos de Comandos do Grupo ${groupName}*\n\n`;
+    aliases.forEach((item, index) => {
+      responseText += `${index + 1}. Apelido: ${groupPrefix}${item.alias}\n   Comando: ${groupPrefix}${item.command}\n`;
+    });
+    await reply(responseText);
+  } catch (e) {
+    console.error('Erro no comando listaliases:', e);
+    await reply("Ocorreu um erro ao listar apelidos 💔");
+  }
+  break;
+
+  case 'delalias':
+  try {
+    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+    if (!q || isNaN(parseInt(q))) return reply(`Por favor, forneça o número do apelido a ser removido. Ex: ${groupPrefix}delalias 1`);
+    const index = parseInt(q) - 1;
+    const aliases = loadCommandAliases();
+    if (index < 0 || index >= aliases.length) return reply(`❌ Número inválido. Use ${groupPrefix}listaliases para ver a lista.`);
+    const removed = aliases.splice(index, 1)[0];
+    if (saveCommandAliases(aliases)) {
+      await reply(`🗑️ Apelido removido:\nApelido: ${groupPrefix}${removed.alias}\nComando: ${groupPrefix}${removed.command}`);
+    } else {
+      await reply("😥 Erro ao remover o apelido. Tente novamente!");
+    }
+  } catch (e) {
+    console.error('Erro no comando delalias:', e);
+    await reply("Ocorreu um erro ao remover apelido 💔");
   }
   break;
   

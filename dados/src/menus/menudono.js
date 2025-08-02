@@ -29,6 +29,13 @@ async function menuDono(prefix, botName = "MeuBot", userName = "Usuário") {
 ┊•.̇𖥨֗🍓⭟${prefix}delnopref
 ╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯
 
+╭┈❪🍧ฺꕸ▸ *ALIAS DE CMD*
+┊
+┊•.̇𖥨֗🍓⭟${prefix}addalias
+┊•.̇𖥨֗🍓⭟${prefix}listalias
+┊•.̇𖥨֗🍓⭟${prefix}delalias
+╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯
+
 ╭┈❪🍧ฺꕸ▸ *GERENCIAMENTO*
 ┊
 ┊•.̇𖥨֗🍓⭟${prefix}addsubdono
