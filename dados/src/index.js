@@ -28,6 +28,7 @@ const DONO_DIR = DATABASE_DIR + '/dono';
 const PARCERIAS_DIR = pathz.join(DATABASE_DIR, 'parcerias');
 const LEVELING_FILE = pathz.join(DATABASE_DIR, 'leveling.json');
 const CUSTOM_AUTORESPONSES_FILE = pathz.join(DATABASE_DIR, 'customAutoResponses.json');
+const NO_PREFIX_COMMANDS_FILE = pathz.join(DATABASE_DIR, 'noPrefixCommands.json');
 
 
 function formatUptime(seconds, longFormat = false, showZero = false) {
@@ -104,6 +105,7 @@ ensureJsonFileExists(DONO_DIR + '/bangp.json');
 ensureJsonFileExists(DATABASE_DIR + '/globalBlocks.json', { commands: {}, users: {} });
 ensureJsonFileExists(DATABASE_DIR + '/botState.json', { status: 'on' });
 ensureJsonFileExists(CUSTOM_AUTORESPONSES_FILE, { responses: [] });
+ensureJsonFileExists(NO_PREFIX_COMMANDS_FILE, { commands: [] });
 ensureJsonFileExists(LEVELING_FILE, {
   users: {},
   patents: [
@@ -470,6 +472,21 @@ const saveCustomAutoResponses = (responses) => {
   }
 };
 
+const loadNoPrefixCommands = () => {
+  return loadJsonFile(NO_PREFIX_COMMANDS_FILE, { commands: [] }).commands || [];
+};
+
+const saveNoPrefixCommands = (commands) => {
+  try {
+    ensureDirectoryExists(DATABASE_DIR);
+    fs.writeFileSync(NO_PREFIX_COMMANDS_FILE, JSON.stringify({ commands }, null, 2));
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar comandos sem prefixo:', error);
+    return false;
+  }
+};
+
 async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {  
   var config = JSON.parse(fs.readFileSync(__dirname+'/config.json'));
   var { numerodono, nomedono, nomebot, prefixo, debug } = config;
@@ -574,7 +591,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     };
     
     const groupPrefix = groupData.customPrefix || prefixo;
-    const isCmd = body.trim().startsWith(groupPrefix);
+    var isCmd = body.trim().startsWith(groupPrefix);
     var command = isCmd ? (normalizar(body.trim().slice(groupPrefix.length).split(/ +/).shift().trim())).replace(/\s+/g, '') : null;
  
     if (!isGroup) {
@@ -1410,6 +1427,16 @@ if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stick
     await reply(`⚠️ Erro ao processar antifig para @${sender.split('@')[0]}. Admins, por favor, verifiquem!`, { mentions: [sender] });
   }
 }
+  
+  
+if (!isCmd) {
+  const noPrefixCommands = loadNoPrefixCommands();
+  const matchedCommand = noPrefixCommands.find(item => body.trim() === item.trigger);
+  if (matchedCommand) {
+    var command = matchedCommand.command;
+    var isCmd = true;
+  };
+};
 
   switch(command) {
   
@@ -2505,6 +2532,63 @@ case 'ranklevel':
   } catch (e) {
     console.error('Erro no comando delauto:', e);
     await reply("Ocorreu um erro ao remover auto-resposta 💔");
+  }
+  break;
+  
+  case 'addnoprefix': case 'addnopref':
+  try {
+    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+    if (!q || !q.includes('/')) return reply(`Por favor, forneça a mensagem e o comando separados por /. Ex: ${groupPrefix}addnoprefix 😸/ban`);
+    const [trigger, targetCommand] = q.split('/').map(s => s.trim());
+    if (!trigger || !targetCommand) return reply("Formato inválido. Use: mensagem/comando");
+    const noPrefixCommands = loadNoPrefixCommands();
+    if (noPrefixCommands.some(cmd => cmd.trigger === trigger)) {
+      return reply(`A mensagem "${trigger}" já está mapeada para um comando.`);
+    }
+    noPrefixCommands.push({ trigger, command: normalizar(targetCommand) });
+    if (saveNoPrefixCommands(noPrefixCommands)) {
+      await reply(`✅ Comando sem prefixo adicionado!\nMensagem: ${trigger}\nComando: ${targetCommand}`);
+    } else {
+      await reply("😥 Erro ao salvar o comando sem prefixo. Tente novamente!");
+    }
+  } catch (e) {
+    console.error('Erro no comando addnoprefix:', e);
+    await reply("Ocorreu um erro ao adicionar comando sem prefixo 💔");
+  }
+  break;
+
+  case 'listnoprefix': case 'listnopref':
+  try {
+    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+    const noPrefixCommands = loadNoPrefixCommands();
+    if (noPrefixCommands.length === 0) return reply("📜 Nenhum comando sem prefixo definido.");
+    let responseText = `📜 *Comandos Sem Prefixo do Grupo ${groupName}*\n\n`;
+    noPrefixCommands.forEach((item, index) => {
+      responseText += `${index + 1}. Mensagem: ${item.trigger}\n   Comando: ${item.command}\n`;
+    });
+    await reply(responseText);
+  } catch (e) {
+    console.error('Erro no comando listnoprefix:', e);
+    await reply("Ocorreu um erro ao listar comandos sem prefixo 💔");
+  }
+  break;
+
+  case 'delnoprefix': case 'delnopref':
+  try {
+    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+    if (!q || isNaN(parseInt(q))) return reply(`Por favor, forneça o número do comando sem prefixo a ser removido. Ex: ${groupPrefix}delnoprefix 1`);
+    const index = parseInt(q) - 1;
+    const noPrefixCommands = loadNoPrefixCommands();
+    if (index < 0 || index >= noPrefixCommands.length) return reply(`❌ Número inválido. Use ${groupPrefix}listnoprefix para ver a lista.`);
+    const removed = noPrefixCommands.splice(index, 1)[0];
+    if (saveNoPrefixCommands(noPrefixCommands)) {
+      await reply(`🗑️ Comando sem prefixo removido:\nMensagem: ${removed.trigger}\nComando: ${removed.command}`);
+    } else {
+      await reply("😥 Erro ao remover o comando sem prefixo. Tente novamente!");
+    }
+  } catch (e) {
+    console.error('Erro no comando delnoprefix:', e);
+    await reply("Ocorreu um erro ao remover comando sem prefixo 💔");
   }
   break;
   
