@@ -4448,37 +4448,104 @@ case 'ping':
     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
   }
   break;
-
-  case 'sorteio': case 'sortear': case 'raffle':
-  if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-  if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-  if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
-  if(!q) return reply(`❌ Digite os dados após o comando...\n${prefix}${command} Dados Sorteio | Ganhadores\n\nExemplos:\n${prefix}${command} 100 Reais\n${prefix}${command} 100 Reais | 2`);
+  
+  case 'sorteionum':
   try {
-    if(q.includes('|')) {
-      const quantidadeMenb = Number(q.split('|')[1]);
-      let TextSort = `🥳 Parabéns aos ganhadores do sorteio\n\n💰 Prêmio: ${q.split('|')[0]}\n👑 Ganhadores: `;
-      let MentionsSort = [];
-      let TextArray = [];
-      for(i=0;i<quantidadeMenb;i++) {
-        const menb = AllgroupMembers[Math.floor(Math.random() * AllgroupMembers.length)];
-        if(!MentionsSort.includes(menb)) {
-          TextArray.push(`@${menb.split('@')[0]}`);
-        } else {
-          i--;
-        };
-      };
-      TextSort += TextArray.join(', ');
-      await nazu.sendMessage(from, {text: TextSort, mentions: MentionsSort});
-    } else {
-      const menb = AllgroupMembers[Math.floor(Math.random() * AllgroupMembers.length)];
-      await nazu.sendMessage(from, {text: `🥳 Parabéns ao ganhador do sorteio\n\n💰 Prêmio: ${q}\n👑 Ganhador: @${menb.split('@')[0]}`, mentions: [menb]});
-    };
-  } catch(error) {
-    console.error(error);
+    if (!q) return reply(`Por favor, forneça um intervalo de números. Exemplo: ${prefix}sorteionum 1-50`);
+    const [min, max] = q.split('-').map(n => parseInt(n.trim()));
+    if (isNaN(min) || isNaN(max) || min >= max) return reply('❌ Intervalo inválido! Use o formato: min-max (ex.: 1-50).');
+    
+    const numeroSorteado = Math.floor(Math.random() * (max - min + 1)) + min;
+    await reply(`🎲 *Sorteio de Número* 🎲\n\nNúmero sorteado: *${numeroSorteado}*`);
+  } catch (e) {
+    console.error('Erro no comando sorteionum:', e);
     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
-  };
-  break
+  }
+  break;
+  
+  case 'sorteionome':
+  try {
+    if (!q) return reply(`Por favor, forneça os nomes para o sorteio. Exemplo: ${prefix}sorteionome 4/nick1,nick2,nick3,... ou ${prefix}sorteionome nick1,nick2,nick3,...`);
+    
+    let numVencedores = 1;
+    let numGrupos = 1;
+    let nomes = [];
+    
+    if (q.includes('/')) {
+      const [config, listaNomes] = q.split('/').map(s => s.trim());
+      const [vencedores, grupos] = config.includes('-') ? config.split('-').map(n => parseInt(n.trim())) : [parseInt(config), 1];
+      numVencedores = vencedores || 1;
+      numGrupos = grupos || 1;
+      nomes = listaNomes.split(',').map(n => n.trim()).filter(n => n);
+    } else {
+      nomes = q.split(',').map(n => n.trim()).filter(n => n);
+    }
+    
+    if (nomes.length < numVencedores * numGrupos) return reply(`❌ Não há nomes suficientes! Você precisa de pelo menos ${numVencedores * numGrupos} nomes para sortear ${numVencedores} vencedor${numVencedores > 1 ? 'es' : ''}${numGrupos > 1 ? ` em ${numGrupos} grupos` : ''}.`);
+    if (numVencedores < 1 || numGrupos < 1) return reply('❌ Quantidade de vencedores ou grupos inválida! Use números positivos.');
+    
+    let resultado = `🎉 *Resultado do Sorteio de Nomes* 🎉\n\n`;
+    let nomesDisponiveis = [...nomes];
+    
+    if (numGrupos === 1) {
+      let vencedores = [];
+      for (let i = 0; i < numVencedores; i++) {
+        if (nomesDisponiveis.length === 0) break;
+        const indice = Math.floor(Math.random() * nomesDisponiveis.length);
+        vencedores.push(nomesDisponiveis[indice]);
+        nomesDisponiveis.splice(indice, 1);
+      }
+      resultado += vencedores.map((v, i) => `🏆 *#${i + 1}* - ${v}`).join('\n');
+    } else {
+      for (let g = 1; g <= numGrupos; g++) {
+        resultado += `📌 *Grupo ${g}*:\n`;
+        let vencedores = [];
+        for (let i = 0; i < numVencedores; i++) {
+          if (nomesDisponiveis.length === 0) break;
+          const indice = Math.floor(Math.random() * nomesDisponiveis.length);
+          vencedores.push(nomesDisponiveis[indice]);
+          nomesDisponiveis.splice(indice, 1);
+        }
+        resultado += vencedores.map((v, i) => `  🏆 *#${i + 1}* - ${v}`).join('\n') + '\n\n';
+      }
+    }
+    
+    await reply(resultado);
+  } catch (e) {
+    console.error('Erro no comando sorteionome:', e);
+    await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+  }
+  break;
+  
+  case 'sorteio':
+  try {
+    if (!isGroup) return reply("Este comando só pode ser usado em grupos 💔");
+    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
+    let path = __dirname + '/../database/grupos/' + from + '.json';
+    let data = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path)) : { mark: {} };
+    let membros = AllgroupMembers.filter(m => !['0', 'marca'].includes(data.mark[m]));
+    if (membros.length < 2) return reply('❌ Preciso de pelo menos 2 membros válidos no grupo para realizar o sorteio!');
+    
+    let numVencedores = parseInt(q) || 1;
+    if (numVencedores < 1) return reply('❌ O número de vencedores deve ser maior que 0!');
+    if (numVencedores > membros.length) return reply(`❌ Não há membros suficientes! O grupo tem apenas ${membros.length} membros válidos.`);
+    
+    let vencedores = [];
+    let membrosDisponiveis = [...membros];
+    for (let i = 0; i < numVencedores; i++) {
+      if (membrosDisponiveis.length === 0) break;
+      const indice = Math.floor(Math.random() * membrosDisponiveis.length);
+      vencedores.push(membrosDisponiveis[indice]);
+      membrosDisponiveis.splice(indice, 1);
+    }
+    
+    const vencedoresText = vencedores.map((v, i) => `🏆 *#${i + 1}* - @${v.split('@')[0]}`).join('\n');
+    await reply(`🎉 *Resultado do Sorteio* 🎉\n\n${vencedoresText}`, { mentions: vencedores });
+  } catch (e) {
+    console.error('Erro no comando sorteio:', e);
+    await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+  }
+  break;
   
   case 'totag':
   case 'cita':
