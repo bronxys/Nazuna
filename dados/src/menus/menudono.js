@@ -15,6 +15,13 @@ async function menuDono(prefix, botName = "MeuBot", userName = "Usuário") {
 ┊•.̇𖥨֗🍓⭟${prefix}videomenu
 ╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯
 
+╭┈❪🍧ฺꕸ▸ *AUTO RESPOSTA*
+┊
+┊•.̇𖥨֗🍓⭟${prefix}addauto
+┊•.̇𖥨֗🍓⭟${prefix}listauto
+┊•.̇𖥨֗🍓⭟${prefix}delauto
+╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯
+
 ╭┈❪🍧ฺꕸ▸ *GERENCIAMENTO*
 ┊
 ┊•.̇𖥨֗🍓⭟${prefix}addsubdono

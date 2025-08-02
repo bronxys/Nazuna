@@ -27,6 +27,7 @@ const USERS_DIR = DATABASE_DIR + '/users';
 const DONO_DIR = DATABASE_DIR + '/dono';
 const PARCERIAS_DIR = pathz.join(DATABASE_DIR, 'parcerias');
 const LEVELING_FILE = pathz.join(DATABASE_DIR, 'leveling.json');
+const CUSTOM_AUTORESPONSES_FILE = pathz.join(DATABASE_DIR, 'customAutoResponses.json');
 
 
 function formatUptime(seconds, longFormat = false, showZero = false) {
@@ -102,6 +103,7 @@ ensureJsonFileExists(DONO_DIR + '/premium.json');
 ensureJsonFileExists(DONO_DIR + '/bangp.json');
 ensureJsonFileExists(DATABASE_DIR + '/globalBlocks.json', { commands: {}, users: {} });
 ensureJsonFileExists(DATABASE_DIR + '/botState.json', { status: 'on' });
+ensureJsonFileExists(CUSTOM_AUTORESPONSES_FILE, { responses: [] });
 ensureJsonFileExists(LEVELING_FILE, {
   users: {},
   patents: [
@@ -452,6 +454,21 @@ function checkLevelDown(userId, userData, levelingData) {
   if (userData.xp < 0) userData.xp = 0;
   userData.patent = getPatent(userData.level, levelingData.patents);
 }
+
+const loadCustomAutoResponses = () => {
+  return loadJsonFile(CUSTOM_AUTORESPONSES_FILE, { responses: [] }).responses || [];
+};
+
+const saveCustomAutoResponses = (responses) => {
+  try {
+    ensureDirectoryExists(DATABASE_DIR);
+    fs.writeFileSync(CUSTOM_AUTORESPONSES_FILE, JSON.stringify({ responses }, null, 2));
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar auto-respostas personalizadas:', error);
+    return false;
+  }
+};
 
 async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {  
   var config = JSON.parse(fs.readFileSync(__dirname+'/config.json'));
@@ -2436,6 +2453,60 @@ case 'ranklevel':
       await reply("❌ Ocorreu um erro inesperado ao gerar o código.");
     }
     break;
+    
+  case 'addautoresponse': case 'addauto':
+  try {
+    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+    if (!q || !q.includes('/')) return reply(`Por favor, forneça a mensagem recebida e a resposta separadas por /. Ex: ${groupPrefix}addauto bom dia/Olá, bom dia!`);
+    const [received, response] = q.split('/').map(s => s.trim());
+    if (!received || !response) return reply("Formato inválido. Use: mensagem recebida/mensagem do bot");
+    const autoResponses = loadCustomAutoResponses();
+    autoResponses.push({ received: normalizar(received), response });
+    if (saveCustomAutoResponses(autoResponses)) {
+      await reply(`✅ Auto-resposta adicionada!\nMensagem recebida: ${received}\nResposta: ${response}`);
+    } else {
+      await reply("😥 Erro ao salvar a auto-resposta. Tente novamente!");
+    }
+  } catch (e) {
+    console.error('Erro no comando addauto:', e);
+    await reply("Ocorreu um erro ao adicionar auto-resposta 💔");
+  }
+  break;
+
+  case 'listautoresponses': case 'listauto':
+  try {
+    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+    const autoResponses = loadCustomAutoResponses();
+    if (autoResponses.length === 0) return reply("📜 Nenhuma auto-resposta definida.");
+    let responseText = `📜 *Auto-Respostas do Grupo ${groupName}*\n\n`;
+    autoResponses.forEach((item, index) => {
+      responseText += `${index + 1}. Recebida: ${item.received}\n   Resposta: ${item.response}\n`;
+    });
+    await reply(responseText);
+  } catch (e) {
+    console.error('Erro no comando listauto:', e);
+    await reply("Ocorreu um erro ao listar auto-respostas 💔");
+  }
+  break;
+
+  case 'delautoresponse': case 'delauto':
+  try {
+    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+    if (!q || isNaN(parseInt(q))) return reply(`Por favor, forneça o número da auto-resposta a ser removida. Ex: ${groupPrefix}delauto 1`);
+    const index = parseInt(q) - 1;
+    const autoResponses = loadCustomAutoResponses();
+    if (index < 0 || index >= autoResponses.length) return reply(`❌ Número inválido. Use ${groupPrefix}listauto para ver a lista.`);
+    const removed = autoResponses.splice(index, 1)[0];
+    if (saveCustomAutoResponses(autoResponses)) {
+      await reply(`🗑️ Auto-resposta removida:\nMensagem recebida: ${removed.received}\nResposta: ${removed.response}`);
+    } else {
+      await reply("😥 Erro ao remover a auto-resposta. Tente novamente!");
+    }
+  } catch (e) {
+    console.error('Erro no comando delauto:', e);
+    await reply("Ocorreu um erro ao remover auto-resposta 💔");
+  }
+  break;
   
   //FERRAMENTAS
   case 'encurtalink': case 'tinyurl': try {
@@ -6403,18 +6474,15 @@ ${weatherEmoji} *${weatherDescription}*`;
     break;
     
  default:
-  if (isCmd && isAutoRepo) await nazu.react('❌');
+  if (isCmd) await nazu.react('❌');
   if (!isCmd && isAutoRepo) {
-    if (['prefix', 'prefixo'].includes(budy2)) {
-      await reply(`✨ Aqui está o meu prefixo para usar os comandos: 『 ${prefix} 』 ✨`);
-    } else if (['b dia', 'bom dia'].includes(budy2)) {
-      await reply('🌞 Bom dia! Espero que seu dia seja incrível! 😊');
-    } else if (['b noite', 'boa noite'].includes(budy2)) {
-      await reply('🌙 Boa noite! Que sua noite seja cheia de paz e estrelas! 🌟');
-    } else if (['b tarde', 'boa tarde'].includes(budy2)) {
-      await reply('🌅 Boa tarde! Como posso te ajudar a tornar o dia ainda melhor? 😄');
-    };
+  const autoResponses = loadCustomAutoResponses();
+  const normalizedBody = normalizar(body);
+  const matchedResponse = autoResponses.find(item => normalizedBody.includes(item.received));
+  if (matchedResponse) {
+    await reply(matchedResponse.response);
   };
+};
  };
   } catch(error) {
     console.error('==== ERRO NO PROCESSAMENTO DA MENSAGEM ====');
