@@ -4383,6 +4383,72 @@ case 'ping':
   };
   break
   
+  case 'chaveamento':
+  try {
+    if (!isGroup) return reply("Este comando só pode ser usado em grupos 💔");
+
+    let participantes = [];
+    
+    if (q) {
+      participantes = q.split(',').map(n => n.trim()).filter(n => n);
+      if (participantes.length !== 16) {
+        return reply(`❌ Forneça exatamente 16 nomes! Você forneceu ${participantes.length}. Exemplo: ${prefix}${command} nome1,nome2,...,nome16`);
+      }
+    } else {
+      return reply(`❌ Forneça exatamente 16 nomes! Você forneceu 0. Exemplo: ${prefix}${command} nome1,nome2,...,nome16`);
+    };
+
+    participantes = participantes.sort(() => Math.random() - 0.5);
+
+    const grupo1 = participantes.slice(0, 8);
+    const grupo2 = participantes.slice(8, 16);
+
+    const confrontosGrupo1 = [
+      [grupo1[0], grupo1[1]],
+      [grupo1[2], grupo1[3]],
+      [grupo1[4], grupo1[5]],
+      [grupo1[6], grupo1[7]]
+    ];
+    const confrontosGrupo2 = [
+      [grupo2[0], grupo2[1]],
+      [grupo2[2], grupo2[3]],
+      [grupo2[4], grupo2[5]],
+      [grupo2[6], grupo2[7]]
+    ];
+
+    let mensagem = `🏆 *Chaveamento do Torneio* 🏆\n\n`;
+
+    mensagem += `📌 *Grupo 1*\n`;
+    grupo1.forEach((p, i) => {
+      mensagem += `  ${i + 1}. ${p.includes('@') ? `@${p.split('@')[0]}` : p}\n`;
+    });
+    mensagem += `\n*Confrontos do Grupo 1*:\n`;
+    confrontosGrupo1.forEach((confronto, i) => {
+      const p1 = confronto[0].includes('@') ? `@${confronto[0].split('@')[0]}` : confronto[0];
+      const p2 = confronto[1].includes('@') ? `@${confronto[1].split('@')[0]}` : confronto[1];
+      mensagem += `  🥊 Partida ${i + 1}: ${p1} vs ${p2}\n`;
+    });
+
+    mensagem += `\n📌 *Grupo 2*\n`;
+    grupo2.forEach((p, i) => {
+      mensagem += `  ${i + 1}. ${p.includes('@') ? `@${p.split('@')[0]}` : p}\n`;
+    });
+    mensagem += `\n*Confrontos do Grupo 2*:\n`;
+    confrontosGrupo2.forEach((confronto, i) => {
+      const p1 = confronto[0].includes('@') ? `@${confronto[0].split('@')[0]}` : confronto[0];
+      const p2 = confronto[1].includes('@') ? `@${confronto[1].split('@')[0]}` : confronto[1];
+      mensagem += `  🥊 Partida ${i + 1}: ${p1} vs ${p2}\n`;
+    });
+    
+    const imageA = await banner.Chaveamento("", grupo1, grupo2);
+    
+    await nazu.sendMessage(from, {image: {url: imageA}, caption: mensagem});
+  } catch (e) {
+    console.error('Erro no comando chaveamento:', e);
+    await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+  }
+  break;
+
   case 'sorteio': case 'sortear': case 'raffle':
   if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
   if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
