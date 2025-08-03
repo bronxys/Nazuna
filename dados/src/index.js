@@ -525,10 +525,6 @@ const addGlobalBlacklist = (userId, reason, addedBy) => {
   if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
     return { success: false, message: 'ID de usuário inválido. Use o formato completo (ex: 1234567890@s.whatsapp.net) ou marque o usuário.' };
   }
-  const nmrdn_check = numerodono.replace(/[^\d]/g, "") + '@s.whatsapp.net';
-  if (userId === nmrdn_check) {
-    return { success: false, message: '🤔 O Dono principal não pode ser adicionado à blacklist global!' };
-  }
   let blacklistData = loadGlobalBlacklist();
   if (blacklistData.users[userId]) {
     return { success: false, message: `✨ Usuário @${userId.split('@')[0]} já está na blacklist global!` };
