@@ -11,7 +11,8 @@ async function menuIa(
     separatorIcon = "❁",
     middleBorder = "┊",
     textMenuTitle = "TEXTOS",
-    toolsMenuTitle = "FERRAMENTAS"
+    toolsMenuTitle = "FERRAMENTAS",
+    imageMenuTitle = "IMAGEM"
   } = {}
 ) {
   const formattedHeader = header.replace(/#user#/g, userName);
@@ -44,6 +45,11 @@ ${middleBorder}${menuItemIcon}${prefix}rakutenai
 ${middleBorder}${menuItemIcon}${prefix}rocket
 ${middleBorder}${menuItemIcon}${prefix}swallow
 ${middleBorder}${menuItemIcon}${prefix}falcon
+${bottomBorder}
+
+${menuTopBorder}${separatorIcon} *${imageMenuTitle}*
+${middleBorder}
+${middleBorder}${menuItemIcon}${prefix}genrealism
 ${bottomBorder}
 
 ${menuTopBorder}${separatorIcon} *${toolsMenuTitle}*

@@ -1,21 +1,20 @@
-// ====================
-// Nazuna Bot - Index principal
-// Criado por: Hiudy
-// Versão: 4.0.0
-// Atualizado: 30/07/2025
-// ====================
+/*
+═════════════════════════════
+  Nazuna - Index principal
+  Autor: Hiudy
+  Revisão: 03/08/2025
+═════════════════════════════
+*/
 
 
-const { downloadContentFromMessage } = require('@cognima/walib');
+const { downloadContentFromMessage, generateWAMessageFromContent, generateWAMessage, isJidNewsletter } = require('@cognima/walib');
 const { exec, execSync } = require('child_process');
 const { parseHTML } = require('linkedom');
 const axios = require('axios');
 const pathz = require('path');
 const fs = require('fs');
 const os = require('os');
-const https = require('https'); 
-const Banner = require("@cognima/banners");
-const cron = require('node-cron');
+const https = require('https');
 
 
 const { version: botVersion } = JSON.parse(fs.readFileSync(pathz.join(__dirname, '..', '..', 'package.json')));
@@ -609,7 +608,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const isVideo = type === 'videoMessage';
     const isVisuU2 = type === 'viewOnceMessageV2';
     const isVisuU = type === 'viewOnceMessage';
- 
+    const isButtonMessage = (info.message.interactiveMessage || info.message.templateButtonReplyMessage || info.message.buttonsMessage) ? true : false;
+    const isStatusMention = JSON.stringify(info.message).includes('groupStatusMentionMessage');
+    
     const getMessageText = (message) => {
       if (!message) return '';
       return message.conversation || message.extendedTextMessage?.text || message.imageMessage?.caption || message.videoMessage?.caption || message.documentWithCaptionMessage?.message?.documentMessage?.caption || message.viewOnceMessage?.message?.imageMessage?.caption || message.viewOnceMessage?.message?.videoMessage?.caption || message.viewOnceMessageV2?.message?.imageMessage?.caption || message.viewOnceMessageV2?.message?.videoMessage?.caption || message.editedMessage?.message?.protocolMessage?.editedMessage?.extendedTextMessage?.text || message.editedMessage?.message?.protocolMessage?.editedMessage?.imageMessage?.caption || '';
@@ -669,24 +670,28 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const aliases = loadCommandAliases();
     const matchedAlias = aliases.find(item => normalizar(budy2.trim().slice(groupPrefix.length).split(/ +/).shift().trim()) === item.alias);
     var command = isCmd ? (matchedAlias ? matchedAlias.command : normalizar(body.trim().slice(groupPrefix.length).split(/ +/).shift().trim()).replace(/\s+/g, '')) : null;
- 
-    if (!isGroup) {
-  if (antipvData.mode === 'antipv' && !isOwner) {
-    return;
-  };
-  if (antipvData.mode === 'antipv2' && isCmd && !isOwner) {
-    await reply(antipvData.message || '🚫 Este comando só funciona em grupos!');
-    return;
-  };
-  if (antipvData.mode === 'antipv3' && isCmd && !isOwner) {
-    await nazu.updateBlockStatus(sender, 'block');
-    await reply('🚫 Você foi bloqueado por usar comandos no privado!');
-    return;
-  };
-}
 
     const isPremium = premiumListaZinha[sender] || premiumListaZinha[from] || isOwner;
- 
+   
+    if (!isGroup) {
+      if (antipvData.mode === 'antipv' && !isOwner && !isPremium) {
+        return;
+      };
+      if (antipvData.mode === 'antipv2' && isCmd && !isOwner && !isPremium) {
+        await reply(antipvData.message || '🚫 Este comando só funciona em grupos!');
+        return;
+      };
+      if (antipvData.mode === 'antipv3' && isCmd && !isOwner && !isPremium) {
+        await nazu.updateBlockStatus(sender, 'block');
+        await reply('🚫 Você foi bloqueado por usar comandos no privado!');
+        return;
+      };
+      if (antipvData.mode === 'antipv4' && !isOwner && !isPremium) {
+        await reply(antipvData.message || '🚫 Este comando só funciona em grupos!');
+        return;
+      };
+    };
+    
     if (isGroup && banGpIds[from] && !isOwner && !isPremium) {
       return;
     };
@@ -709,11 +714,31 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const isMuted = groupData.mutedUsers?.[sender];
     const isAntiLinkGp = groupData.antilinkgp;
     const isAntiDel = groupData.antidel;
+    const isAntiBtn = groupData.antibtn;
+    const isAntiStatus = groupData.antistatus;
     const isAutoRepo = groupData.autorepo;
     const isAssistente = groupData.assistente;
     const isModoLite = isGroup && isModoLiteActive(groupData, modoLiteGlobal);
-  
-    if (isGroup && isOnlyAdmin && !isGroupAdmin) {
+    
+    if(isGroup && isStatusMention && isAntiStatus && !isGroupAdmin) {
+      if (isBotAdmin) { 
+        await nazu.sendMessage(from, { delete: { remoteJid: from, fromMe: false, id: info.key.id, participant: sender }});
+        await nazu.groupParticipantsUpdate(from, [sender], 'remove');
+      } else {
+        await reply("⚠️ Não posso remover o usuário porque não sou administrador.");
+      };
+    };
+    
+    if(isGroup && isButtonMessage && isAntiBtn && !isGroupAdmin) {
+      if (isBotAdmin) { 
+        await nazu.sendMessage(from, { delete: { remoteJid: from, fromMe: false, id: info.key.id, participant: sender }});
+        await nazu.groupParticipantsUpdate(from, [sender], 'remove');
+      } else {
+        await reply("⚠️ Não posso remover o usuário porque não sou administrador.");
+      };
+    };
+    
+    if (isGroup && isCmd && isOnlyAdmin && !isGroupAdmin) {
       return;
     };
     
@@ -947,8 +972,39 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     };
     
     nazu.react = reagir;
- 
- 
+    
+    const sendAlbumMessage = async (jid, medias, options = {}) => {
+      const time = options.delay || 500
+      const album = await generateWAMessageFromContent(jid, { albumMessage: { expectedImageCount: medias.filter(media => media.image).length, expectedVideoCount: medias.filter(media => media.video).length, ...options } }, { userJid: botNumber, ...options });
+      await nazu.relayMessage(jid, album.message, { messageId: album.key.id });
+      let mediaHandle
+      let msg
+      for (const i in medias) {
+        const media = medias[i]
+
+        if (media.image) {
+          msg = await generateWAMessage(jid, { image: media.image, ...media, ...options }, { userJid: botNumber, upload: async (encFilePath, opts) => { const up = await nazu.waUploadToServer(encFilePath, { ...opts, newsletter: isJidNewsletter(jid) }); mediaHandle = up.handle; return up; }, ...options})
+        } else if (media.video) {
+          msg = await generateWAMessage(jid, { video: media.video, ...media, ...options }, { userJid: botNumber, upload: async (encFilePath, opts) => { const up = await nazu.waUploadToServer(encFilePath, { ...opts, newsletter: isJidNewsletter(jid) }); mediaHandle = up.handle; return up; }, ...options})
+        };
+
+        if (msg) {
+          msg.message.messageContextInfo = {
+            messageSecret: Math.random(), 
+            messageAssociation: {
+              associationType: 1,
+              parentMessageKey: album.key
+            }
+          }
+        }
+
+        await nazu.relayMessage(jid, msg.message, { messageId: msg.key.id })
+        await await new Promise(resolve => setTimeout(resolve, time));
+      };
+    };
+    
+    nazu.sendAlbumMessage = sendAlbumMessage;
+    
     const getFileBuffer = async (mediakey, mediaType, options = {}) => {
       try {
         if (!mediakey) {
@@ -1398,7 +1454,7 @@ if (((!info.key.fromMe && isAssistente && !isCmd) && ((budy2.includes('@' + nazu
     const respAssist = await ia.makeAssistentRequest({mensagens: [jSoNzIn]}, pathz.join(__dirname, 'index.js'), KeyCog || null);
     if(respAssist.resp && respAssist.resp.length > 0) {
       for(msgza of respAssist.resp) {
-        if(msgza.react) await nazu.react(msgza.react.replaceAll(' ', '').replaceAll('\n', ''));
+        if(msgza.react) await nazu.react(msgza.react.replaceAll(' ', '').replaceAll('\n', ''), {key: info.key});
         if(msgza.resp && msgza.resp.length > 0) await reply(msgza.resp);
         if(msgza.actions) {
           if(msgza.actions.comando) var command = msgza.actions.comando;
@@ -1654,6 +1710,18 @@ if (!isCmd) {
   
   
   //INTELIGENCIA ARTIFICIAL
+  
+  case 'genrealism': try {
+    if(!q) return reply(`Falta o prompt.\nEx: ${prefix}${command} Black Cat`);
+    await reply('⏳ Só um segundinho, estou gerando a imagem... ✨');
+    ImageS = await ia.makeCognimaImageRequest({model:"deepimg",prompt:q,size:"3:2",style:"default",n:1}, KeyCog);
+    if(!ImageS || !ImageS[0]) return reply('😓 Poxa, algo deu errado aqui');
+    await nazu.sendMessage(from, {image: {url: ImageS[0].url}}, {quoted: info});
+  } catch(e) {
+    console.error("Erro no DeepIMG", e);
+    await reply('😓 Poxa, algo deu errado aqui');
+  };
+  break
   
   case 'gemma':
     if (!q) return reply(`🤔 Qual sua dúvida para o Gemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
@@ -3244,8 +3312,20 @@ case 'ytmp4':
     await reply("Ocorreu um erro 💔");
   }
   break;
+  
+  case 'antipv4':
+  try {
+    if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
+    antipvData.mode = antipvData.mode === 'antipv4' ? null : 'antipv4';
+    fs.writeFileSync(__dirname + '/../database/antipv.json', JSON.stringify(antipvData, null, 2));
+    await reply(`✅ Antipv4 ${antipvData.mode ? 'ativado' : 'desativado'}! O bot agora ${antipvData.mode ? 'avisa que o bot so funciona em grupos' : 'responde normalmente no privado'}.`);
+  } catch (e) {
+    console.error(e);
+    await reply("Ocorreu um erro 💔");
+  }
+  break;
 
-  case 'antipvmessage':
+  case 'antipvmessage': case 'antipvmsg':
   try {
     if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
     if (!q) return reply(`Por favor, forneça a nova mensagem para o antipv. Exemplo: ${prefix}antipvmessage Comandos no privado estão desativados!`);
@@ -4241,72 +4321,18 @@ break;
   
 case 'ping':
   try {
-    const nodeVersao = process.version;
-
     const timestamp = Date.now();
     const speedConverted = (timestamp - (info.messageTimestamp * 1000)) / 1000;
-
-    const uptimeBot = formatUptime(process.uptime(), true);
-    const uptimeSistema = formatUptime(os.uptime(), true);
-
-    const ramTotalGb = (os.totalmem() / 1024 / 1024 / 1024).toFixed(2);
-    const ramLivreGb = (os.freemem() / 1024 / 1024 / 1024).toFixed(2);
-    const ramSistemaUsadaGb = (ramTotalGb - ramLivreGb).toFixed(2);
-    const ramUsadaPorcentagem = ((ramSistemaUsadaGb / ramTotalGb) * 100).toFixed(0);
+    const uptimeBot = formatUptime(process.uptime());
     const ramBotProcessoMb = (process.memoryUsage().rss / 1024 / 1024).toFixed(2);
-
-    const criarBarra = (porcentagem, tamanho = 10) => {
-      const preenchido = Math.round((porcentagem / 100) * tamanho);
-      return '█'.repeat(preenchido) + '░'.repeat(tamanho - preenchido);
-    };
-
-    const ramBarra = criarBarra(ramUsadaPorcentagem);
-
-    const isAndroid = () =>
-      process.platform === 'android' || process.env.TERMUX_VERSION || fs.existsSync('/system/build.prop');
-
-    let cpuModel = 'Desconhecido';
-    let cpuCores = 'N/A';
-    let cpuLoad = null;
-
-    const cpus = os.cpus?.() || [];
-    if (!isAndroid()) {
-      if (cpus.length > 0) {
-        const cpuInfo = cpus[0];
-        cpuModel = (cpuInfo.model ?? '').replace(/\(R\)/g, '®').replace(/\(TM\)/g, '™') || 'Desconhecido';
-        cpuCores = cpus.length;
-        cpuLoad = (os.loadavg?.()[0] ?? 0).toFixed(2);
-      }
-    } else {
-      try {
-        const info = fs.readFileSync('/proc/cpuinfo', 'utf8');
-        const match = info.match(/^Hardware\s*:\s*(.+)$/m) || info.match(/^model name\s*:\s*(.+)$/m);
-        if (match) cpuModel = match[1].trim();
-        const matches = info.match(/^processor\s*:/gm);
-        if (matches) cpuCores = matches.length;
-      } catch { }
-    }
-
     const getGroups = await nazu.groupFetchAllParticipating();
     const totalGrupos = Object.keys(getGroups).length;
-    
     let totalUsers = 0;
     Object.values(getGroups).forEach(group => {
       totalUsers += group.participants.length;
     });
-    
-    let diskSpace = null;
-    let diskBarra = null;
-
-    if (!isAndroid()) {
-      diskSpace = await getDiskSpaceInfo();
-      const diskUsedPercentage = parseFloat(diskSpace.percentUsed);
-      diskBarra = criarBarra(diskUsedPercentage);
-    }
-
     let statusEmoji = '🟢';
     let statusTexto = 'Excelente';
-
     if (speedConverted > 2) {
       statusEmoji = '🟡';
       statusTexto = 'Bom';
@@ -4329,39 +4355,29 @@ case 'ping':
 ┊ ├ 🔑 Prefixo: *${prefixo}*
 ┊ ├ 👑 Dono: *${nomedono}*
 ┊ ├ 📊 Grupos: *${totalGrupos}*
+┊ ├ 👤 Usuarios: *${totalUsers}*
 ┊ ╰ ⏱️ Online há: *${uptimeBot}*
 ┊
 ┊ 📡 *Conexão* ${statusEmoji}
 ┊ ├ 📶 Latência: *${speedConverted.toFixed(3)}s*
 ┊ ╰ 📊 Status: *${statusTexto}*
 ┊
-┊ 💻 *Sistema*
-┊ ├ 🏢 OS: *${os.platform()} (${os.release()})*
-┊ ├ 🔩 Arquitetura: *${os.arch()}*
-┊ ├ 🧠 Processador: *${cpuModel}*
-┊ ├ 📊 Núcleos: *${cpuCores}*
-`;
-
-    if (!isAndroid() && cpuLoad !== null) {
-      mensagem += `┊ ├ ⚙️ Carga CPU: *${cpuLoad}%*\n`;
-    }
-
-    mensagem += `┊ ╰ ⏱️ Uptime: *${uptimeSistema}*\n\n`;
-
-    mensagem += `┊ 📊 *Recursos*\n`;
-    mensagem += `┊ ├ ${ramBarra} RAM: *${ramSistemaUsadaGb}/${ramTotalGb} GB (${ramUsadaPorcentagem}%)*\n`;
-    mensagem += `┊ ├ 💾 RAM Bot: *${ramBotProcessoMb} MB*\n`;
-
-    if (!isAndroid() && diskBarra !== null && diskSpace !== null) {
-      mensagem += `┊ ├ ${diskBarra} Disco: *${diskSpace.usedGb}/${diskSpace.totalGb} GB (${diskSpace.percentUsed})*\n`;
-    }
-
-    mensagem += `┊ ╰ 🔄 Node.js: *${nodeVersao}*\n`;
-    mensagem += `┊\n╰━━「 ${nomebot} 」`;
+┊ 📊 *Recursos*
+┊ ╰ 💾 RAM Usada: *${ramBotProcessoMb} MB*
+┊
+╰━━「 ${nomebot} 」`;
 
     mensagem = mensagem.trim();
-
-    const pingImageUrl = await banner.Ping("", 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1753966446765_oordgn.bin', nomebot, speedConverted.toFixed(3), formatUptime(process.uptime()), totalGrupos, totalUsers);
+     
+    let ppimg = "";
+    
+    try {
+      ppimg = await nazu.profilePictureUrl(botNumber, 'image');
+    } catch {
+      ppimg = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1753966446765_oordgn.bin'
+    };
+   
+    const pingImageUrl = await banner.Ping("", ppimg, nomebot, speedConverted.toFixed(3), uptimeBot, totalGrupos, totalUsers);
     
     await nazu.sendMessage(from, { image: { url: pingImageUrl }, caption: mensagem }, { quoted: info });
 
@@ -4949,18 +4965,46 @@ case 'ping':
     break;
 
    case 'antilinkhard':
-  try {
-    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-    if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-    groupData.antilinkhard = !groupData.antilinkhard;
-    fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-    await reply(`✅ Antilinkhard ${groupData.antilinkhard ? 'ativado' : 'desativado'}! Qualquer link enviado resultará em banimento.`);
-  } catch (e) {
-    console.error(e);
-    await reply("Ocorreu um erro 💔");
-  }
-  break;
+   try {
+     if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
+     if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
+     if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+     groupData.antilinkhard = !groupData.antilinkhard;
+     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+     await reply(`✅ Antilinkhard ${groupData.antilinkhard ? 'ativado' : 'desativado'}! Qualquer link enviado resultará em banimento.`);
+   } catch (e) {
+     console.error(e);
+     await reply("Ocorreu um erro 💔");
+   }
+   break;
+   
+   case 'antibotao': case 'antibtn':
+   try {
+     if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
+     if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
+     if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+     groupData.antibtn = !groupData.antibtn;
+     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+     await reply(`✅ Anti Botão ${groupData.antibtn ? 'ativado' : 'desativado'}!`);
+   } catch (e) {
+     console.error(e);
+     await reply("Ocorreu um erro 💔");
+   }
+   break;
+   
+   case 'antistatus':
+   try {
+     if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
+     if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
+     if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+     groupData.antistatus = !groupData.antistatus;
+     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+     await reply(`✅ Anti Status ${groupData.antistatus ? 'ativado' : 'desativado'}!`);
+   } catch (e) {
+     console.error(e);
+     await reply("Ocorreu um erro 💔");
+   }
+   break;
   
   case 'antidelete':
   try {
@@ -6116,9 +6160,7 @@ case 'bonus':
     
     const PosAtivo = groupData.contador.sort((a, b) => ((a.figu == undefined ? a.figu = 0 : a.figu + a.msg + a.cmd) < (b.figu == undefined ? b.figu = 0 : b.figu + b.cmd + b.msg)) ? 0 : -1).findIndex(item => item.id === sender) + 1;
     
-    const card = await new Banner.discordProfile().setUsername(pushname).setAvatar(profilePic).setDiscriminator(String(PosAtivo)+' RankAtivo').setCustomField('BIOGRAFIA', bio).setCustomField('CARGO', userStatus).setBanner('https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1750259175074_ftrfhj.bin').setStatus('online').build();
-    
-    await nazu.sendMessage(from, { image: card, caption: perfilText, mentions: [target] }, { quoted: info });
+    await nazu.sendMessage(from, { image: {url: profilePic}, caption: perfilText, mentions: [target] }, { quoted: info });
   } catch (error) {
     console.error('Erro ao processar comando perfil:', error);
     await reply('Ocorreu um erro ao gerar o perfil 💔');
@@ -6173,7 +6215,7 @@ case 'bonus':
    break
    
    case 'surubao': case 'suruba': try {
-   if (isModoLite) return nazu.react('❌');
+   if (isModoLite) return nazu.react('❌', {key: info.key});
    if(!isGroup) return reply(`Apenas em grupos`);
    if(!isModoBn) return reply('O modo brincadeira nao esta ativo no grupo')
    if (!q) return reply(`Eita, coloque o número de pessoas após o comando.`)
@@ -6214,7 +6256,7 @@ await reply(`*Ainda bem que morreu, não aguentava mais essa praga kkkkkk*`)
   break;
 
    case 'gay': case 'burro': case 'inteligente': case 'otaku': case 'fiel': case 'infiel': case 'corno':  case 'gado': case 'gostoso': case 'feio': case 'rico': case 'pobre': case 'pirocudo': case 'pirokudo': case 'nazista': case 'ladrao': case 'safado': case 'vesgo': case 'bebado': case 'machista': case 'homofobico': case 'racista': case 'chato': case 'sortudo': case 'azarado': case 'forte': case 'fraco': case 'pegador': case 'otario': case 'macho': case 'bobo': case 'nerd': case 'preguicoso': case 'trabalhador': case 'brabo': case 'lindo': case 'malandro': case 'simpatico': case 'engracado': case 'charmoso': case 'misterioso': case 'carinhoso': case 'desumilde': case 'humilde': case 'ciumento': case 'corajoso': case 'covarde': case 'esperto': case 'talarico': case 'chorao': case 'brincalhao': case 'bolsonarista': case 'petista': case 'comunista': case 'lulista': case 'traidor': case 'bandido': case 'cachorro': case 'vagabundo': case 'pilantra': case 'mito': case 'padrao': case 'comedia': case 'psicopata': case 'fortao': case 'magrelo': case 'bombado': case 'chefe': case 'presidente': case 'rei': case 'patrao': case 'playboy': case 'zueiro': case 'gamer': case 'programador': case 'visionario': case 'billionario': case 'poderoso': case 'vencedor': case 'senhor': try {
-    if (isModoLite && ['pirocudo', 'pirokudo', 'gostoso', 'nazista', 'machista', 'homofobico', 'racista'].includes(command)) return nazu.react('❌');
+    if (isModoLite && ['pirocudo', 'pirokudo', 'gostoso', 'nazista', 'machista', 'homofobico', 'racista'].includes(command)) return nazu.react('❌', {key: info.key});
     if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
     if (!isModoBn) return reply('❌ O modo brincadeira não esta ativo nesse grupo');
     let gamesData = fs.existsSync(__dirname + '/funcs/json/games.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/games.json')) : { games: {} };
@@ -6238,7 +6280,7 @@ await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo d
 break;
 
    case 'lesbica': case 'burra': case 'inteligente': case 'otaku': case 'fiel': case 'infiel': case 'corna': case 'gado': case 'gostosa': case 'feia': case 'rica': case 'pobre': case 'bucetuda': case 'nazista': case 'ladra': case 'safada': case 'vesga': case 'bebada': case 'machista': case 'homofobica': case 'racista': case 'chata': case 'sortuda': case 'azarada': case 'forte': case 'fraca': case 'pegadora': case 'otaria': case 'boba': case 'nerd': case 'preguicosa': case 'trabalhadora': case 'braba': case 'linda': case 'malandra': case 'simpatica': case 'engracada': case 'charmosa': case 'misteriosa': case 'carinhosa': case 'desumilde': case 'humilde': case 'ciumenta': case 'corajosa': case 'covarde': case 'esperta': case 'talarica': case 'chorona': case 'brincalhona': case 'bolsonarista': case 'petista': case 'comunista': case 'lulista': case 'traidora': case 'bandida': case 'cachorra': case 'vagabunda': case 'pilantra': case 'mito': case 'padrao': case 'comedia': case 'psicopata': case 'fortona': case 'magrela': case 'bombada': case 'chefe': case 'presidenta': case 'rainha': case 'patroa': case 'playboy': case 'zueira': case 'gamer': case 'programadora': case 'visionaria': case 'bilionaria': case 'poderosa': case 'vencedora': case 'senhora': try {
-    if (isModoLite && ['bucetuda', 'cachorra', 'vagabunda', 'racista', 'nazista', 'gostosa', 'machista', 'homofobica'].includes(command)) return nazu.react('❌');
+    if (isModoLite && ['bucetuda', 'cachorra', 'vagabunda', 'racista', 'nazista', 'gostosa', 'machista', 'homofobica'].includes(command)) return nazu.react('❌', {key: info.key});
     if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
     if (!isModoBn) return reply('❌ O modo brincadeira não esta ativo nesse grupo');
     let gamesData = fs.existsSync(__dirname + '/funcs/json/games.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/games.json')) : { games: {} };
@@ -6262,7 +6304,7 @@ await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo d
 break;
 
 case 'rankgay': case 'rankburro': case 'rankinteligente': case 'rankotaku': case 'rankfiel': case 'rankinfiel': case 'rankcorno': case 'rankgado': case 'rankgostoso': case 'rankrico': case 'rankpobre': case 'rankforte': case 'rankpegador': case 'rankmacho': case 'ranknerd': case 'ranktrabalhador': case 'rankbrabo': case 'ranklindo': case 'rankmalandro': case 'rankengracado': case 'rankcharmoso': case 'rankvisionario': case 'rankpoderoso': case 'rankvencedor':case 'rankgays': case 'rankburros': case 'rankinteligentes': case 'rankotakus': case 'rankfiels': case 'rankinfieis': case 'rankcornos': case 'rankgados': case 'rankgostosos': case 'rankricos': case 'rankpobres': case 'rankfortes': case 'rankpegadores': case 'rankmachos': case 'ranknerds': case 'ranktrabalhadores': case 'rankbrabos': case 'ranklindos': case 'rankmalandros': case 'rankengracados': case 'rankcharmosos': case 'rankvisionarios': case 'rankpoderosos': case 'rankvencedores': try {
-   if (isModoLite && ['rankgostoso', 'rankgostosos', 'ranknazista'].includes(command)) return nazu.react('❌');
+   if (isModoLite && ['rankgostoso', 'rankgostosos', 'ranknazista'].includes(command)) return nazu.react('❌', {key: info.key});
     if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
     if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
     let path = __dirname + '/../database/grupos/' + from + '.json';
@@ -6292,7 +6334,7 @@ await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo d
 break;
 
 case 'ranklesbica': case 'rankburra': case 'rankinteligente': case 'rankotaku': case 'rankfiel': case 'rankinfiel': case 'rankcorna': case 'rankgada': case 'rankgostosa': case 'rankrica': case 'rankpobre': case 'rankforte': case 'rankpegadora': case 'ranknerd': case 'ranktrabalhadora': case 'rankbraba': case 'ranklinda': case 'rankmalandra': case 'rankengracada': case 'rankcharmosa': case 'rankvisionaria': case 'rankpoderosa': case 'rankvencedora':case 'ranklesbicas': case 'rankburras': case 'rankinteligentes': case 'rankotakus': case 'rankfiels': case 'rankinfieis': case 'rankcornas': case 'rankgads': case 'rankgostosas': case 'rankricas': case 'rankpobres': case 'rankfortes': case 'rankpegadoras': case 'ranknerds': case 'ranktrabalhadoras': case 'rankbrabas': case 'ranklindas': case 'rankmalandras': case 'rankengracadas': case 'rankcharmosas': case 'rankvisionarias': case 'rankpoderosas': case 'rankvencedoras': try {
-    if (isModoLite && ['rankgostosa', 'rankgostosas', 'ranknazista'].includes(command)) return nazu.react('❌');
+    if (isModoLite && ['rankgostosa', 'rankgostosas', 'ranknazista'].includes(command)) return nazu.react('❌', {key: info.key});
     if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
     if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
     let path = __dirname + '/../database/grupos/' + from + '.json';
@@ -6323,7 +6365,7 @@ break;
 
 case 'chute': case 'chutar': case 'tapa': case 'soco': case 'socar': case 'beijo': case 'beijar': case 'beijob': case 'beijarb': case 'abraco': case 'abracar': case 'mata': case 'matar': case 'tapar': case 'goza': case 'gozar': case 'mamar': case 'mamada': case 'cafune': case 'morder': case 'mordida': case 'lamber': case 'lambida': case 'explodir': case 'sexo': try {
     const comandosImpróprios = ['sexo', 'surubao', 'goza', 'gozar', 'mamar', 'mamada', 'beijob', 'beijarb', 'tapar'];
-    if (isModoLite && comandosImpróprios.includes(command)) return nazu.react('❌');
+    if (isModoLite && comandosImpróprios.includes(command)) return nazu.react('❌', {key: info.key});
     
     if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
     if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
@@ -6736,7 +6778,7 @@ ${weatherEmoji} *${weatherDescription}*`;
     break;
     
  default:
-  if (isCmd) await nazu.react('❌');
+  if (isCmd) await nazu.react('❌', {key: info.key});
   if (!isCmd && isAutoRepo) {
   const autoResponses = loadCustomAutoResponses();
   const normalizedBody = normalizar(body);

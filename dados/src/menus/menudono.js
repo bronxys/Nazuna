@@ -103,8 +103,9 @@ ${middleBorder}
 ${middleBorder}${menuItemIcon}${prefix}listagp
 ${middleBorder}${menuItemIcon}${prefix}antipv
 ${middleBorder}${menuItemIcon}${prefix}antipv2
-${middleBorder}${menuItemIcon}${prefix}antipvmessage
 ${middleBorder}${menuItemIcon}${prefix}antipv3
+${middleBorder}${menuItemIcon}${prefix}antipv4
+${middleBorder}${menuItemIcon}${prefix}antipvmsg
 ${middleBorder}${menuItemIcon}${prefix}viewmsg
 ${middleBorder}${menuItemIcon}${prefix}tm
 ${middleBorder}${menuItemIcon}${prefix}cases

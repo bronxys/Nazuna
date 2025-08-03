@@ -2,7 +2,7 @@
 ═════════════════════════════
   Nazuna - Conexão WhatsApp
   Autor: Hiudy
-  Revisão: 01/08/2025
+  Revisão: 03/08/2025
 ═════════════════════════════
 */
 
@@ -12,7 +12,6 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
 } = require('@cognima/walib');
-const Banner = require('@cognima/banners');
 const { Boom } = require('@hapi/boom');
 const { NodeCache } = require('@cacheable/node-cache');
 const readline = require('readline');
@@ -53,6 +52,8 @@ async function clearAuthDir() {
 
 async function createBotSocket(authDir) {
   try {
+    const { banner } = await require(__dirname+'/funcs/exports.js');
+    
     await fs.mkdir(DATABASE_DIR, { recursive: true });
     await fs.mkdir(authDir, { recursive: true });
 
@@ -195,13 +196,7 @@ async function createBotSocket(authDir) {
             try {
               profilePic = await NazunaSock.profilePictureUrl(sender, 'image');
             } catch (error) {}
-            const image = jsonGp.welcome.image !== 'banner'
-              ? { url: jsonGp.welcome.image }
-              : await new Banner.welcomeLeave()
-                  .setAvatar(profilePic)
-                  .setTitle('Bem-vindo(a)!')
-                  .setMessage('Aceita um cafézinho enquanto lê as regras?')
-                  .build();
+            const image = jsonGp.welcome.image !== 'banner' ? { url: jsonGp.welcome.image } : {url: await banner.Welcome(profilePic, sender.split('@')[0], groupMetadata.subject, groupMetadata.participants.length)};
             message.image = image;
             message.caption = formattedText;
             delete message.text;

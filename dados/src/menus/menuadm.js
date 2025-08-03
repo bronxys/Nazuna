@@ -108,6 +108,8 @@ ${middleBorder}${menuItemIcon}${prefix}antipt
 ${middleBorder}${menuItemIcon}${prefix}antidoc
 ${middleBorder}${menuItemIcon}${prefix}antiloc
 ${middleBorder}${menuItemIcon}${prefix}antifig
+${middleBorder}${menuItemIcon}${prefix}antibtn
+${middleBorder}${menuItemIcon}${prefix}antistatus
 ${bottomBorder}
 
 ${menuTopBorder}${separatorIcon} *${settingsMenuTitle}*
