@@ -30,6 +30,7 @@ const LEVELING_FILE = pathz.join(DATABASE_DIR, 'leveling.json');
 const CUSTOM_AUTORESPONSES_FILE = pathz.join(DATABASE_DIR, 'customAutoResponses.json');
 const NO_PREFIX_COMMANDS_FILE = pathz.join(DATABASE_DIR, 'noPrefixCommands.json');
 const COMMAND_ALIASES_FILE = pathz.join(DATABASE_DIR, 'commandAliases.json');
+const GLOBAL_BLACKLIST_FILE = pathz.join(DONO_DIR, 'globalBlacklist.json');
 
 
 function formatUptime(seconds, longFormat = false, showZero = false) {
@@ -108,6 +109,7 @@ ensureJsonFileExists(DATABASE_DIR + '/botState.json', { status: 'on' });
 ensureJsonFileExists(CUSTOM_AUTORESPONSES_FILE, { responses: [] });
 ensureJsonFileExists(NO_PREFIX_COMMANDS_FILE, { commands: [] });
 ensureJsonFileExists(COMMAND_ALIASES_FILE, { aliases: [] });
+ensureJsonFileExists(GLOBAL_BLACKLIST_FILE, { users: {}, groups: {} });
 ensureJsonFileExists(LEVELING_FILE, {
   users: {},
   patents: [
@@ -502,6 +504,65 @@ const saveCommandAliases = (aliases) => {
     console.error('❌ Erro ao salvar apelidos de comandos:', error);
     return false;
   }
+};
+
+const loadGlobalBlacklist = () => {
+  return loadJsonFile(GLOBAL_BLACKLIST_FILE, { users: {}, groups: {} });
+};
+
+const saveGlobalBlacklist = (data) => {
+  try {
+    ensureDirectoryExists(DONO_DIR);
+    fs.writeFileSync(GLOBAL_BLACKLIST_FILE, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar blacklist global:', error);
+    return false;
+  }
+};
+
+const addGlobalBlacklist = (userId, reason, addedBy) => {
+  if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
+    return { success: false, message: 'ID de usuário inválido. Use o formato completo (ex: 1234567890@s.whatsapp.net) ou marque o usuário.' };
+  }
+  const nmrdn_check = numerodono.replace(/[^\d]/g, "") + '@s.whatsapp.net';
+  if (userId === nmrdn_check) {
+    return { success: false, message: '🤔 O Dono principal não pode ser adicionado à blacklist global!' };
+  }
+  let blacklistData = loadGlobalBlacklist();
+  if (blacklistData.users[userId]) {
+    return { success: false, message: `✨ Usuário @${userId.split('@')[0]} já está na blacklist global!` };
+  }
+  blacklistData.users[userId] = {
+    reason: reason || 'Não especificado',
+    addedBy: addedBy || 'Desconhecido',
+    addedAt: new Date().toISOString()
+  };
+  if (saveGlobalBlacklist(blacklistData)) {
+    return { success: true, message: `🎉 Usuário @${userId.split('@')[0]} adicionado à blacklist global com sucesso! Motivo: ${reason || 'Não especificado'}` };
+  } else {
+    return { success: false, message: '😥 Erro ao salvar a blacklist global. Tente novamente!' };
+  }
+};
+
+const removeGlobalBlacklist = (userId) => {
+  if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
+    return { success: false, message: 'ID de usuário inválido. Use o formato completo (ex: 1234567890@s.whatsapp.net) ou marque o usuário.' };
+  }
+  let blacklistData = loadGlobalBlacklist();
+  if (!blacklistData.users[userId]) {
+    return { success: false, message: `🤔 Usuário @${userId.split('@')[0]} não está na blacklist global.` };
+  }
+  delete blacklistData.users[userId];
+  if (saveGlobalBlacklist(blacklistData)) {
+    return { success: true, message: `👋 Usuário @${userId.split('@')[0]} removido da blacklist global com sucesso!` };
+  } else {
+    return { success: false, message: '😥 Erro ao salvar a blacklist global após remoção. Tente novamente!' };
+  }
+};
+
+const getGlobalBlacklist = () => {
+  return loadGlobalBlacklist();
 };
 
 async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {  
@@ -2665,6 +2726,51 @@ case 'ranklevel':
   } catch (e) {
     console.error('Erro no comando delalias:', e);
     await reply("Ocorreu um erro ao remover apelido 💔");
+  }
+  break;
+  
+  case 'addblackglobal':
+  try {
+    if (!isOwner) return reply("Apenas o dono pode adicionar usuários à blacklist global.");
+    if (!menc_os2 && !q) return reply(`Marque o usuário ou forneça o número (ex: ${prefix}addblackglobal @usuario motivo).`);
+    const reason = args.length > 1 ? args.slice(1).join(' ') : 'Não especificado';
+    const targetUser = menc_os2 || (q.split(' ')[0].replace(/\D/g, '') + '@s.whatsapp.net');
+    const result = addGlobalBlacklist(targetUser, reason, pushname);
+    await reply(result.message, { mentions: [targetUser] });
+  } catch (e) {
+    console.error('Erro no comando addblackglobal:', e);
+    await reply("Ocorreu um erro ao adicionar à blacklist global 💔");
+  }
+  break;
+
+  case 'rmblackglobal':
+  try {
+    if (!isOwner) return reply("Apenas o dono pode remover usuários da blacklist global.");
+    if (!menc_os2 && !q) return reply(`Marque o usuário ou forneça o número (ex: ${prefix}remblackglobal @usuario).`);
+    const targetUser = menc_os2 || (q.split(' ')[0].replace(/\D/g, '') + '@s.whatsapp.net');
+    const result = removeGlobalBlacklist(targetUser);
+    await reply(result.message, { mentions: [targetUser] });
+  } catch (e) {
+    console.error('Erro no comando remblackglobal:', e);
+    await reply("Ocorreu um erro ao remover da blacklist global 💔");
+  }
+  break;
+
+  case 'listblackglobal':
+  try {
+    if (!isOwner) return reply("Apenas o dono pode listar a blacklist global.");
+    const blacklistData = getGlobalBlacklist();
+    if (Object.keys(blacklistData.users).length === 0) {
+      return reply("🛑 A blacklist global está vazia.");
+    }
+    let message = `🛑 *Blacklist Global* 🛑\n\n`;
+    for (const [userId, data] of Object.entries(blacklistData.users)) {
+      message += `➤ @${userId.split('@')[0]}\n   Motivo: ${data.reason}\n   Adicionado por: ${data.addedBy}\n   Data: ${new Date(data.addedAt).toLocaleString('pt-BR')}\n\n`;
+    }
+    await reply(message, { mentions: Object.keys(blacklistData.users) });
+  } catch (e) {
+    console.error('Erro no comando listblackglobal:', e);
+    await reply("Ocorreu um erro ao listar a blacklist global 💔");
   }
   break;
   

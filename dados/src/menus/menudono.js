@@ -36,6 +36,13 @@ async function menuDono(prefix, botName = "MeuBot", userName = "Usuário") {
 ┊•.̇𖥨֗🍓⭟${prefix}delalias
 ╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯
 
+╭┈❪🍧ฺꕸ▸ *BLACKLIST GLOBAL*
+┊
+┊•.̇𖥨֗🍓⭟${prefix}addblackglobal
+┊•.̇𖥨֗🍓⭟${prefix}listblackglobal
+┊•.̇𖥨֗🍓⭟${prefix}rmblackglobal
+╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯
+
 ╭┈❪🍧ฺꕸ▸ *GERENCIAMENTO*
 ┊
 ┊•.̇𖥨֗🍓⭟${prefix}addsubdono

@@ -145,6 +145,22 @@ async function createBotSocket(authDir) {
           });
         }
       }
+      
+      const globalBlacklistData = JSON.parse(await fs.readFile(path.join(__dirname, '..', 'database', 'dono', 'globalBlacklist.json'), 'utf-8').catch(() => '{}'));
+       
+      if (inf.action === 'add' && globalBlacklistData.users?.[inf.participants[0]]) {
+        const sender = inf.participants[0];
+        try {
+          await NazunaSock.groupParticipantsUpdate(from, [sender], 'remove');
+          await NazunaSock.sendMessage(from, {
+            text: `🚫 @${sender.split('@')[0]} foi removido do grupo por estar na blacklist global. Motivo: ${globalBlacklistData.users[sender].reason}`,
+            mentions: [sender],
+          });
+        } catch (e) {
+          console.error(`❌ Erro ao remover usuário da blacklist global no grupo ${from}: ${e.message}`);
+        }
+        return;
+      }
 
       if (inf.action === 'add' && jsonGp.blacklist?.[inf.participants[0]]) {
         const sender = inf.participants[0];
