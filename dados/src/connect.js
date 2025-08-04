@@ -78,7 +78,20 @@ async function createBotSocket(authDir) {
       browser: ['Ubuntu', 'Edge', '110.0.1587.56'],
       logger,
     });
+    
+    if (codeMode && !NazunaSock.authState.creds.registered) {
+      let phoneNumber = await ask('📱 Insira o número de telefone (com código de país, ex: +5511999999999): ');
+      phoneNumber = phoneNumber.replace(/\D/g, '');
+      if (!/^\d{10,15}$/.test(phoneNumber) || !phoneNumber.startsWith('55')) {
+        console.log('⚠️ Número inválido! Use um número válido com código de país (ex: +5511999999999).');
+        process.exit(1);
+      }
 
+      const code = await NazunaSock.requestPairingCode(phoneNumber.replaceAll('+', '').replaceAll(' ', '').replaceAll('-', ''));
+      console.log(`🔑 Código de pareamento: ${code}`);
+      console.log('📲 Envie este código no WhatsApp para autenticar o bot.');
+    };
+      
     NazunaSock.ev.on('creds.update', saveCreds);
 
     NazunaSock.ev.on('groups.update', async ([ev]) => {
@@ -289,19 +302,6 @@ async function createBotSocket(authDir) {
         setTimeout(() => {
           startNazu();
         }, 5000);
-      }
-
-      if (connection === 'connecting' && codeMode && !NazunaSock.authState.creds.registered) {
-        let phoneNumber = await ask('📱 Insira o número de telefone (com código de país, ex: +5511999999999): ');
-        phoneNumber = phoneNumber.replace(/\D/g, '');
-        if (!/^\d{10,15}$/.test(phoneNumber) || !phoneNumber.startsWith('55')) {
-          console.log('⚠️ Número inválido! Use um número válido com código de país (ex: +5511999999999).');
-          process.exit(1);
-        }
-
-        const code = await NazunaSock.requestPairingCode(phoneNumber.replaceAll('+', '').replaceAll(' ', '').replaceAll('-', ''));
-        console.log(`🔑 Código de pareamento: ${code}`);
-        console.log('📲 Envie este código no WhatsApp para autenticar o bot.');
       }
     });
 
