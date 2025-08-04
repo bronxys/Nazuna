@@ -973,38 +973,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     
     nazu.react = reagir;
     
-    const sendAlbumMessage = async (jid, medias, options = {}) => {
-      const time = options.delay || 500
-      const album = await generateWAMessageFromContent(jid, { albumMessage: { expectedImageCount: medias.filter(media => media.image).length, expectedVideoCount: medias.filter(media => media.video).length, ...options } }, { userJid: botNumber, ...options });
-      await nazu.relayMessage(jid, album.message, { messageId: album.key.id });
-      let mediaHandle
-      let msg
-      for (const i in medias) {
-        const media = medias[i]
-
-        if (media.image) {
-          msg = await generateWAMessage(jid, { image: media.image, ...media, ...options }, { userJid: botNumber, upload: async (encFilePath, opts) => { const up = await nazu.waUploadToServer(encFilePath, { ...opts, newsletter: isJidNewsletter(jid) }); mediaHandle = up.handle; return up; }, ...options})
-        } else if (media.video) {
-          msg = await generateWAMessage(jid, { video: media.video, ...media, ...options }, { userJid: botNumber, upload: async (encFilePath, opts) => { const up = await nazu.waUploadToServer(encFilePath, { ...opts, newsletter: isJidNewsletter(jid) }); mediaHandle = up.handle; return up; }, ...options})
-        };
-
-        if (msg) {
-          msg.message.messageContextInfo = {
-            messageSecret: Math.random(), 
-            messageAssociation: {
-              associationType: 1,
-              parentMessageKey: album.key
-            }
-          }
-        }
-
-        await nazu.relayMessage(jid, msg.message, { messageId: msg.key.id })
-        await await new Promise(resolve => setTimeout(resolve, time));
-      };
-    };
-    
-    nazu.sendAlbumMessage = sendAlbumMessage;
-    
     const getFileBuffer = async (mediakey, mediaType, options = {}) => {
       try {
         if (!mediakey) {
@@ -3110,62 +3078,53 @@ case 'ytmp4':
   break;
   
   case 'tiktok': case 'tiktokaudio': case 'tiktokvideo': case 'tiktoks': case 'tiktoksearch': case 'ttk': case 'tkk':
-   try {
+  try {
     if (!q) return reply(`Digite um nome ou o link de um vídeo.\n> Ex: ${prefix}${command} Gato`);
     await reply('Aguarde um momentinho... ☀️');
     let isTikTokUrl = /^https?:\/\/(?:www\.|m\.|vm\.|t\.)?tiktok\.com\//.test(q);
     let datinha = await (isTikTokUrl ? tiktok.dl(q) : tiktok.search(q));
     if (!datinha.ok) return reply(datinha.msg);
-    let bahzz = [];
-    if(datinha.urls.length > 1) {
     for (const urlz of datinha.urls) {
-        bahzz.push({type: datinha.type, [datinha.type]: { url: urlz }});
-    };
-    await nazu.sendAlbumMessage(from, bahzz, { quoted: info });
-    } else {
-    await nazu.sendMessage(from, { [datinha.type]: { url: datinha.urls[0] }}, {quoted: info});
+      await nazu.sendMessage(from, { [datinha.type]: { url: urlz } }, { quoted: info });
     }
     if (datinha.audio) await nazu.sendMessage(from, { audio: { url: datinha.audio }, mimetype: 'audio/mp4' }, { quoted: info });
-   } catch (e) {
+  } catch (e) {
     console.error(e);
-    reply("ocorreu um erro 💔");
-   }
-   break;
-   
-   case 'instagram': case 'igdl': case 'ig': case 'instavideo': case 'igstory':
+    reply("Ocorreu um erro 💔");
+  }
+  break;
+
+case 'instagram': case 'igdl': case 'ig': case 'instavideo': case 'igstory':
   try {
     if (!q) return reply(`Digite um link do Instagram.\n> Ex: ${prefix}${command} https://www.instagram.com/reel/DFaq_X7uoiT/?igsh=M3Q3N2ZyMWU1M3Bo`);
     await reply('Aguarde um momentinho... ☀️');
     const datinha = await igdl.dl(q);
     if (!datinha.ok) return reply(datinha.msg);
-    let bahzz = [];
-    if(datinha.data.length > 1) {
-    await Promise.all(datinha.data.map(urlz => bahzz.push({type: urlz.type, [urlz.type]: urlz.buff})));
-    await nazu.sendAlbumMessage(from, bahzz, { quoted: info });
-    } else {
-    await nazu.sendMessage(from, {[datinha.data[0].type]: datinha.data[0].buff}, {quoted: info});
-    };
+    for (const item of datinha.data) {
+      await nazu.sendMessage(from, { [item.type]: item.buff }, { quoted: info });
+    }
   } catch (e) {
     console.error(e);
-    reply("ocorreu um erro 💔");
+    reply("Ocorreu um erro 💔");
   }
   break;
 
-  case 'pinterest': case 'pin':
+case 'pinterest': case 'pin':
   try {
     if (!q) return reply('Digite o termo para pesquisar no Pinterest. Exemplo: '+prefix+'pinterest gatinhos /3');
     const [searchTerm, limitStr] = q.split('/').map(s => s.trim());
     let maxImages = 5;
     if (limitStr && !isNaN(parseInt(limitStr))) {
       maxImages = Math.max(1, Math.min(parseInt(limitStr), 10));
-    };
+    }
     const datinha = await (/^https?:\/\/(?:[a-zA-Z0-9-]+\.)?pinterest\.\w{2,6}(?:\.\w{2})?\/pin\/\d+|https?:\/\/pin\.it\/[a-zA-Z0-9]+/.test(searchTerm) ? pinterest.dl(searchTerm) : pinterest.search(searchTerm));
     if (!datinha.ok || !datinha.urls || datinha.urls.length === 0) {
       return reply('Nenhuma imagem encontrada para o termo pesquisado. 😕');
-    };
-    const imagesToSend = datinha.urls.slice(0, maxImages).map(url => ({ image: { url }, caption: `📌 Resultado da pesquisa por "${searchTerm}"` }));
-    await nazu.sendAlbumMessage(from, imagesToSend, { quoted: info });
-    await reply(`✅ Enviadas ${imagesToSend.length} image${imagesToSend.length > 1 ? 'ns' : 'm'} do Pinterest em um álbum!`);
+    }
+    const imagesToSend = datinha.urls.slice(0, maxImages);
+    for (const url of imagesToSend) {
+      await nazu.sendMessage(from, { image: { url }, caption: `📌 Resultado da pesquisa por "${searchTerm}"` }, { quoted: info });
+    }
   } catch (e) {
     console.error('Erro no comando pinterest:', e);
     await reply("Ocorreu um erro ao pesquisar no Pinterest 💔");
