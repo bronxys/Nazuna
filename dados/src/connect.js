@@ -75,6 +75,7 @@ async function createBotSocket(authDir) {
       msgRetryCounterCache,
       cachedGroupMetadata: async (jid) => groupCache.get(jid),
       auth: state,
+      browser: ['Ubuntu', 'Edge', '110.0.1587.56'],
       logger,
     });
 
