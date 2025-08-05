@@ -129,7 +129,7 @@ async function createBotSocket(authDir) {
     console.log(`📱 Usando versão do WhatsApp: ${version.join('.')} ${isLatest ? '(mais recente)' : '(não é a mais recente)'}`);
 
     NazunaSock = makeWASocket({
-      version: "2.3000.1025062854",
+      version: [2, 3000, 1025062854],
       emitOwnEvents: true,
       fireInitQueries: true,
       generateHighQualityLinkPreview: false,
