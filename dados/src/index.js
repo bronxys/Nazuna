@@ -2593,6 +2593,77 @@ case 'ranklevel':
     }
     break;
     
+  case 'limparaluguel':
+  try {
+    if (!isOwner) return reply("Apenas o dono pode usar este comando. 🚫");
+    
+    let rentalData = loadRentalData();
+    let groupsCleaned = 0;
+    let groupsExpired = 0;
+    let groupsLeft = [];
+    let adminsNotified = 0;
+    const symbols = ['✨', '🌟', '⚡', '🔥', '🌈', '🍀', '💫', '🎉'];
+
+    const currentGroups = await nazu.groupFetchAllParticipating();
+    const currentGroupIds = Object.keys(currentGroups);
+    for (const groupId in rentalData.groups) {
+      if (!currentGroupIds.includes(groupId)) {
+        delete rentalData.groups[groupId];
+        groupsCleaned++;
+      }
+    }
+
+    for (const groupId in rentalData.groups) {
+      const rentalStatus = getGroupRentalStatus(groupId);
+      if (rentalStatus.active || rentalStatus.permanent) continue;
+
+      const groupMetadata = await nazu.groupMetadata(groupId).catch(() => null);
+      if (!groupMetadata) {
+        delete rentalData.groups[groupId];
+        groupsCleaned++;
+        continue;
+      }
+
+      groupsExpired++;
+      groupsLeft.push(groupId);
+
+      await nazu.sendMessage(groupId, {
+        text: `⏰ O aluguel deste grupo (${groupMetadata.subject}) expirou. Estou saindo, mas vocês podem renovar o aluguel entrando em contato com o dono! Até mais! 😊${symbols[Math.floor(Math.random() * symbols.length)]}`
+      });
+
+      const admins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
+      for (const admin of admins) {
+        const delay = Math.floor(Math.random() * (500 - 100 + 1)) + 100;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        await nazu.sendMessage(admin, {
+          text: `⚠️ Olá, admin do grupo *${groupMetadata.subject}*! O aluguel do grupo expirou, e por isso saí. Para renovar, entre em contato com o dono. Obrigado! ${symbols[Math.floor(Math.random() * symbols.length)]}`
+        });
+        adminsNotified++;
+      }
+
+      await nazu.groupLeave(groupId);
+    }
+
+    saveRentalData(rentalData);
+
+    let summary = `🧹 *Resumo da Limpeza de Aluguel* 🧹\n\n`;
+    summary += `✅ Grupos removidos dos registros (bot não está mais neles): *${groupsCleaned}*\n`;
+    summary += `⏰ Grupos vencidos processados e saídos: *${groupsExpired}*\n`;
+    summary += `📩 Administradores notificados: *${adminsNotified}*\n`;
+    if (groupsLeft.length > 0) {
+      summary += `\n📋 *Grupos dos quais saí:*\n${groupsLeft.map(id => `- ${id.split('@')[0]}`).join('\n')}\n`;
+    } else {
+      summary += `\n📋 Nenhum grupo vencido encontrado para sair.\n`;
+    }
+    summary += `\n✨ Limpeza concluída com sucesso!`;
+
+    await reply(summary);
+  } catch (e) {
+    console.error('Erro no comando limparaluguel:', e);
+    await reply("Ocorreu um erro ao limpar alugueis 💔");
+  }
+  break;
+    
   case 'addautoresponse': case 'addauto':
   try {
     if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
@@ -2974,10 +3045,8 @@ case 'ranklevel':
     const description = videoInfo.data.description ? videoInfo.data.description.slice(0, 100) + (videoInfo.data.description.length > 100 ? '...' : '') : 'Sem descrição disponível';
     
     const caption = `🎵 *Música Encontrada* 🎵\n\n📌 *Título:* ${videoInfo.data.title}\n👤 *Artista/Canal:* ${videoInfo.data.author.name}\n⏱ *Duração:* ${videoInfo.data.timestamp} (${videoInfo.data.seconds} segundos)\n👀 *Visualizações:* ${views}\n📅 *Publicado:* ${videoInfo.data.ago}\n📜 *Descrição:* ${description}\n🔗 *Link:* ${videoInfo.data.url}\n\n🎧 *Baixando e processando sua música, aguarde...*`;
-    
-    const PlayImg = await banner.Play(videoInfo.data.thumbnail, videoInfo.data.title, videoInfo.data.author.name, videoInfo.data.timestamp);
-    
-    await nazu.sendMessage(from, { image: { url: PlayImg }, caption: caption, footer: `${nomebot} • Versão ${botVersion}` }, { quoted: info });
+
+    await nazu.sendMessage(from, { image: { url: videoInfo.data.thumbnail }, caption: caption, footer: `${nomebot} • Versão ${botVersion}` }, { quoted: info });
     
     const dlRes = await youtube.mp3(videoUrl);
     if (!dlRes.ok) {
@@ -3046,9 +3115,7 @@ case 'ytmp4':
 
 📹 *Enviando seu vídeo, aguarde!*`;
     
-    const PlayImg = await banner.Play(videoInfo.data.thumbnail, videoInfo.data.title, videoInfo.data.author.name, videoInfo.data.timestamp);    
-    
-    await nazu.sendMessage(from, { image: { url: PlayImg }, caption: caption, footer: `By: ${nomebot}` }, { quoted: info });
+    await nazu.sendMessage(from, { image: { url: videoInfo.data.thumbnail }, caption: caption, footer: `By: ${nomebot}` }, { quoted: info });
     const dlRes = await youtube.mp4(videoUrl);
     if (!dlRes.ok) return reply(dlRes.msg);
     try {
