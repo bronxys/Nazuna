@@ -129,7 +129,7 @@ async function createBotSocket(authDir) {
     console.log(`📱 Usando versão do WhatsApp: ${version.join('.')} ${isLatest ? '(mais recente)' : '(não é a mais recente)'}`);
 
     NazunaSock = makeWASocket({
-      version,
+      version: "2.3000.1025062854",
       emitOwnEvents: true,
       fireInitQueries: true,
       generateHighQualityLinkPreview: false,
@@ -483,7 +483,7 @@ async function startNazu() {
       process.exit(1);
     }
   }
-}
+} 
 
 process.on('SIGINT', () => {
   console.log('\n🛑 Recebido sinal de interrupção. Encerrando bot graciosamente...');
