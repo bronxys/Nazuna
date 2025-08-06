@@ -2,7 +2,7 @@
 ═════════════════════════════
   Nazuna - Conexão WhatsApp
   Autor: Hiudy
-  Revisão: 05/08/2025
+  Revisão: 06/08/2025
 ═════════════════════════════
 */
 
@@ -129,30 +129,11 @@ async function createBotSocket(authDir) {
     console.log(`📱 Usando versão do WhatsApp: ${version.join('.')} ${isLatest ? '(mais recente)' : '(não é a mais recente)'}`);
 
     NazunaSock = makeWASocket({
-      version: [2, 3000, 1025062854],
-      emitOwnEvents: true,
-      fireInitQueries: true,
-      generateHighQualityLinkPreview: false,
-      syncFullHistory: false,
-      markOnlineOnConnect: false,
-      connectTimeoutMs: 90000,
-      retryRequestDelayMs: 3000,
-      qrTimeout: 180000,
-      keepAliveIntervalMs: 25000,
-      defaultQueryTimeoutMs: 60000,
+      version,
       msgRetryCounterCache,
       cachedGroupMetadata: async (jid) => groupCache.get(jid),
       auth: state,
-      browser: ['Ubuntu', 'Edge', '110.0.1587.56'],
       logger,
-      shouldSyncHistoryMessage: () => false,
-      shouldIgnoreJid: () => false,
-      getMessage: async (key) => {
-        if (messagesCache.has(key.id)) {
-          return messagesCache.get(key.id);
-        }
-        return undefined;
-      }
     });
 
     currentSocket = NazunaSock;
