@@ -39,13 +39,14 @@ const groupCache = new NodeCache({
 const { prefixo, nomebot, nomedono, numerodono } = require('./config.json');
 
 let indexLoadTimeout;
+let indexModule;
 const INDEX_LOAD_TIMEOUT = 30 * 1000;
 try {
   indexLoadTimeout = setTimeout(() => {
     console.log('❌ Tempo de carregamento do index.js excedeu 40 segundos. Encerrando com código 28.');
     process.exit(28);
   }, INDEX_LOAD_TIMEOUT);
-  const indexModule = require(path.join(__dirname, 'index.js'));
+  indexModule = require(path.join(__dirname, 'index.js'));
 } finally {
   clearTimeout(indexLoadTimeout);
 }
