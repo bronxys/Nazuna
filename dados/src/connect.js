@@ -2,7 +2,7 @@
 ═════════════════════════════
   Nazuna - Conexão WhatsApp
   Autor: Hiudy
-  Revisão: 06/08/2025
+  Revisão: 07/08/2025
 ═════════════════════════════
 */
 
@@ -37,7 +37,18 @@ const groupCache = new NodeCache({
 });
 
 const { prefixo, nomebot, nomedono, numerodono } = require('./config.json');
-const indexModule = require(path.join(__dirname, 'index.js'));
+
+let indexLoadTimeout;
+const INDEX_LOAD_TIMEOUT = 30 * 1000;
+try {
+  indexLoadTimeout = setTimeout(() => {
+    console.log('❌ Tempo de carregamento do index.js excedeu 40 segundos. Encerrando com código 28.');
+    process.exit(28);
+  }, INDEX_LOAD_TIMEOUT);
+  const indexModule = require(path.join(__dirname, 'index.js'));
+} finally {
+  clearTimeout(indexLoadTimeout);
+}
 
 const codeMode = process.argv.includes('--code');
 
@@ -50,7 +61,7 @@ setInterval(() => {
 
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
-const RECONNECT_DELAY_BASE = 5000;
+const RECONNECT_DELAY_BASE = 1000;
 let currentSocket = null;
 let isReconnecting = false;
 
@@ -153,15 +164,17 @@ async function createBotSocket(authDir) {
       
     NazunaSock.ev.on('creds.update', saveCreds);
 
-    NazunaSock.ev.on('groups.update', async ([ev]) => {
+    NazunaSock.ev.on('groups.update', async (updates) => {
       try {
-        const meta = await NazunaSock.groupMetadata(ev.id).catch(() => null);
-        if (meta) {
-          groupCache.set(ev.id, meta);
-          console.log(`📊 Metadados do grupo ${ev.id} atualizados`);
+        for (const ev of updates) {
+          const meta = await NazunaSock.groupMetadata(ev.id).catch(() => null);
+          if (meta) {
+            groupCache.set(ev.id, meta);
+            console.log(`📊 Metadados do grupo ${ev.id} atualizados`);
+          }
         }
       } catch (e) {
-        console.error(`❌ Erro ao atualizar metadados do grupo ${ev.id}: ${e.message}`);
+        console.error(`❌ Erro ao atualizar metadados dos grupos: ${e.message}`);
       }
     });
 
@@ -320,18 +333,46 @@ async function createBotSocket(authDir) {
         if (typeof indexModule === 'function') {
           for (const info of m.messages) {
             if (!info.message || !info.key.remoteJid) continue;
+
+            const MESSAGE_PROCESS_TIMEOUT = 40 * 1000;
+            let messageProcessTimeout;
+            const timeoutPromise = new Promise((_, reject) => {
+              messageProcessTimeout = setTimeout(() => {
+                reject(new Error('❌ Tempo de processamento de mensagens excedeu 40 segundos. Encerrando com código 28.'));
+              }, MESSAGE_PROCESS_TIMEOUT);
+            });
+
             if (messagesCache.size > 1000) {
               const oldestKeys = Array.from(messagesCache.keys()).slice(0, 100);
               oldestKeys.forEach(key => messagesCache.delete(key));
             }
             messagesCache.set(info.key.id, info.message);
-            await indexModule(NazunaSock, info, null, groupCache, messagesCache);
+
+            try {
+              await Promise.race([
+                indexModule(NazunaSock, info, null, groupCache, messagesCache),
+                timeoutPromise
+              ]);
+            } finally {
+              clearTimeout(messageProcessTimeout);
+            }
           }
         } else {
           console.error('⚠️ Módulo index.js não é uma função válida. Verifique o arquivo index.js.');
         }
       } catch (err) {
-        console.error(`❌ Erro ao processar mensagem: ${err.message}`);
+        console.error(err.message);
+        if (err.message.includes('Tempo de processamento de mensagens')) {
+          stopHeartbeat();
+          if (currentSocket) {
+            try {
+              currentSocket.end();
+            } catch (error) {
+              console.error(`❌ Erro ao fechar conexão: ${error.message}`);
+            }
+          }
+          process.exit(28);
+        }
       }
     });
 
@@ -434,6 +475,20 @@ async function createBotSocket(authDir) {
 }
 
 async function startNazu() {
+  const MAX_RUNTIME = 90 * 60 * 1000;
+  setTimeout(() => {
+    console.log('🛑 Tempo máximo de execução (1h30min) atingido. Encerrando com código 27.');
+    stopHeartbeat();
+    if (currentSocket) {
+      try {
+        currentSocket.end();
+      } catch (error) {
+        console.error(`❌ Erro ao fechar conexão: ${error.message}`);
+      }
+    }
+    process.exit(27);
+  }, MAX_RUNTIME);
+
   try {
     console.log('🚀 Iniciando Nazuna...');
     
@@ -464,7 +519,7 @@ async function startNazu() {
       process.exit(1);
     }
   }
-} 
+}
 
 process.on('SIGINT', () => {
   console.log('\n🛑 Recebido sinal de interrupção. Encerrando bot graciosamente...');
