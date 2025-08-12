@@ -1679,17 +1679,47 @@ if (!isCmd) {
   
   //INTELIGENCIA ARTIFICIAL
   
-  case 'genrealism': try {
-    if(!q) return reply(`Falta o prompt.\nEx: ${prefix}${command} Black Cat`);
+  case 'genrealism':
+case 'genghibli':
+case 'gencyberpunk':
+case 'genanime':
+case 'genportrait':
+case 'genchibi':
+case 'genpixelart':
+case 'genoilpainting':
+case 'gen3d':
+  try {
+    const styleList = {  
+      default: "-style Realism",  
+      ghibli: "-style Ghibli Art",  
+      cyberpunk: "-style Cyberpunk",  
+      anime: "-style Anime",  
+      portrait: "-style Portrait",  
+      chibi: "-style Chibi",  
+      pixelart: "-style Pixel Art",  
+      oilpainting: "-style Oil Painting",  
+      "3d": "-style 3D",  
+    };
+    let styleKey = command === 'genrealism' ? 'default' : command.slice(3);
+    if (!styleList.hasOwnProperty(styleKey)) {
+      return reply('😓 Estilo inválido para o comando.');
+    }
+    if (!KeyCog) {
+  await nazu.sendMessage(nmrdn, {
+    text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+  });
+  return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+}
+    if (!q) return reply(`Falta o prompt.\nEx: ${prefix}${command} Black Cat`);
     await reply('⏳ Só um segundinho, estou gerando a imagem... ✨');
-    ImageS = await ia.makeCognimaImageRequest({model:"deepimg",prompt:q,size:"3:2",style:"default",n:1}, KeyCog);
-    if(!ImageS || !ImageS[0]) return reply('😓 Poxa, algo deu errado aqui');
-    await nazu.sendMessage(from, {image: {url: ImageS[0].url}}, {quoted: info});
-  } catch(e) {
+    ImageS = await ia.makeCognimaImageRequest({ model: "deepimg", prompt: q, size: "3:2", style: styleList[styleKey], n: 1 }, KeyCog);
+    if (!ImageS || !ImageS[0]) return reply('😓 Poxa, algo deu errado aqui');
+    await nazu.sendMessage(from, { image: { url: ImageS[0].url } }, { quoted: info });
+  } catch (e) {
     console.error("Erro no DeepIMG", e);
     await reply('😓 Poxa, algo deu errado aqui');
-  };
-  break
+  }
+break;
   
   case 'gemma':
     if (!q) return reply(`🤔 Qual sua dúvida para o Gemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
