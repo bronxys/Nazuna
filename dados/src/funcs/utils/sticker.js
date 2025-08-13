@@ -41,8 +41,11 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
 
     let outputOptions = [
         "-vcodec", "libwebp",
-        "-vf", `${scaleOption}, split [a][b]; [a] palettegen=reserve_transparent=on:transparency_color=ffffff [p]; [b][p] paletteuse`,
-        "-loop", "0"
+        "-vf", scaleOption,
+        "-loop", "0",
+        "-pix_fmt", "yuva420p",
+        "-lossless", "0",
+        "-compression_level", "6"
     ];
 
     if (isVideo) {
@@ -53,6 +56,7 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
         const targetBitrate = Math.floor((targetSizeBytes * 8) / duration);
         outputOptions.push("-b:v", `${targetBitrate}`);
     } else {
+        outputOptions.push("-quality", "50");
     }
 
     await new Promise((resolve, reject) => {
@@ -75,7 +79,7 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
 
     const fileSize = buff.length;
     if (fileSize > 1000000) {
-        console.warn(`File size is ${fileSize} bytes, exceeds 1MB. Consider lowering bitrate or quality.`);
+        console.warn(`File size is ${fileSize} bytes, exceeds 1MB. Consider lowering quality or bitrate further.`);
     }
 
     await fs.unlink(tmpFileOut).catch(err => console.error("Erro ao excluir arquivo temporário de saída:", err));
