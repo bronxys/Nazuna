@@ -3,6 +3,7 @@ const fs2 = require('fs');
 const path = require("path");
 const webp = require("node-webpmux");
 const axios = require('axios');
+const ffmpeg = require('fluent-ffmpeg');
 
 const generateTempFileName = (extension) => {
     const timestamp = Date.now();
@@ -14,6 +15,15 @@ const generateTempFileName = (extension) => {
 async function getBuffer(url) {
     const response = await axios.get(url, { responseType: 'arraybuffer' });
     return Buffer.from(response.data, 'binary');
+}
+
+async function getVideoDuration(inputPath) {
+    return new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(inputPath, (err, metadata) => {
+            if (err) return reject(err);
+            resolve(metadata.format.duration);
+        });
+    });
 }
 
 async function convertToWebp(media, isVideo = false, forceSquare = false) {
@@ -29,8 +39,24 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
         scaleOption = "scale='min(320,iw)':min'(320,ih)':force_original_aspect_ratio=decrease,fps=15, pad=320:320:-1:-1:color=white@0.0";
     }
 
+    let outputOptions = [
+        "-vcodec", "libwebp",
+        "-vf", `${scaleOption}, split [a][b]; [a] palettegen=reserve_transparent=on:transparency_color=ffffff [p]; [b][p] paletteuse`,
+        "-loop", "0"
+    ];
+
+    if (isVideo) {
+        const duration = await getVideoDuration(tmpFileIn);
+        if (!duration) throw new Error("Could not retrieve video duration");
+
+        const targetSizeBytes = 990;
+        const targetBitrate = Math.floor((targetSizeBytes * 8) / duration);
+        outputOptions.push("-b:v", `${targetBitrate}`);
+    } else {
+    }
+
     await new Promise((resolve, reject) => {
-        const ff = require('fluent-ffmpeg')(tmpFileIn)
+        ffmpeg(tmpFileIn)
             .on("error", (err) => {
                 console.error("Erro ao converter mídia:", err);
                 fs.unlink(tmpFileIn).catch(e => console.error("Erro ao excluir tmpFileIn após erro de conversão:", e));
@@ -40,15 +66,18 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
             .on("end", () => {
                 resolve(true);
             })
-            .addOutputOptions([
-                "-vcodec", "libwebp",
-                "-vf", `${scaleOption}, split [a][b]; [a] palettegen=reserve_transparent=on:transparency_color=ffffff [p]; [b][p] paletteuse`
-            ])
+            .addOutputOptions(outputOptions)
             .toFormat("webp")
             .save(tmpFileOut);
     });
 
-    const buff = await fs.readFile(tmpFileOut);
+    let buff = await fs.readFile(tmpFileOut);
+
+    const fileSize = buff.length;
+    if (isVideo && fileSize > 990) {
+        console.warn(`File size is ${fileSize} bytes, exceeds 990 bytes. Consider adjusting bitrate further.`);
+    }
+
     await fs.unlink(tmpFileOut).catch(err => console.error("Erro ao excluir arquivo temporário de saída:", err));
     await fs.unlink(tmpFileIn).catch(err => console.error("Erro ao excluir arquivo temporário de entrada:", err));
     return buff;
@@ -68,7 +97,7 @@ async function writeExif(media, metadata, isVideo = false, rename = false, force
                 "sticker-pack-id": `https://github.com/hiudyy`,
                 "sticker-pack-name": metadata.packname,
                 "sticker-pack-publisher": metadata.author,
-                "emojis": ["NazuninhaBot"]
+                "emojis": ["NazunaBot"]
             };
             const exifAttr = Buffer.from([0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00]);
             const jsonBuff = Buffer.from(JSON.stringify(json), "utf-8");
@@ -98,7 +127,6 @@ async function writeExif(media, metadata, isVideo = false, rename = false, force
         
         return buff;
     }
-    
 }
 
 const sendSticker = async (nazu, jid, { sticker: path, type = 'image', packname = '', author = '', rename = false, forceSquare = false }, { quoted } = {}) => {
