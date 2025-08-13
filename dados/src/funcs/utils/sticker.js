@@ -35,7 +35,7 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
 
     let scaleOption;
     if (forceSquare) {
-        scaleOption = "scale=320:320:force_original_aspect_ratio=decrease,fps=15";
+        scaleOption = "scale=320:320,fps=15";
     } else {
         scaleOption = "scale='min(320,iw)':'min(320,ih)':force_original_aspect_ratio=decrease,pad=320:320:(ow-iw)/2:(oh-ih)/2:color=white@0.0,fps=15";
     }
