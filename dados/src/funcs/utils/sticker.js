@@ -49,7 +49,7 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
         const duration = await getVideoDuration(tmpFileIn);
         if (!duration) throw new Error("Could not retrieve video duration");
 
-        const targetSizeBytes = 990;
+        const targetSizeBytes = 900000;
         const targetBitrate = Math.floor((targetSizeBytes * 8) / duration);
         outputOptions.push("-b:v", `${targetBitrate}`);
     } else {
@@ -74,8 +74,8 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
     let buff = await fs.readFile(tmpFileOut);
 
     const fileSize = buff.length;
-    if (isVideo && fileSize > 990) {
-        console.warn(`File size is ${fileSize} bytes, exceeds 990 bytes. Consider adjusting bitrate further.`);
+    if (fileSize > 1000000) {
+        console.warn(`File size is ${fileSize} bytes, exceeds 1MB. Consider lowering bitrate or quality.`);
     }
 
     await fs.unlink(tmpFileOut).catch(err => console.error("Erro ao excluir arquivo temporário de saída:", err));
@@ -97,7 +97,7 @@ async function writeExif(media, metadata, isVideo = false, rename = false, force
                 "sticker-pack-id": `https://github.com/hiudyy`,
                 "sticker-pack-name": metadata.packname,
                 "sticker-pack-publisher": metadata.author,
-                "emojis": ["NazunaBot"]
+                "emojis": ["NazuninhaBot"]
             };
             const exifAttr = Buffer.from([0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00]);
             const jsonBuff = Buffer.from(JSON.stringify(json), "utf-8");
