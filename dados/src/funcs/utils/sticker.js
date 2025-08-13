@@ -1,20 +1,21 @@
 const fs = require('fs').promises;
-const fs2 = require('fs');
-const path = require("path");
-const webp = require("node-webpmux");
+const fsSync = require('fs');
+const path = require('path');
+const webp = require('node-webpmux');
 const axios = require('axios');
 const ffmpeg = require('fluent-ffmpeg');
 
 const generateTempFileName = (extension) => {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000000);
-    if (!fs2.existsSync(__dirname + '/../../../database/tmp')) fs2.mkdirSync(__dirname + '/../../../database/tmp', { recursive: true });
-    return path.join(__dirname, '/../../../database/tmp', `${timestamp}_${random}.${extension}`);
+    const tmpDir = path.join(__dirname, '../../../database/tmp');
+    if (!fsSync.existsSync(tmpDir)) fsSync.mkdirSync(tmpDir, { recursive: true });
+    return path.join(tmpDir, `${timestamp}_${random}.${extension}`);
 };
 
 async function getBuffer(url) {
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
-    return Buffer.from(response.data, 'binary');
+    const { data } = await axios.get(url, { responseType: 'arraybuffer' });
+    return Buffer.from(data);
 }
 
 async function getVideoDuration(inputPath) {
@@ -34,9 +35,9 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
 
     let scaleOption;
     if (forceSquare) {
-        scaleOption = "scale=320:320,fps=15";
+        scaleOption = "scale=320:320:force_original_aspect_ratio=decrease,fps=15";
     } else {
-        scaleOption = "scale='min(320,iw)':min'(320,ih)':force_original_aspect_ratio=decrease,fps=15, pad=320:320:-1:-1:color=white@0.0";
+        scaleOption = "scale='min(320,iw)':'min(320,ih)':force_original_aspect_ratio=decrease,pad=320:320:(ow-iw)/2:(oh-ih)/2:color=white@0.0,fps=15";
     }
 
     let outputOptions = [
@@ -50,7 +51,7 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
 
     if (isVideo) {
         const duration = await getVideoDuration(tmpFileIn);
-        if (!duration) throw new Error("Could not retrieve video duration");
+        if (!duration) throw new Error("Não foi possível obter duração do vídeo");
 
         const targetSizeBytes = 900000;
         const targetBitrate = Math.floor((targetSizeBytes * 8) / duration);
@@ -61,29 +62,21 @@ async function convertToWebp(media, isVideo = false, forceSquare = false) {
 
     await new Promise((resolve, reject) => {
         ffmpeg(tmpFileIn)
-            .on("error", (err) => {
-                console.error("Erro ao converter mídia:", err);
-                fs.unlink(tmpFileIn).catch(e => console.error("Erro ao excluir tmpFileIn após erro de conversão:", e));
-                fs.unlink(tmpFileOut).catch(e => console.error("Erro ao excluir tmpFileOut após erro de conversão:", e));
-                reject(err);
-            })
-            .on("end", () => {
-                resolve(true);
-            })
             .addOutputOptions(outputOptions)
             .toFormat("webp")
+            .on("error", reject)
+            .on("end", resolve)
             .save(tmpFileOut);
     });
 
-    let buff = await fs.readFile(tmpFileOut);
+    const buff = await fs.readFile(tmpFileOut);
 
-    const fileSize = buff.length;
-    if (fileSize > 1000000) {
-        console.warn(`File size is ${fileSize} bytes, exceeds 1MB. Consider lowering quality or bitrate further.`);
+    if (buff.length > 1000000) {
+        console.warn(`Arquivo gerado tem ${buff.length} bytes (>1MB). Considere reduzir qualidade.`);
     }
 
-    await fs.unlink(tmpFileOut).catch(err => console.error("Erro ao excluir arquivo temporário de saída:", err));
-    await fs.unlink(tmpFileIn).catch(err => console.error("Erro ao excluir arquivo temporário de entrada:", err));
+    await fs.unlink(tmpFileIn).catch(() => {});
+    await fs.unlink(tmpFileOut).catch(() => {});
     return buff;
 }
 
@@ -111,34 +104,38 @@ async function writeExif(media, metadata, isVideo = false, rename = false, force
             await img.load(tmpFileIn);
             img.exif = exif;
             await img.save(tmpFileOut);
+        } else {
+            await fs.copyFile(tmpFileIn, tmpFileOut);
         }
     } catch (err) {
         console.error("Erro ao processar EXIF:", err);
-    } finally {
-        const buff = await fs.readFile(tmpFileOut);
-        
-        try {
-            await fs.unlink(tmpFileIn);
-        } catch (err) {
-            console.error("Erro ao excluir arquivo temporário de entrada:", err);
-        }
-
-        try {
-            await fs.unlink(tmpFileOut);
-        } catch (err) {
-            console.error("Erro ao excluir arquivo temporário de saída:", err);
-        }
-        
-        return buff;
+        await fs.copyFile(tmpFileIn, tmpFileOut);
     }
+
+    const buff = await fs.readFile(tmpFileOut);
+
+    await fs.unlink(tmpFileIn).catch(() => {});
+    await fs.unlink(tmpFileOut).catch(() => {});
+    return buff;
 }
 
 const sendSticker = async (nazu, jid, { sticker: path, type = 'image', packname = '', author = '', rename = false, forceSquare = false }, { quoted } = {}) => {
-    if (!type || !['image', 'video'].includes(type)) {
+    if (!['image', 'video'].includes(type)) {
         throw new Error('O tipo de mídia deve ser "image" ou "video".');
     }
 
-    let buff = Buffer.isBuffer(path) ? path : /^data:.*?\/.*?;base64,/i.test(path) ? Buffer.from(path.split`,`[1], 'base64') : fs2.existsSync(path) ? await fs2.readFileSync(path) : path.url ? await getBuffer(path.url) : Buffer.alloc(0);
+    let buff;
+    if (Buffer.isBuffer(path)) {
+        buff = path;
+    } else if (/^data:.*?\/.*?;base64,/i.test(path)) {
+        buff = Buffer.from(path.split(',')[1], 'base64');
+    } else if (fsSync.existsSync(path)) {
+        buff = fsSync.readFileSync(path);
+    } else if (path.url) {
+        buff = await getBuffer(path.url);
+    } else {
+        buff = Buffer.alloc(0);
+    }
 
     let buffer;
     if (packname || author) {
