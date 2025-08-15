@@ -63,7 +63,8 @@ async function setupTermuxAutostart() {
 am startservice --user 0 \\
   -n com.termux/com.termux.app.RunCommandService \\
   -a com.termux.RUN_COMMAND \\
-  --es com.termux.RUN_COMMAND_PATH '/data/data/com.termux/files/usr/bin/npm start' \\
+  --es com.termux.RUN_COMMAND_PATH '/data/data/com.termux/files/usr/bin/npm' \\
+  --esa com.termux.RUN_COMMAND_ARGUMENTS 'start' \\
   --es com.termux.RUN_COMMAND_SESSION_NAME 'Nazuna Bot' \\
   --es com.termux.RUN_COMMAND_WORKDIR '${path.join(__dirname, '..', '..', '..')}' \\
   --ez com.termux.RUN_COMMAND_BACKGROUND 'false' \\
