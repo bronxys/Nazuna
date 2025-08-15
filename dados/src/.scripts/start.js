@@ -59,7 +59,7 @@ async function setupTermuxAutostart() {
     mensagem('📝 Configuração de termux.properties concluída.');
 
     const nazunaScript = path.join(process.env.HOME, 'nazuna.sh');
-    const scriptContent = `#!/data/data/com.termux/files/usr/bin/bash\nnode ${path.join(__dirname, 'start.js')}\n`;
+    const scriptContent = `#!/data/data/com.termux/files/usr/bin/bash\ncd ${path.join(__dirname, '..', '..', '..')} && npm start\n`;
     await fs.writeFile(nazunaScript, scriptContent);
     await execSync(`chmod +x ${nazunaScript}`);
     mensagem('📜 Script nazuna.sh criado com sucesso.');
