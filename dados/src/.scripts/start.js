@@ -58,8 +58,8 @@ async function setupTermuxAutostart() {
     await execSync(`sed '/^# *allow-external-apps *= *true/s/^# *//' ${termuxProperties} -i && termux-reload-settings`, { stdio: 'inherit' });
     mensagem('📝 Configuração de termux.properties concluída.');
 
-    const nazunaScript = path.join(process.env.HOME, 'nazuna.sh');
-    const scriptContent = `#!/data/data/com.termux/files/usr/bin/bash\ncd ${path.join(__dirname, '..', '..', '..')} && npm start\n`;
+    const nazunaScript = path.join(__dirname, '..', '..', '..', 'nazuna.sh');
+    const scriptContent = `#!/data/data/com.termux/files/usr/bin/bash\nnpm start\n`;
     await fs.writeFile(nazunaScript, scriptContent);
     await execSync(`chmod +x ${nazunaScript}`);
     mensagem('📜 Script nazuna.sh criado com sucesso.');
