@@ -58,20 +58,14 @@ async function setupTermuxAutostart() {
     await execSync(`sed '/^# *allow-external-apps *= *true/s/^# *//' ${termuxProperties} -i && termux-reload-settings`, { stdio: 'inherit' });
     mensagem('📝 Configuração de termux.properties concluída.');
 
-    const nazunaScript = path.join(__dirname, '..', '..', '..', 'nazuna.sh');
-    const scriptContent = `#!/data/data/com.termux/files/usr/bin/bash\nnpm start\n`;
-    await fs.writeFile(nazunaScript, scriptContent);
-    await execSync(`chmod +x ${nazunaScript}`);
-    mensagem('📜 Script nazuna.sh criado com sucesso.');
-
     const bashrcPath = path.join(process.env.HOME, '.bashrc');
     const termuxServiceCommand = `
 am startservice --user 0 \\
   -n com.termux/com.termux.app.RunCommandService \\
   -a com.termux.RUN_COMMAND \\
-  --es com.termux.RUN_COMMAND_PATH '${nazunaScript}' \\
+  --es com.termux.RUN_COMMAND_PATH '/data/data/com.termux/files/usr/bin/npm start' \\
   --es com.termux.RUN_COMMAND_SESSION_NAME 'Nazuna Bot' \\
-  --es com.termux.RUN_COMMAND_WORKDIR '${process.env.HOME}' \\
+  --es com.termux.RUN_COMMAND_WORKDIR '${path.join(__dirname, '..', '..', '..')}' \\
   --ez com.termux.RUN_COMMAND_BACKGROUND 'false' \\
   --es com.termux.RUN_COMMAND_SESSION_ACTION '0'
 `;
