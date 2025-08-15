@@ -3,7 +3,7 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const readline = require('readline');
 const os = require('os');
 
@@ -12,6 +12,7 @@ const NODE_MODULES_PATH = path.join(process.cwd(), 'node_modules');
 const QR_CODE_DIR = path.join(process.cwd(), 'dados', 'database', 'qr-code');
 const CONNECT_FILE = path.join(process.cwd(), 'dados', 'src', 'connect.js');
 const isWindows = os.platform() === 'win32';
+const isTermux = fsSync.existsSync('/data/data/com.termux');
 
 const colors = {
   reset: '\x1b[0m',
@@ -39,6 +40,58 @@ const getVersion = () => {
 
 let botProcess = null;
 const version = getVersion();
+
+async function setupTermuxAutostart() {
+  if (!isTermux) {
+    info('📱 Não está rodando no Termux. Ignorando configuração de autostart.');
+    return;
+  }
+
+  info('📱 Detectado ambiente Termux. Configurando inicialização automática...');
+
+  try {
+    const termuxProperties = path.join(process.env.HOME, '.termux', 'termux.properties');
+    await fs.mkdir(path.dirname(termuxProperties), { recursive: true });
+    if (!fsSync.existsSync(termuxProperties)) {
+      await fs.writeFile(termuxProperties, '');
+    }
+    await execSync(`sed '/^# *allow-external-apps *= *true/s/^# *//' ${termuxProperties} -i && termux-reload-settings`, { stdio: 'inherit' });
+    mensagem('📝 Configuração de termux.properties concluída.');
+
+    const nazunaScript = path.join(process.env.HOME, 'nazuna.sh');
+    const scriptContent = `#!/data/data/com.termux/files/usr/bin/bash\nnode ${path.join(__dirname, 'start.js')}\n`;
+    await fs.writeFile(nazunaScript, scriptContent);
+    await execSync(`chmod +x ${nazunaScript}`);
+    mensagem('📜 Script nazuna.sh criado com sucesso.');
+
+    const bashrcPath = path.join(process.env.HOME, '.bashrc');
+    const termuxServiceCommand = `
+am startservice --user 0 \\
+  -n com.termux/com.termux.app.RunCommandService \\
+  -a com.termux.RUN_COMMAND \\
+  --es com.termux.RUN_COMMAND_PATH '${nazunaScript}' \\
+  --es com.termux.RUN_COMMAND_SESSION_NAME 'Nazuna Bot' \\
+  --es com.termux.RUN_COMMAND_WORKDIR '${process.env.HOME}' \\
+  --ez com.termux.RUN_COMMAND_BACKGROUND 'false' \\
+  --es com.termux.RUN_COMMAND_SESSION_ACTION '0'
+`;
+    let bashrcContent = '';
+    if (fsSync.existsSync(bashrcPath)) {
+      bashrcContent = await fs.readFile(bashrcPath, 'utf8');
+    }
+
+    if (!bashrcContent.includes(termuxServiceCommand.trim())) {
+      await fs.appendFile(bashrcPath, `\n${termuxServiceCommand}\n`);
+      mensagem('📝 Comando am startservice adicionado ao ~/.bashrc');
+    } else {
+      info('📝 Comando am startservice já presente no ~/.bashrc');
+    }
+
+    mensagem('📱 Configuração de inicialização automática no Termux concluída!');
+  } catch (error) {
+    aviso(`❌ Erro ao configurar autostart no Termux: ${error.message}`);
+  }
+}
 
 function setupGracefulShutdown() {
   const shutdown = () => {
@@ -214,6 +267,7 @@ async function main() {
     setupGracefulShutdown();
     await displayHeader();
     await checkPrerequisites();
+    await setupTermuxAutostart();
     
     const hasSession = await checkAutoConnect();
     if (hasSession) {
