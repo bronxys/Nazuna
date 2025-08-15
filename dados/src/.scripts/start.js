@@ -11,7 +11,7 @@ const CONFIG_PATH = path.join(process.cwd(), 'dados', 'src', 'config.json');
 const NODE_MODULES_PATH = path.join(process.cwd(), 'node_modules');
 const QR_CODE_DIR = path.join(process.cwd(), 'dados', 'database', 'qr-code');
 const CONNECT_FILE = path.join(process.cwd(), 'dados', 'src', 'connect.js');
-const RESTART_DELAY = 50;
+const RESTART_DELAY = 1;
 const isWindows = os.platform() === 'win32';
 const dualMode = process.argv.includes('dual');
 
@@ -173,13 +173,7 @@ function restartBot(codeMode) {
   restartCount++;
   let delay = RESTART_DELAY;
 
-  if (restartCount > MAX_RESTART_COUNT) {
-    const exponentialDelay = Math.min(30000, RESTART_DELAY * Math.pow(1.5, restartCount - MAX_RESTART_COUNT));
-    delay = exponentialDelay;
-    aviso(`⚠️ Muitas tentativas de reinício (${restartCount}). Aguardando ${Math.round(delay / 1000)} segundos.`);
-  } else {
-    aviso(`🔄 Reiniciando o bot em ${delay / 1000} segundos...`);
-  }
+  aviso(`🔄 Reiniciando o bot em ${delay / 1000} segundos...`);
 
   setTimeout(() => {
     if (botProcess) {
