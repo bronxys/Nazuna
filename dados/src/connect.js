@@ -2,7 +2,7 @@
 ═════════════════════════════
   Nazuna - Conexão WhatsApp
   Autor: Hiudy
-  Revisão: 07/08/2025
+  Revisão: 16/08/2025
 ═════════════════════════════
 */
 
@@ -25,28 +25,72 @@ const AUTH_DIR = path.join(__dirname, '..', 'database', 'qr-code');
 const DATABASE_DIR = path.join(__dirname, '..', 'database', 'grupos');
 
 const msgRetryCounterCache = new NodeCache({ 
-  stdTTL: 10 * 60,
+  stdTTL: 15 * 60,
   useClones: false,
-  checkperiod: 60
+  checkperiod: 30,
+  deleteOnExpire: true,
+  maxKeys: 1000
 });
 
 const groupCache = new NodeCache({ 
-  stdTTL: 30 * 60,
+  stdTTL: 45 * 60,
   useClones: false,
-  checkperiod: 120
+  checkperiod: 60,
+  deleteOnExpire: true,
+  maxKeys: 500
 });
 
 const { prefixo, nomebot, nomedono, numerodono } = require('./config.json');
 
 let indexLoadTimeout;
 let indexModule;
+let indexRebootTimer;
 const INDEX_LOAD_TIMEOUT = 30 * 1000;
+const INDEX_REBOOT_INTERVAL = 30 * 60 * 1000;
+
+function safeShutdown() {
+  console.log('🛑 Iniciando desligamento seguro...');
+  stopHeartbeat();
+  
+  if (indexRebootTimer) {
+    clearTimeout(indexRebootTimer);
+    indexRebootTimer = null;
+  }
+  
+  if (currentSocket) {
+    try {
+      console.log('🔌 Fechando conexão socket...');
+      currentSocket.end();
+      currentSocket = null;
+    } catch (error) {
+      console.error(`❌ Erro ao fechar socket: ${error.message}`);
+    }
+  }
+  
+  setTimeout(() => {
+    console.log('♻️ Reiniciando processo...');
+    process.exit(27);
+  }, 2000);
+}
+
+function scheduleIndexReboot() {
+  if (indexRebootTimer) {
+    clearTimeout(indexRebootTimer);
+  }
+  
+  indexRebootTimer = setTimeout(() => {
+    console.log('🔄 Reinicialização automática programada (30 minutos). Executando desligamento seguro...');
+    safeShutdown();
+  }, INDEX_REBOOT_INTERVAL);
+}
+
 try {
   indexLoadTimeout = setTimeout(() => {
-    console.log('❌ Tempo de carregamento do index.js excedeu 40 segundos. Encerrando com código 28.');
-    process.exit(28);
+    console.log('❌ Tempo de carregamento do index.js excedeu 30 segundos. Executando desligamento seguro...');
+    safeShutdown();
   }, INDEX_LOAD_TIMEOUT);
   indexModule = require(path.join(__dirname, 'index.js'));
+  scheduleIndexReboot();
 } finally {
   clearTimeout(indexLoadTimeout);
 }
@@ -54,10 +98,16 @@ try {
 const codeMode = process.argv.includes('--code');
 
 const messagesCache = new Map();
-const MESSAGE_CACHE_CLEANUP_INTERVAL = 300000;
+const MESSAGE_CACHE_CLEANUP_INTERVAL = 180000;
 setInterval(() => {
-  console.log(`🧹 Limpando cache de mensagens. Tamanho atual: ${messagesCache.size}`);
-  messagesCache.clear();
+  const oldSize = messagesCache.size;
+  if (oldSize > 500) {
+    const entries = Array.from(messagesCache.entries());
+    const toKeep = entries.slice(-250);
+    messagesCache.clear();
+    toKeep.forEach(([key, value]) => messagesCache.set(key, value));
+    console.log(`🧹 Cache de mensagens otimizado: ${oldSize} → ${messagesCache.size}`);
+  }
 }, MESSAGE_CACHE_CLEANUP_INTERVAL);
 
 let reconnectAttempts = 0;
@@ -104,20 +154,24 @@ function startHeartbeat(socket) {
         console.log('💓 Heartbeat enviado');
       } else {
         console.log('⚠️ Socket não está aberto durante heartbeat');
-        if (Date.now() - lastHeartbeat > 300000) {
-          console.log('💀 Conexão morta detectada, forçando reconexão...');
+        if (Date.now() - lastHeartbeat > 180000) {
+          console.log('💀 Conexão morta detectada (3min sem heartbeat), executando reconexão segura...');
           if (socket && socket.end) {
-            socket.end();
+            try {
+              socket.end();
+            } catch (endError) {
+              console.error(`❌ Erro ao fechar socket no heartbeat: ${endError.message}`);
+            }
           }
           if (!isReconnecting) {
-            startNazu();
+            safeShutdown();
           }
         }
       }
     } catch (error) {
       console.error(`❌ Erro no heartbeat: ${error.message}`);
     }
-  }, 60000);
+  }, 45000);
 }
 
 function stopHeartbeat() {
@@ -146,6 +200,19 @@ async function createBotSocket(authDir) {
       cachedGroupMetadata: async (jid) => groupCache.get(jid),
       auth: state,
       logger,
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      keepAliveIntervalMs: 10000,
+      retryRequestDelayMs: 250,
+      maxMsgRetryCount: 5,
+      markOnlineOnConnect: true,
+      printQRInTerminal: false,
+      qrTimeout: 60000,
+      options: {
+        keepAlive: true,
+        pingTimeout: 20000,
+        pingInterval: 15000
+      }
     });
 
     currentSocket = NazunaSock;
@@ -357,11 +424,11 @@ async function createBotSocket(authDir) {
           for (const info of m.messages) {
             if (!info.message || !info.key.remoteJid) continue;
 
-            const MESSAGE_PROCESS_TIMEOUT = 40 * 1000;
+            const MESSAGE_PROCESS_TIMEOUT = 1200 * 1000;
             let messageProcessTimeout;
             const timeoutPromise = new Promise((_, reject) => {
               messageProcessTimeout = setTimeout(() => {
-                reject(new Error('❌ Tempo de processamento de mensagens excedeu 40 segundos. Encerrando com código 28.'));
+                reject(new Error('❌ Tempo de processamento de mensagens excedeu 30 segundos.'));
               }, MESSAGE_PROCESS_TIMEOUT);
             });
 
@@ -386,15 +453,8 @@ async function createBotSocket(authDir) {
       } catch (err) {
         console.error(err.message);
         if (err.message.includes('Tempo de processamento de mensagens')) {
-          stopHeartbeat();
-          if (currentSocket) {
-            try {
-              currentSocket.end();
-            } catch (error) {
-              console.error(`❌ Erro ao fechar conexão: ${error.message}`);
-            }
-          }
-          process.exit(28);
+          console.log('⚠️ Timeout no processamento de mensagens. Executando desligamento seguro...');
+          safeShutdown();
         }
       }
     });
@@ -500,16 +560,8 @@ async function createBotSocket(authDir) {
 async function startNazu() {
   const MAX_RUNTIME = 90 * 60 * 1000;
   setTimeout(() => {
-    console.log('🛑 Tempo máximo de execução (1h30min) atingido. Encerrando com código 27.');
-    stopHeartbeat();
-    if (currentSocket) {
-      try {
-        currentSocket.end();
-      } catch (error) {
-        console.error(`❌ Erro ao fechar conexão: ${error.message}`);
-      }
-    }
-    process.exit(27);
+    console.log('🛑 Tempo máximo de execução (1h30min) atingido. Executando desligamento seguro...');
+    safeShutdown();
   }, MAX_RUNTIME);
 
   try {
@@ -545,29 +597,13 @@ async function startNazu() {
 }
 
 process.on('SIGINT', () => {
-  console.log('\n🛑 Recebido sinal de interrupção. Encerrando bot graciosamente...');
-  stopHeartbeat();
-  if (currentSocket) {
-    try {
-      currentSocket.end();
-    } catch (error) {
-      console.error(`❌ Erro ao fechar conexão: ${error.message}`);
-    }
-  }
-  process.exit(0);
+  console.log('\n🛑 Recebido sinal de interrupção. Executando desligamento seguro...');
+  safeShutdown();
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n🛑 Recebido sinal de término. Encerrando bot graciosamente...');
-  stopHeartbeat();
-  if (currentSocket) {
-    try {
-      currentSocket.end();
-    } catch (error) {
-      console.error(`❌ Erro ao fechar conexão: ${error.message}`);
-    }
-  }
-  process.exit(0);
+  console.log('\n🛑 Recebido sinal de término. Executando desligamento seguro...');
+  safeShutdown();
 });
 
 process.on('uncaughtException', (error) => {

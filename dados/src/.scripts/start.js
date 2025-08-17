@@ -199,11 +199,11 @@ function startBot(codeMode = false) {
 }
 
 function restartBot(codeMode) {
-  aviso('🔄 Reiniciando o bot em 0.5 segundos...');
+  aviso('🔄 Reiniciando o bot em 1 segundo...');
   setTimeout(() => {
     if (botProcess) botProcess.removeAllListeners();
     startBot(codeMode);
-  }, 500);
+  }, 1000);
 }
 
 async function checkAutoConnect() {
@@ -267,7 +267,7 @@ async function main() {
     const hasSession = await checkAutoConnect();
     if (hasSession) {
       mensagem('📷 Sessão de QR Code detectada. Conectando automaticamente...');
-      startBot(false);
+      startBot(true);
     } else {
       const { method } = await promptConnectionMethod();
       startBot(method === 'code');
