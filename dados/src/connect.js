@@ -2,7 +2,7 @@
 ═════════════════════════════
   Nazuna - Conexão WhatsApp
   Autor: Hiudy
-  Revisão: 16/08/2025
+  Revisão: 19/08/2025
 ═════════════════════════════
 */
 
@@ -11,7 +11,7 @@ const {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
-} = require('@cognima/walib');
+} = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const { NodeCache } = require('@cacheable/node-cache');
 const readline = require('readline');
@@ -20,104 +20,45 @@ const fs = require('fs').promises;
 const path = require('path');
 const qrcode = require('qrcode-terminal');
 
-const logger = pino({ level: 'silent' });
+const { prefixo, nomebot, nomedono } = require('./config.json');
+
 const AUTH_DIR = path.join(__dirname, '..', 'database', 'qr-code');
 const DATABASE_DIR = path.join(__dirname, '..', 'database', 'grupos');
 
-const msgRetryCounterCache = new NodeCache({ 
-  stdTTL: 15 * 60,
-  useClones: false,
-  checkperiod: 30,
-  deleteOnExpire: true,
-  maxKeys: 1000
-});
-
-const groupCache = new NodeCache({ 
-  stdTTL: 45 * 60,
-  useClones: false,
-  checkperiod: 60,
-  deleteOnExpire: true,
-  maxKeys: 500
-});
-
-const { prefixo, nomebot, nomedono, numerodono } = require('./config.json');
-
-let indexLoadTimeout;
-let indexModule;
-let indexRebootTimer;
-const INDEX_LOAD_TIMEOUT = 30 * 1000;
-const INDEX_REBOOT_INTERVAL = 30 * 60 * 1000;
-
-function safeShutdown() {
-  console.log('🛑 Iniciando desligamento seguro...');
-  stopHeartbeat();
-  
-  if (indexRebootTimer) {
-    clearTimeout(indexRebootTimer);
-    indexRebootTimer = null;
-  }
-  
-  if (currentSocket) {
-    try {
-      console.log('🔌 Fechando conexão socket...');
-      currentSocket.end();
-      currentSocket = null;
-    } catch (error) {
-      console.error(`❌ Erro ao fechar socket: ${error.message}`);
-    }
-  }
-  
-  setTimeout(() => {
-    console.log('♻️ Reiniciando processo...');
-    process.exit(27);
-  }, 2000);
-}
-
-function scheduleIndexReboot() {
-  if (indexRebootTimer) {
-    clearTimeout(indexRebootTimer);
-  }
-  
-  indexRebootTimer = setTimeout(() => {
-    console.log('🔄 Reinicialização automática programada (30 minutos). Executando desligamento seguro...');
-    safeShutdown();
-  }, INDEX_REBOOT_INTERVAL);
-}
-
-try {
-  indexLoadTimeout = setTimeout(() => {
-    console.log('❌ Tempo de carregamento do index.js excedeu 30 segundos. Executando desligamento seguro...');
-    safeShutdown();
-  }, INDEX_LOAD_TIMEOUT);
-  indexModule = require(path.join(__dirname, 'index.js'));
-  scheduleIndexReboot();
-} finally {
-  clearTimeout(indexLoadTimeout);
-}
-
-const codeMode = process.argv.includes('--code');
-
-const messagesCache = new Map();
-const MESSAGE_CACHE_CLEANUP_INTERVAL = 180000;
-setInterval(() => {
-  const oldSize = messagesCache.size;
-  if (oldSize > 500) {
-    const entries = Array.from(messagesCache.entries());
-    const toKeep = entries.slice(-250);
-    messagesCache.clear();
-    toKeep.forEach(([key, value]) => messagesCache.set(key, value));
-    console.log(`🧹 Cache de mensagens otimizado: ${oldSize} → ${messagesCache.size}`);
-  }
-}, MESSAGE_CACHE_CLEANUP_INTERVAL);
-
-let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
-const RECONNECT_DELAY_BASE = 1000;
-let currentSocket = null;
-let isReconnecting = false;
+const RECONNECT_DELAY_BASE_MS = 1000;
+const HEARTBEAT_INTERVAL_MS = 45000;
+const DEAD_CONNECTION_TIMEOUT_MS = 180000;
+const SEND_MESSAGE_TIMEOUT_MS = 30000;
+const MESSAGE_CACHE_CLEANUP_INTERVAL_MS = 180000;
 
+const logger = pino({ level: 'silent' });
+
+class TimeoutError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'TimeoutError';
+  }
+}
+
+const msgRetryCounterCache = new NodeCache({ stdTTL: 15 * 60, useClones: false });
+const groupCache = new NodeCache({ stdTTL: 45 * 60, useClones: false });
+const messagesCache = new Map();
+
+let indexModule;
+let currentSocket = null;
+let reconnectAttempts = 0;
+let isReconnecting = false;
 let heartbeatInterval = null;
 let lastHeartbeat = Date.now();
+const codeMode = process.argv.includes('--code');
+
+try {
+  indexModule = require(path.join(__dirname, 'index.js'));
+} catch (error) {
+  console.error(`❌ Erro fatal ao carregar o arquivo principal index.js: ${error.message}`);
+  process.exit(1);
+}
 
 const ask = (question) => {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -130,39 +71,29 @@ const ask = (question) => {
 async function clearAuthDir() {
   try {
     await fs.rm(AUTH_DIR, { recursive: true, force: true });
-    console.log(`🗑️ Pasta de autenticação (${AUTH_DIR}) excluída com sucesso.`);
+    console.log(`🗑️  Diretório de autenticação (${AUTH_DIR}) limpo com sucesso.`);
   } catch (err) {
-    console.error(`❌ Erro ao excluir pasta de autenticação: ${err.message}`);
+    console.error(`❌ Erro ao limpar o diretório de autenticação: ${err.message}`);
   }
 }
 
 function getReconnectDelay() {
-  const delay = Math.min(RECONNECT_DELAY_BASE * Math.pow(2, reconnectAttempts), 60000);
+  const delay = Math.min(RECONNECT_DELAY_BASE_MS * Math.pow(2, reconnectAttempts), 60000);
   return delay + Math.random() * 1000;
 }
 
 function startHeartbeat(socket) {
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
-  }
-  
+  stopHeartbeat();
   heartbeatInterval = setInterval(async () => {
     try {
       if (socket && socket.ws && socket.ws.readyState === socket.ws.OPEN) {
         await socket.sendPresenceUpdate('available');
         lastHeartbeat = Date.now();
-        console.log('💓 Heartbeat enviado');
+        console.log('💓 Heartbeat enviado com sucesso.');
       } else {
-        console.log('⚠️ Socket não está aberto durante heartbeat');
-        if (Date.now() - lastHeartbeat > 180000) {
-          console.log('💀 Conexão morta detectada (3min sem heartbeat), executando reconexão segura...');
-          if (socket && socket.end) {
-            try {
-              socket.end();
-            } catch (endError) {
-              console.error(`❌ Erro ao fechar socket no heartbeat: ${endError.message}`);
-            }
-          }
+        console.log('⚠️ Socket não está aberto. Verificando tempo desde o último heartbeat...');
+        if (Date.now() - lastHeartbeat > DEAD_CONNECTION_TIMEOUT_MS) {
+          console.log(`💀 Conexão morta detectada! (sem heartbeat por ${DEAD_CONNECTION_TIMEOUT_MS / 1000}s)`);
           if (!isReconnecting) {
             safeShutdown();
           }
@@ -171,7 +102,7 @@ function startHeartbeat(socket) {
     } catch (error) {
       console.error(`❌ Erro no heartbeat: ${error.message}`);
     }
-  }, 45000);
+  }, HEARTBEAT_INTERVAL_MS);
 }
 
 function stopHeartbeat() {
@@ -181,439 +112,340 @@ function stopHeartbeat() {
   }
 }
 
-async function createBotSocket(authDir) {
+function safeShutdown() {
+  console.log('🛑 Iniciando desligamento seguro...');
+  stopHeartbeat();
+  if (currentSocket && currentSocket.ws) {
+    try {
+      console.log('🔌 Fechando conexão do WebSocket...');
+      currentSocket.ws.close();
+    } catch (error) {
+      console.error(`❌ Erro ao fechar o WebSocket: ${error.message}`);
+    }
+  }
+  currentSocket = null;
+  console.log('♻️  O processo será reiniciado em 2 segundos...');
+  setTimeout(() => {
+    process.exit(27);
+  }, 2000);
+}
+
+async function createBotSocket() {
   let NazunaSock;
   try {
     const { banner } = await require(__dirname + '/funcs/exports.js');
-    
     await fs.mkdir(DATABASE_DIR, { recursive: true });
-    await fs.mkdir(authDir, { recursive: true });
+    await fs.mkdir(AUTH_DIR, { recursive: true });
 
-    const { state, saveCreds } = await useMultiFileAuthState(authDir);
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
     const { version, isLatest } = await fetchLatestBaileysVersion();
-
-    console.log(`📱 Usando versão do WhatsApp: ${version.join('.')} ${isLatest ? '(mais recente)' : '(não é a mais recente)'}`);
+    console.log(`📱 Usando Baileys v${version.join('.')} (${isLatest ? 'mais recente' : 'desatualizada'})`);
 
     NazunaSock = makeWASocket({
       version,
       msgRetryCounterCache,
-      cachedGroupMetadata: async (jid) => groupCache.get(jid),
+      cachedGroupMetadata: (jid) => groupCache.get(jid),
       auth: state,
       logger,
-      connectTimeoutMs: 60000,
-      defaultQueryTimeoutMs: 60000,
-      keepAliveIntervalMs: 10000,
-      retryRequestDelayMs: 250,
-      maxMsgRetryCount: 5,
-      markOnlineOnConnect: true,
-      printQRInTerminal: false,
-      qrTimeout: 60000,
+      connectTimeoutMs: 180000,
+      defaultQueryTimeoutMs: 180000,
+      keepAliveIntervalMs: 2000,
+      retryRequestDelayMs: 300,
+      maxMsgRetryCount: 20,
+      markOnlineOnConnect: false,
+      printQRInTerminal: !codeMode,
+      qrTimeout: 180000,
+      syncFullHistory: false,
+      fireInitQueries: false,
+      generateHighQualityLinkPreview: false,
+      getMessage: async (key) => messagesCache.get(key.id),
       options: {
         keepAlive: true,
-        pingTimeout: 20000,
-        pingInterval: 15000
-      }
+        pingTimeout: 45000,
+        pingInterval: 8000
+      },
+      browser: ['Firefox', '130.0', 'macOS']
     });
 
     currentSocket = NazunaSock;
-    
-    if (codeMode && !NazunaSock.authState.creds.registered) {
-      let phoneNumber = await ask('📱 Insira o número de telefone (com código de país, ex: +5511999999999): ');
-      phoneNumber = phoneNumber.replace(/\D/g, '');
-      if (!/^\d{10,15}$/.test(phoneNumber) || !phoneNumber.startsWith('55')) {
-        console.log('⚠️ Número inválido! Use um número válido com código de país (ex: +5511999999999).');
-        process.exit(1);
-      }
 
-      const code = await NazunaSock.requestPairingCode(phoneNumber.replaceAll('+', '').replaceAll(' ', '').replaceAll('-', ''));
-      console.log(`🔑 Código de pareamento: ${code}`);
-      console.log('📲 Envie este código no WhatsApp para autenticar o bot.');
-    }
-      
-    NazunaSock.ev.on('creds.update', saveCreds);
-
-    NazunaSock.ev.on('groups.update', async (updates) => {
+    console.log(`🔧 Aplicando patch de timeout de ${SEND_MESSAGE_TIMEOUT_MS / 1000}s na função sendMessage...`);
+    const originalSendMessage = NazunaSock.sendMessage.bind(NazunaSock);
+    NazunaSock.sendMessage = async (...args) => {
       try {
-        for (const ev of updates) {
-          const meta = await NazunaSock.groupMetadata(ev.id).catch(() => null);
-          if (meta) {
-            groupCache.set(ev.id, meta);
-            console.log(`📊 Metadados do grupo ${ev.id} atualizados`);
-          }
-        }
-      } catch (e) {
-        console.error(`❌ Erro ao atualizar metadados dos grupos: ${e.message}`);
-      }
-    });
-
-    NazunaSock.ev.on('group-participants.update', async (inf) => {
-      try {
-        const from = inf.id;
-        if (NazunaSock.user && inf.participants[0].startsWith(NazunaSock.user.id.split(':')[0])) return;
-
-        let groupMetadata = groupCache.get(from);
-        if (!groupMetadata) {
-          try {
-            groupMetadata = await NazunaSock.groupMetadata(from);
-            groupCache.set(from, groupMetadata);
-          } catch (e) {
-            console.error(`❌ Erro ao obter metadados do grupo ${from}: ${e.message}`);
-            return;
-          }
-        }
-
-        const groupFilePath = path.join(DATABASE_DIR, `${from}.json`);
-        let jsonGp;
-        try {
-          const data = await fs.readFile(groupFilePath, 'utf-8');
-          jsonGp = JSON.parse(data);
-        } catch (e) {
-          console.error(`❌ Erro ao ler arquivo do grupo ${from}: ${e.message}`);
-          return;
-        }
-
-        if ((inf.action === 'promote' || inf.action === 'demote') && jsonGp.x9) {
-          const action = inf.action === 'promote' ? 'promovido a administrador' : 'rebaixado de administrador';
-          const by = inf.author || 'alguém';
-          await NazunaSock.sendMessage(from, {
-            text: `🚨 Atenção! @${inf.participants[0].split('@')[0]} foi ${action} por @${by.split('@')[0]}.`,
-            mentions: [inf.participants[0], by],
-          });
-        };
-
-        if ((inf.action === 'promote' || inf.action === 'demote') && jsonGp.antiarqv) {
-          const author = inf.author || inf.id;
-          const participant = inf.participants[0];
-          const groupOwners = jsonGp.groupOwners || [];
-
-          if (author === NazunaSock.user.id || groupOwners.includes(author)) {
-            return;
-          };
-
-          try {
-            if (inf.action === 'promote') {
-              await NazunaSock.groupParticipantsUpdate(from, [participant], 'demote');
-            } else if (inf.action === 'demote') {
-              await NazunaSock.groupParticipantsUpdate(from, [participant], 'promote');
-            };
-            await NazunaSock.groupParticipantsUpdate(from, [author], 'demote');
-          } catch (e) {
-            console.error(`❌ Erro ao aplicar anti-arquivamento no grupo ${from}: ${e.message}`);
-          };
-          return;
-        };
-        
-        if (inf.action === 'add' && jsonGp.antifake) {
-          const participant = inf.participants[0];
-          const countryCode = participant.split('@')[0].substring(0, 2);
-          if (!['55', '35'].includes(countryCode)) {
-            await NazunaSock.groupParticipantsUpdate(from, [participant], 'remove');
-            await NazunaSock.sendMessage(from, {
-              text: `🚫 @${participant.split('@')[0]} foi removido por suspeita de número falso (código de país não permitido).`,
-              mentions: [participant],
-            });
-          }
-        }
-
-        if (inf.action === 'add' && jsonGp.antipt) {
-          const participant = inf.participants[0];
-          const countryCode = participant.split('@')[0].substring(0, 3);
-          if (countryCode === '351') {
-            await NazunaSock.groupParticipantsUpdate(from, [participant], 'remove');
-            await NazunaSock.sendMessage(from, {
-              text: `🇵🇹 @${participant.split('@')[0]} foi removido por ser um número de Portugal (anti-PT ativado).`,
-              mentions: [participant],
-            });
-          }
-        }
-        
-        const globalBlacklistData = JSON.parse(await fs.readFile(path.join(__dirname, '..', 'database', 'dono', 'globalBlacklist.json'), 'utf-8').catch(() => '{}'));
-         
-        if (inf.action === 'add' && globalBlacklistData.users?.[inf.participants[0]]) {
-          const sender = inf.participants[0];
-          try {
-            await NazunaSock.groupParticipantsUpdate(from, [sender], 'remove');
-            await NazunaSock.sendMessage(from, {
-              text: `🚫 @${sender.split('@')[0]} foi removido do grupo por estar na blacklist global. Motivo: ${globalBlacklistData.users[sender].reason}`,
-              mentions: [sender],
-            });
-          } catch (e) {
-            console.error(`❌ Erro ao remover usuário da blacklist global no grupo ${from}: ${e.message}`);
-          }
-          return;
-        }
-
-        if (inf.action === 'add' && jsonGp.blacklist?.[inf.participants[0]]) {
-          const sender = inf.participants[0];
-          try {
-            await NazunaSock.groupParticipantsUpdate(from, [sender], 'remove');
-            await NazunaSock.sendMessage(from, {
-              text: `🚫 @${sender.split('@')[0]} foi removido do grupo por estar na lista negra. Motivo: ${jsonGp.blacklist[sender].reason}`,
-              mentions: [sender],
-            });
-          } catch (e) {
-            console.error(`❌ Erro ao remover usuário da lista negra no grupo ${from}: ${e.message}`);
-          }
-          return;
-        }
-
-        if (inf.action === 'add' && jsonGp.bemvindo) {
-          const sender = inf.participants[0];
-          const welcomeText = jsonGp.textbv && jsonGp.textbv.length > 1
-            ? jsonGp.textbv
-            : `🚀 Bem-vindo(a), @${sender.split('@')[0]}! Você entrou no grupo *${groupMetadata.subject}*. Leia as regras e aproveite! Membros: ${groupMetadata.participants.length}. Descrição: ${groupMetadata.desc || 'Nenhuma'}.`;
-
-          const formattedText = welcomeText
-            .replaceAll('#numerodele#', `@${sender.split('@')[0]}`)
-            .replaceAll('#nomedogp#', groupMetadata.subject)
-            .replaceAll('#desc#', groupMetadata.desc || '')
-            .replaceAll('#membros#', groupMetadata.participants.length);
-
-          try {
-            const message = { text: formattedText, mentions: [sender] };
-            if (jsonGp.welcome?.image) {
-              let profilePic = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1747053564257_bzswae.bin';
-              try {
-                profilePic = await NazunaSock.profilePictureUrl(sender, 'image');
-              } catch (error) {}
-              const image = jsonGp.welcome.image !== 'banner' ? { url: jsonGp.welcome.image } : {url: await banner.Welcome(profilePic, sender.split('@')[0], groupMetadata.subject, groupMetadata.participants.length)};
-              message.image = image;
-              message.caption = formattedText;
-              delete message.text;
-            }
-            await NazunaSock.sendMessage(from, message);
-          } catch (e) {
-            console.error(`❌ Erro ao enviar mensagem de boas-vindas no grupo ${from}: ${e.message}`);
-          }
-        }
-
-        if (inf.action === 'remove' && jsonGp.exit?.enabled) {
-          const sender = inf.participants[0];
-          const exitText = jsonGp.exit.text && jsonGp.exit.text.length > 1
-            ? jsonGp.exit.text
-            : `👋 @${sender.split('@')[0]} saiu do grupo *${groupMetadata.subject}*. Até mais! Membros restantes: ${groupMetadata.participants.length}.`;
-
-          const formattedText = exitText
-            .replaceAll('#numerodele#', `@${sender.split('@')[0]}`)
-            .replaceAll('#nomedogp#', groupMetadata.subject)
-            .replaceAll('#desc#', groupMetadata.desc || '')
-            .replaceAll('#membros#', groupMetadata.participants.length);
-
-          try {
-            const message = { text: formattedText, mentions: [sender] };
-            if (jsonGp.exit?.image) {
-              message.image = { url: jsonGp.exit.image };
-              message.caption = formattedText;
-              delete message.text;
-            }
-            await NazunaSock.sendMessage(from, message);
-          } catch (e) {
-            console.error(`❌ Erro ao enviar mensagem de saída no grupo ${from}: ${e.message}`);
-          }
-        }
+        return await Promise.race([
+          originalSendMessage(...args),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new TimeoutError(`Envio da mensagem excedeu ${SEND_MESSAGE_TIMEOUT_MS / 1000}s`)), SEND_MESSAGE_TIMEOUT_MS)
+          ),
+        ]);
       } catch (error) {
-        console.error(`❌ Erro geral no processamento de participantes do grupo: ${error.message}`);
-      }
-    });
-
-    NazunaSock.ev.on('messages.upsert', async (m) => {
-      if (!m.messages || !Array.isArray(m.messages) || m.type !== 'notify') return;
-      
-      try {
-        if (typeof indexModule === 'function') {
-          for (const info of m.messages) {
-            if (!info.message || !info.key.remoteJid) continue;
-
-            const MESSAGE_PROCESS_TIMEOUT = 1200 * 1000;
-            let messageProcessTimeout;
-            const timeoutPromise = new Promise((_, reject) => {
-              messageProcessTimeout = setTimeout(() => {
-                reject(new Error('❌ Tempo de processamento de mensagens excedeu 30 segundos.'));
-              }, MESSAGE_PROCESS_TIMEOUT);
-            });
-
-            if (messagesCache.size > 1000) {
-              const oldestKeys = Array.from(messagesCache.keys()).slice(0, 100);
-              oldestKeys.forEach(key => messagesCache.delete(key));
-            }
-            messagesCache.set(info.key.id, info.message);
-
-            try {
-              await Promise.race([
-                indexModule(NazunaSock, info, null, groupCache, messagesCache),
-                timeoutPromise
-              ]);
-            } finally {
-              clearTimeout(messageProcessTimeout);
-            }
-          }
-        } else {
-          console.error('⚠️ Módulo index.js não é uma função válida. Verifique o arquivo index.js.');
-        }
-      } catch (err) {
-        console.error(err.message);
-        if (err.message.includes('Tempo de processamento de mensagens')) {
-          console.log('⚠️ Timeout no processamento de mensagens. Executando desligamento seguro...');
+        if (error instanceof TimeoutError) {
+          console.error(`❌⏱️ ERRO FATAL: ${error.message}.`);
           safeShutdown();
+          return new Promise(() => {});
         }
+        console.error(`❌ Erro durante o envio da mensagem (não-timeout): ${error.message}`);
+        throw error;
       }
-    });
+    };
 
-    NazunaSock.ev.on('connection.update', async (update) => {
-      const { connection, lastDisconnect, qr } = update;
-
-      if (qr && !NazunaSock.authState.creds.registered && !codeMode) {
-        console.log('🔗 QR Code gerado para autenticação:');
-        qrcode.generate(qr, { small: true }, (qrcodeText) => {
-          console.log(qrcodeText);
-        });
-        console.log('📱 Escaneie o QR code acima com o WhatsApp para autenticar o bot.');
-      }
-
-      if (connection === 'connecting') {
-        console.log('🔄 Conectando ao WhatsApp...');
-      }
-
-      if (connection === 'open') {
-        console.log(`✅ Bot ${nomebot} conectado com sucesso! Prefixo: ${prefixo} | Dono: ${nomedono}`);
-        reconnectAttempts = 0;
-        isReconnecting = false;
-        startHeartbeat(NazunaSock);
-        lastHeartbeat = Date.now();
-      }
-
-      if (connection === 'close') {
-        stopHeartbeat();
-        
-        const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-        const reasonMessage = {
-          [DisconnectReason.loggedOut]: 'Deslogado do WhatsApp',
-          401: 'Sessão expirada',
-          [DisconnectReason.connectionClosed]: 'Conexão fechada',
-          [DisconnectReason.connectionLost]: 'Conexão perdida',
-          [DisconnectReason.connectionReplaced]: 'Conexão substituída',
-          [DisconnectReason.timedOut]: 'Tempo de conexão esgotado',
-          [DisconnectReason.restartRequired]: 'Reinício necessário',
-          [DisconnectReason.badSession]: 'Sessão inválida ou corrompida',
-          [DisconnectReason.connectionBroken]: 'Conexão quebrada',
-          [DisconnectReason.multideviceMismatch]: 'Incompatibilidade de multi-dispositivo',
-          [DisconnectReason.forbidden]: 'Acesso negado',
-          [DisconnectReason.unavailableService]: 'Serviço indisponível',
-        }[reason] || `Motivo desconhecido: ${reason}`;
-        
-        console.log(`❌ Conexão fechada. Código: ${reason} | Motivo: ${reasonMessage}`);
-        console.log(`🔢 Tentativa de reconexão: ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS}`);
-
-        currentSocket = null;
-
-        if (reason === DisconnectReason.badSession || reason === DisconnectReason.loggedOut) {
-          await clearAuthDir();
-          console.log('🔄 Nova autenticação será necessária na próxima inicialização.');
-          reconnectAttempts = 0;
-        }
-
-        if (reason === DisconnectReason.forbidden) {
-          console.log('🚫 Acesso negado. Não tentando reconectar.');
-          return;
-        }
-
-        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-          console.log(`❌ Máximo de tentativas de reconexão atingido (${MAX_RECONNECT_ATTEMPTS}). Parando o bot.`);
-          console.log('💡 Reinicie manualmente o bot ou verifique sua conexão com a internet.');
-          return;
-        }
-
-        if (!isReconnecting) {
-          isReconnecting = true;
-          reconnectAttempts++;
-          const delay = getReconnectDelay();
-          console.log(`🔄 Tentando reconectar em ${Math.round(delay / 1000)} segundos...`);
-          
-          setTimeout(() => {
-            startNazu();
-          }, delay);
-        }
-      }
-    });
-
-    NazunaSock.ev.on('error', (error) => {
-      console.error(`❌ Erro no socket: ${error.message}`);
-    });
+    registerEventHandlers(NazunaSock, banner);
 
     return NazunaSock;
   } catch (err) {
-    console.error(`❌ Erro ao criar socket do bot: ${err.message}`);
-    
-    if (NazunaSock && NazunaSock.ws && NazunaSock.ws.readyState === NazunaSock.ws.OPEN) {
-      console.log('🔌 Fechando conexão existente devido a erro...');
-      try {
-        NazunaSock.end();
-      } catch (endError) {
-        console.error(`❌ Erro ao fechar conexão: ${endError.message}`);
-      }
+    console.error(`❌ Erro crítico ao criar o socket do bot: ${err.message}`);
+    if (NazunaSock && NazunaSock.ws) {
+      try { NazunaSock.ws.close(); } catch {}
     }
-    
     throw err;
   }
 }
 
-async function startNazu() {
-  const MAX_RUNTIME = 90 * 60 * 1000;
-  setTimeout(() => {
-    console.log('🛑 Tempo máximo de execução (1h30min) atingido. Executando desligamento seguro...');
-    safeShutdown();
-  }, MAX_RUNTIME);
-
-  try {
-    console.log('🚀 Iniciando Nazuna...');
-    
-    if (currentSocket && currentSocket.ws && currentSocket.ws.readyState === currentSocket.ws.OPEN) {
-      console.log('⚠️ Conexão já existe, fechando antes de criar nova...');
+function registerEventHandlers(NazunaSock, banner) {
+  NazunaSock.ev.on('creds.update', useMultiFileAuthState(AUTH_DIR).saveCreds);
+  NazunaSock.ev.on('connection.update', (update) => handleConnectionUpdate(NazunaSock, update));
+  NazunaSock.ev.on('messages.upsert', (m) => handleMessagesUpsert(NazunaSock, m));
+  NazunaSock.ev.on('group-participants.update', (inf) => handleGroupParticipantsUpdate(NazunaSock, inf, banner));
+  NazunaSock.ev.on('groups.update', async (updates) => {
+    for (const update of updates) {
       try {
-        currentSocket.end();
-      } catch (error) {
-        console.error(`❌ Erro ao fechar conexão existente: ${error.message}`);
+        const meta = await NazunaSock.groupMetadata(update.id);
+        groupCache.set(update.id, meta);
+      } catch (e) {
+        console.error(`❌ Erro ao atualizar metadados do grupo ${update.id}: ${e.message}`);
       }
-      currentSocket = null;
     }
-    
-    await createBotSocket(AUTH_DIR);
-  } catch (err) {
-    console.error(`❌ Erro fatal ao iniciar o bot: ${err.message}`);
-    
-    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-      reconnectAttempts++;
-      const delay = getReconnectDelay();
-      console.log(`🔄 Tentando reiniciar o bot em ${Math.round(delay / 1000)} segundos... (Tentativa ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
-      
-      setTimeout(() => {
-        startNazu();
-      }, delay);
-    } else {
-      console.log(`❌ Máximo de tentativas de inicialização atingido. Bot será encerrado.`);
-      process.exit(1);
-    }
-  }
+  });
+  NazunaSock.ev.on('error', (error) => console.error(`❌ Erro inesperado no socket: ${error.message}`));
 }
 
+async function handleConnectionUpdate(NazunaSock, update) {
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr && codeMode && !NazunaSock.authState.creds.registered) {
+      const phoneNumber = await ask('📱 Insira o número de telefone (com DDI, ex: 5511999999999): ');
+      if (!/^\d{10,15}$/.test(phoneNumber)) {
+        console.log('⚠️ Número inválido! Reinicie e tente novamente.');
+        process.exit(1);
+      }
+      const code = await NazunaSock.requestPairingCode(phoneNumber);
+      console.log(`🔑 Seu código de pareamento é: ${code}`);
+    }
+
+    if (connection === 'connecting') {
+        console.log('🔄 Conectando ao WhatsApp...');
+    }
+
+    if (connection === 'open') {
+        console.log(`✅ Bot ${nomebot} conectado com sucesso! Prefixo: [ ${prefixo} ] | Dono: ${nomedono}`);
+        reconnectAttempts = 0;
+        isReconnecting = false;
+        lastHeartbeat = Date.now();
+        startHeartbeat(NazunaSock);
+    }
+
+    if (connection === 'close') {
+        stopHeartbeat();
+        currentSocket = null;
+        isReconnecting = false;
+
+        const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+        const shouldReconnect = reason !== DisconnectReason.loggedOut && reason !== DisconnectReason.forbidden;
+        
+        console.log(`❌ Conexão fechada. Motivo: ${DisconnectReason[reason] || 'Desconhecido'} (Código: ${reason})`);
+
+        if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.badSession) {
+            console.log('Sessão inválida. Limpando credenciais...');
+            await clearAuthDir();
+        }
+
+        if (shouldReconnect) {
+            if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                console.log(`❌ Máximo de ${MAX_RECONNECT_ATTEMPTS} tentativas de reconexão atingido. Desligando.`);
+                process.exit(1);
+            } else {
+                reconnectAttempts++;
+                const delay = getReconnectDelay();
+                console.log(`🔄 Tentando reconectar em ${Math.round(delay / 1000)}s... (Tentativa ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+                setTimeout(startNazu, delay);
+                isReconnecting = true;
+            }
+        }
+    }
+}
+
+async function handleMessagesUpsert(NazunaSock, m) {
+    if (m.type !== 'notify' || !Array.isArray(m.messages)) return;
+    for (const info of m.messages) {
+        if (!info.message || !info.key.remoteJid) continue;
+        messagesCache.set(info.key.id, info.message);
+        try {
+            await indexModule(NazunaSock, info, null, groupCache, messagesCache);
+        } catch (err) {
+            console.error(`❌ Erro ao processar mensagem no index.js: ${err.message}\n${err.stack}`);
+        }
+    }
+}
+
+async function handleGroupParticipantsUpdate(NazunaSock, inf, banner) {
+    try {
+        const from = inf.id;
+        if (inf.participants.some(p => p.startsWith(NazunaSock.user.id.split(':')[0]))) return;
+
+        let groupMetadata = groupCache.get(from) || await NazunaSock.groupMetadata(from).catch(() => null);
+        if (!groupMetadata) return;
+        groupCache.set(from, groupMetadata);
+
+        const groupSettings = await fs.readFile(path.join(DATABASE_DIR, `${from}.json`), 'utf-8').then(JSON.parse).catch(() => ({}));
+        const globalBlacklist = await fs.readFile(path.join(__dirname, '..', 'database', 'dono', 'globalBlacklist.json'), 'utf-8').then(JSON.parse).catch(() => ({ users: {} }));
+
+        switch (inf.action) {
+            case 'add': {
+                const membersToWelcome = [], membersToRemove = [], removalReasons = [];
+                for (const participant of inf.participants) {
+                    if (globalBlacklist.users?.[participant]) {
+                        membersToRemove.push(participant);
+                        removalReasons.push(`@${participant.split('@')[0]} (blacklist global)`);
+                        continue;
+                    }
+                    if (groupSettings.blacklist?.[participant]) {
+                        membersToRemove.push(participant);
+                        removalReasons.push(`@${participant.split('@')[0]} (lista negra do grupo)`);
+                        continue;
+                    }
+                    if (groupSettings.antifake && !['55', '35'].includes(participant.substring(0, 2))) {
+                        membersToRemove.push(participant);
+                        removalReasons.push(`@${participant.split('@')[0]} (número não permitido)`);
+                        continue;
+                    }
+                    if (groupSettings.antipt && participant.substring(0, 3) === '351') {
+                        membersToRemove.push(participant);
+                        removalReasons.push(`@${participant.split('@')[0]} (número de Portugal)`);
+                        continue;
+                    }
+                    if (groupSettings.bemvindo) {
+                        membersToWelcome.push(participant);
+                    }
+                }
+
+                if (membersToRemove.length > 0) {
+                    console.log(`[MODERAÇÃO] Removendo ${membersToRemove.length} membros do grupo ${groupMetadata.subject}.`);
+                    await NazunaSock.groupParticipantsUpdate(from, membersToRemove, 'remove');
+                    await NazunaSock.sendMessage(from, {
+                        text: `🚫 Foram removidos ${membersToRemove.length} membros por regras de moderação:\n- ${removalReasons.join('\n- ')}`,
+                        mentions: membersToRemove,
+                    });
+                }
+                if (membersToWelcome.length > 0) {
+                    console.log(`[BOAS-VINDAS] Enviando mensagem para ${membersToWelcome.length} novos membros em ${groupMetadata.subject}.`);
+                    const mentions = membersToWelcome.map(p => `@${p.split('@')[0]}`).join(', ');
+                    const newTotalMembers = groupMetadata.participants.length - membersToRemove.length + membersToWelcome.length;
+
+                    const welcomeText = (groupSettings.textbv || `🚀 Bem-vindo(a/s), #numerodele#! Vocês entraram no grupo *#nomedogp#*. Membros: #membros#.`)
+                        .replaceAll('#numerodele#', mentions)
+                        .replaceAll('#nomedogp#', groupMetadata.subject)
+                        .replaceAll('#desc#', groupMetadata.desc || 'Nenhuma')
+                        .replaceAll('#membros#', newTotalMembers);
+
+                    const message = { text: welcomeText, mentions: membersToWelcome };
+
+                    if (groupSettings.welcome?.image) {
+                        let bannerName, profilePicUrl = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1747053564257_bzswae.bin';
+                        if (membersToWelcome.length === 1) {
+                            const singleUser = membersToWelcome[0];
+                            bannerName = singleUser.split('@')[0];
+                            profilePicUrl = await NazunaSock.profilePictureUrl(singleUser, 'image').catch(() => profilePicUrl);
+                        } else {
+                            bannerName = `${membersToWelcome.length} Novos Membros`;
+                        }
+                        const image = groupSettings.welcome.image !== 'banner'
+                            ? { url: groupSettings.welcome.image }
+                            : { url: await banner.Welcome(profilePicUrl, bannerName, groupMetadata.subject, newTotalMembers) };
+                        message.image = image;
+                        message.caption = welcomeText;
+                        delete message.text;
+                    }
+                    await NazunaSock.sendMessage(from, message);
+                }
+                break;
+            }
+            case 'remove': {
+                if (groupSettings.exit?.enabled) {
+                    const mentions = inf.participants.map(p => `@${p.split('@')[0]}`).join(', ');
+                    const exitText = (groupSettings.exit.text || `👋 Adeus, #numerodele#! Até mais!`)
+                        .replaceAll('#numerodele#', mentions)
+                        .replaceAll('#nomedogp#', groupMetadata.subject)
+                        .replaceAll('#membros#', groupMetadata.participants.length);
+                    await NazunaSock.sendMessage(from, { text: exitText, mentions: inf.participants });
+                }
+                break;
+            }
+            case 'promote':
+            case 'demote': {
+                for (const participant of inf.participants) {
+                    if (groupSettings.x9) {
+                        const action = inf.action === 'promote' ? 'promovido a ADM' : 'rebaixado de ADM';
+                        await NazunaSock.sendMessage(from, {
+                            text: `🚨 @${participant.split('@')[0]} foi ${action} por @${inf.author.split('@')[0]}.`,
+                            mentions: [participant, inf.author],
+                        });
+                    }
+                }
+                break;
+            }
+        }
+    } catch (error) {
+        console.error(`❌ Erro grave no 'group-participants.update': ${error.message}\n${error.stack}`);
+    }
+}
+
+async function startNazu() {
+    if (isReconnecting) {
+        console.log('⚠️ Tentativa de início enquanto uma reconexão já está em andamento. Abortando.');
+        return;
+    }
+    try {
+        console.log('🚀 Iniciando Nazuna...');
+        if (currentSocket) {
+            console.log('🔌 Fechando conexão antiga antes de iniciar uma nova...');
+            try { currentSocket.ws.close(); } catch {}
+            currentSocket = null;
+        }
+        await createBotSocket();
+    } catch (err) {
+        console.error(`❌ Erro fatal ao iniciar o bot: ${err.message}`);
+        if (!currentSocket && reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            console.log("❌ Falha crítica na inicialização, não foi possível nem mesmo começar a conectar. Encerrando.");
+            process.exit(1);
+        }
+    }
+}
+
+setInterval(() => {
+    if (messagesCache.size > 500) {
+        const entries = Array.from(messagesCache.entries()).slice(-250);
+        messagesCache.clear();
+        entries.forEach(([key, value]) => messagesCache.set(key, value));
+        console.log(`🧹 Cache de mensagens otimizado para ${messagesCache.size} entradas.`);
+    }
+}, MESSAGE_CACHE_CLEANUP_INTERVAL_MS);
+
 process.on('SIGINT', () => {
-  console.log('\n🛑 Recebido sinal de interrupção. Executando desligamento seguro...');
-  safeShutdown();
+    console.log('\n🛑 Recebido sinal de interrupção (Ctrl+C).');
+    safeShutdown();
 });
-
 process.on('SIGTERM', () => {
-  console.log('\n🛑 Recebido sinal de término. Executando desligamento seguro...');
-  safeShutdown();
+    console.log('\n🛑 Recebido sinal de término.');
+    safeShutdown();
 });
-
-process.on('uncaughtException', (error) => {
-  console.error(`❌ Erro não capturado: ${error.message}`);
-  console.error(error.stack);
+process.on('uncaughtException', (error, origin) => {
+    console.error(`❌ Erro não capturado em: ${origin}`);
+    console.error(error);
 });
-
 process.on('unhandledRejection', (reason, promise) => {
-  console.error(`❌ Promise rejeitada não tratada em: ${promise}`);
-  console.error(`Motivo: ${reason}`);
+    console.error('❌ Promise rejeitada não tratada:', promise);
+    console.error('Motivo:', reason);
 });
 
 startNazu();
