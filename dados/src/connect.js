@@ -82,8 +82,8 @@ async function createGroupMessage(NazunaSock, groupMetadata, participants, setti
   };
 
   const defaultText = isWelcome
-    ? `🚀 Bem-vindo(a/s), #numerodele#! Vocês entraram no grupo *#nomedogp#*. Membros: #membros#.`
-    : `👋 Adeus, #numerodele#! Até mais!`;
+  ? (jsonGp.textbv ? jsonGp.textbv : "🚀 Bem-vindo(a/s), #numerodele#! Vocês entraram no grupo *#nomedogp#*. Membros: #membros#.")
+  : (jsonGp.exit.text ? jsonGp.exit.text : "👋 Adeus, #numerodele#! Até mais!");
   const text = formatMessageText(settings.text || defaultText, replacements);
 
   const message = { text, mentions };
