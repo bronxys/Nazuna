@@ -3954,12 +3954,16 @@ break;
     let removedCount = 0;
     let removedUsers = [];
     groupData.contador = oldContador.filter(user => {
+    try {
       if (!currentMembers.includes(user.id)) {
         removedCount++;
         removedUsers.push(user.id.split('@')[0]);
         return false;
       }
       return true;
+    } catch(e) {
+      return false;
+    };
     });
     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
     await reply(`🧹 Limpeza do rank de atividade concluída!\n\nRemovidos ${removedCount} usuários ausentes:\n${removedUsers.map(name => `• @${name}`).join('\n') || 'Nenhum usuário ausente encontrado.'}`, { mentions: removedUsers.map(name => `${name}@s.whatsapp.net`) });
@@ -3999,12 +4003,16 @@ break;
       const oldContador = gData.contador || [];
       let removedInGroup = 0;
       gData.contador = oldContador.filter(user => {
+      try {
         if (!currentMembers.includes(user.id)) {
           removedInGroup++;
           totalRemoved++;
           return false;
         }
         return true;
+      } catch(e) {
+        return false;
+      };
       });
       fs.writeFileSync(groupPath, JSON.stringify(gData, null, 2));
       if (removedInGroup > 0) {
