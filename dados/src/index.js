@@ -729,8 +729,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       return;
     };
  
-    const AllgroupMembers = !isGroup ? [] : groupMetadata.participants?.map(p => p.jid) || [];
-    const groupAdmins = !isGroup ? [] : groupMetadata.participants?.filter(p => p.admin).map(p => p.jid) || [];
+    const AllgroupMembers = !isGroup ? [] : groupMetadata.participants?.map(p => p.jid || p.id) || [];
+    const groupAdmins = !isGroup ? [] : groupMetadata.participants?.filter(p => p.admin).map(p => p.jid || p.id) || [];
   
     const botNumber = nazu.user.id.split(':')[0] + '@s.whatsapp.net';
     const isBotAdmin = !isGroup ? false : groupAdmins.includes(botNumber);
@@ -2395,7 +2395,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       let participantsInfo = {};
       if (isGroup && groupMetadata.participants) {
           groupMetadata.participants.forEach(p => {
-              participantsInfo[p.jid] = p.pushname || p.jid.split('@')[0];
+              participantsInfo[p.jid || p.id] = p.pushname || p.jid.split('@')[0] || p.id.split('@')[0];
           });
       }
       subdonos.forEach((jid, index) => {
@@ -3999,7 +3999,7 @@ break;
       let gData = JSON.parse(fs.readFileSync(groupPath));
       const metadata = await nazu.groupMetadata(groupId).catch(() => null);
       if (!metadata) continue;
-      const currentMembers = metadata.participants?.map(p => p.jid) || [];
+      const currentMembers = metadata.participants?.map(p => p.jid || p.id) || [];
       const oldContador = gData.contador || [];
       let removedInGroup = 0;
       gData.contador = oldContador.filter(user => {
@@ -4426,7 +4426,7 @@ break;
       const desc = meta.desc?.toString() || "Sem descrição";
       const createdAt = meta.creation ? new Date(meta.creation * 1000).toLocaleString('pt-BR') : "Desconhecida";
 
-      const ownerJid = meta.owner || meta.participants.find(p => p.admin && p.isCreator)?.jid || "unknown@s.whatsapp.net";
+      const ownerJid = meta.owner || meta.participants.find(p => p.admin && p.isCreator)?.jid || meta.participants.find(p => p.admin && p.isCreator)?.id || "unknown@s.whatsapp.net";
       const ownerTag = `@${ownerJid.split('@')[0]}`;
 
       const totalMembers = meta.participants.length;
@@ -5483,13 +5483,13 @@ case 'dellimitmessage':
 
     if (!fantasmas.length) return reply(`🎉 Nenhum fantasma com até ${limite} msg.`);
 
-    const antes = (await nazu.groupMetadata(from)).participants.map(p => p.jid || p.jid);
+    const antes = (await nazu.groupMetadata(from)).participants.map(p => p.jid || p.id);
     try {
       await nazu.groupParticipantsUpdate(from, fantasmas, 'remove');
     } catch (e) {
       console.error("Erro ao remover:", e);
     }
-    const depois = (await nazu.groupMetadata(from)).participants.map(p => p.jid || p.jid);
+    const depois = (await nazu.groupMetadata(from)).participants.map(p => p.jid || p.id);
     const removidos = fantasmas.filter(jid => antes.includes(jid) && !depois.includes(jid)).length;
 
     reply(removidos === 0 ? `⚠️ Nenhum fantasma pôde ser removido com até ${limite} msg.` : `✅ ${removidos} fantasma(s) removido(s).`);
