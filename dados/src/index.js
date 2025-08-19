@@ -3999,7 +3999,7 @@ break;
       let gData = JSON.parse(fs.readFileSync(groupPath));
       const metadata = await nazu.groupMetadata(groupId).catch(() => null);
       if (!metadata) continue;
-      const currentMembers = metadata.participants.map(p => p.id);
+      const currentMembers = metadata.participants?.map(p => p.jid) || [];
       const oldContador = gData.contador || [];
       let removedInGroup = 0;
       gData.contador = oldContador.filter(user => {
