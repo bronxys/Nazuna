@@ -1,11 +1,3 @@
-/*
-═════════════════════════════
-  Nazuna - Conexão WhatsApp
-  Autor: Hiudy
-  Revisão: 19/08/2025
-═════════════════════════════
-*/
-
 const {
   makeWASocket,
   useMultiFileAuthState,
@@ -23,13 +15,13 @@ const qrcode = require('qrcode-terminal');
 const logger = pino({ level: 'silent' });
 const AUTH_DIR = path.join(__dirname, '..', 'database', 'qr-code');
 const DATABASE_DIR = path.join(__dirname, '..', 'database', 'grupos');
+const GLOBAL_BLACKLIST_PATH = path.join(__dirname, '..', 'database', 'dono', 'globalBlacklist.json');
 const msgRetryCounterCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
 const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
 const { prefixo, nomebot, nomedono, numerodono } = require('./config.json');
 const indexModule = require(path.join(__dirname, 'index.js'));
 
 const codeMode = process.argv.includes('--code');
-
 const messagesCache = new Map();
 setInterval(() => messagesCache.clear(), 600000);
 
@@ -50,10 +42,162 @@ async function clearAuthDir() {
   }
 }
 
+async function loadGroupSettings(groupId) {
+  const groupFilePath = path.join(DATABASE_DIR, `${groupId}.json`);
+  try {
+    const data = await fs.readFile(groupFilePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (e) {
+    console.error(`❌ Erro ao ler configurações do grupo ${groupId}: ${e.message}`);
+    return {};
+  }
+}
+
+async function loadGlobalBlacklist() {
+  try {
+    const data = await fs.readFile(GLOBAL_BLACKLIST_PATH, 'utf-8');
+    return JSON.parse(data).users || {};
+  } catch (e) {
+    console.error(`❌ Erro ao ler blacklist global: ${e.message}`);
+    return {};
+  }
+}
+
+function formatMessageText(template, replacements) {
+  let text = template;
+  for (const [key, value] of Object.entries(replacements)) {
+    text = text.replaceAll(key, value);
+  }
+  return text;
+}
+
+async function createGroupMessage(NazunaSock, groupMetadata, participants, settings, isWelcome = true) {
+  const mentions = participants.map(p => p);
+  const bannerName = participants.length === 1 ? participants[0].split('@')[0] : `${participants.length} Membros`;
+  const replacements = {
+    '#numerodele#': participants.map(p => `@${p.split('@')[0]}`).join(', '),
+    '#nomedogp#': groupMetadata.subject,
+    '#desc#': groupMetadata.desc || 'Nenhuma',
+    '#membros#': groupMetadata.participants.length,
+  };
+
+  const defaultText = isWelcome
+    ? `🚀 Bem-vindo(a/s), #numerodele#! Vocês entraram no grupo *#nomedogp#*. Membros: #membros#.`
+    : `👋 Adeus, #numerodele#! Até mais!`;
+  const text = formatMessageText(settings.text || defaultText, replacements);
+
+  const message = { text, mentions };
+  if (settings.image) {
+    let profilePicUrl = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1747053564257_bzswae.bin';
+    if (participants.length === 1 && isWelcome) {
+      profilePicUrl = await NazunaSock.profilePictureUrl(participants[0], 'image').catch(() => profilePicUrl);
+    }
+    const { banner } = await require(path.join(__dirname, 'funcs', 'exports.js'));
+    const image = settings.image !== 'banner'
+      ? { url: settings.image }
+      : { url: await banner.Welcome(profilePicUrl, bannerName, groupMetadata.subject, groupMetadata.participants.length) };
+    message.image = image;
+    message.caption = text;
+    delete message.text;
+  }
+  return message;
+}
+
+async function handleGroupParticipantsUpdate(NazunaSock, inf) {
+  try {
+    const from = inf.id;
+    if (inf.participants.some(p => p.startsWith(NazunaSock.user.id.split(':')[0]))) return;
+
+    let groupMetadata = groupCache.get(from) || await NazunaSock.groupMetadata(from).catch(() => null);
+    if (!groupMetadata) {
+      console.error(`❌ Metadados do grupo ${from} não encontrados.`);
+      return;
+    }
+    groupCache.set(from, groupMetadata);
+
+    const groupSettings = await loadGroupSettings(from);
+    const globalBlacklist = await loadGlobalBlacklist();
+
+    switch (inf.action) {
+      case 'add': {
+        const membersToWelcome = [];
+        const membersToRemove = [];
+        const removalReasons = [];
+
+        for (const participant of inf.participants) {
+          if (globalBlacklist[participant]) {
+            membersToRemove.push(participant);
+            removalReasons.push(`@${participant.split('@')[0]} (blacklist global: ${globalBlacklist[participant].reason})`);
+            continue;
+          }
+          if (groupSettings.blacklist?.[participant]) {
+            membersToRemove.push(participant);
+            removalReasons.push(`@${participant.split('@')[0]} (lista negra do grupo: ${groupSettings.blacklist[participant].reason})`);
+            continue;
+          }
+          if (groupSettings.antifake && !['55', '35'].includes(participant.substring(0, 2))) {
+            membersToRemove.push(participant);
+            removalReasons.push(`@${participant.split('@')[0]} (número não permitido)`);
+            continue;
+          }
+          if (groupSettings.antipt && participant.substring(0, 3) === '351') {
+            membersToRemove.push(participant);
+            removalReasons.push(`@${participant.split('@')[0]} (número de Portugal)`);
+            continue;
+          }
+          if (groupSettings.bemvindo) {
+            membersToWelcome.push(participant);
+          }
+        }
+
+        if (membersToRemove.length > 0) {
+          console.log(`[MODERAÇÃO] Removendo ${membersToRemove.length} membros do grupo ${groupMetadata.subject}.`);
+          await NazunaSock.groupParticipantsUpdate(from, membersToRemove, 'remove');
+          await NazunaSock.sendMessage(from, {
+            text: `🚫 Foram removidos ${membersToRemove.length} membros por regras de moderação:\n- ${removalReasons.join('\n- ')}`,
+            mentions: membersToRemove,
+          });
+        }
+
+        if (membersToWelcome.length > 0) {
+          console.log(`[BOAS-VINDAS] Enviando mensagem para ${membersToWelcome.length} novos membros em ${groupMetadata.subject}.`);
+          const message = await createGroupMessage(NazunaSock, groupMetadata, membersToWelcome, groupSettings.welcome || { text: groupSettings.textbv });
+          await NazunaSock.sendMessage(from, message);
+        }
+        break;
+      }
+      case 'remove': {
+        if (groupSettings.exit?.enabled) {
+          console.log(`[SAÍDA] Enviando mensagem de saída para ${inf.participants.length} membros em ${groupMetadata.subject}.`);
+          const message = await createGroupMessage(NazunaSock, groupMetadata, inf.participants, groupSettings.exit, false);
+          await NazunaSock.sendMessage(from, message);
+        }
+        break;
+      }
+      case 'promote':
+      case 'demote': {
+        if (groupSettings.x9) {
+          for (const participant of inf.participants) {
+            const action = inf.action === 'promote' ? 'promovido a ADM' : 'rebaixado de ADM';
+            console.log(`[X9] ${participant.split('@')[0]} foi ${action} em ${groupMetadata.subject}.`);
+            await NazunaSock.sendMessage(from, {
+              text: `🚨 @${participant.split('@')[0]} foi ${action} por @${inf.author.split('@')[0]}.`,
+              mentions: [participant, inf.author],
+            });
+          }
+        }
+        break;
+      }
+    }
+  } catch (error) {
+    console.error(`❌ Erro em handleGroupParticipantsUpdate: ${error.message}\n${error.stack}`);
+  }
+}
+
 async function createBotSocket(authDir) {
   try {
-    const { banner } = await require(__dirname+'/funcs/exports.js');
-    
+    const { banner } = await require(path.join(__dirname, 'funcs', 'exports.js'));
+
     await fs.mkdir(DATABASE_DIR, { recursive: true });
     await fs.mkdir(authDir, { recursive: true });
 
@@ -78,7 +222,7 @@ async function createBotSocket(authDir) {
       browser: ['Ubuntu', 'Edge', '110.0.1587.56'],
       logger,
     });
-    
+
     if (codeMode && !NazunaSock.authState.creds.registered) {
       let phoneNumber = await ask('📱 Insira o número de telefone (com código de país, ex: +5511999999999): ');
       phoneNumber = phoneNumber.replace(/\D/g, '');
@@ -90,8 +234,8 @@ async function createBotSocket(authDir) {
       const code = await NazunaSock.requestPairingCode(phoneNumber.replaceAll('+', '').replaceAll(' ', '').replaceAll('-', ''));
       console.log(`🔑 Código de pareamento: ${code}`);
       console.log('📲 Envie este código no WhatsApp para autenticar o bot.');
-    };
-      
+    }
+
     NazunaSock.ev.on('creds.update', saveCreds);
 
     NazunaSock.ev.on('groups.update', async ([ev]) => {
@@ -104,147 +248,7 @@ async function createBotSocket(authDir) {
     });
 
     NazunaSock.ev.on('group-participants.update', async (inf) => {
-      const from = inf.id;
-      if (inf.participants[0].startsWith(NazunaSock.user.id.split(':')[0])) return;
-
-      let groupMetadata = groupCache.get(from);
-      if (!groupMetadata) {
-        try {
-          groupMetadata = await NazunaSock.groupMetadata(from);
-          groupCache.set(from, groupMetadata);
-        } catch (e) {
-          console.error(`❌ Erro ao obter metadados do grupo ${from}: ${e.message}`);
-          return;
-        }
-      }
-
-      const groupFilePath = path.join(DATABASE_DIR, `${from}.json`);
-      let jsonGp;
-      try {
-        const data = await fs.readFile(groupFilePath, 'utf-8');
-        jsonGp = JSON.parse(data);
-      } catch (e) {
-        console.error(`❌ Erro ao ler arquivo do grupo ${from}: ${e.message}`);
-        return;
-      }
-
-      if ((inf.action === 'promote' || inf.action === 'demote') && jsonGp.x9) {
-        const action = inf.action === 'promote' ? 'promovido a administrador' : 'rebaixado de administrador';
-        const by = inf.author || 'alguém';
-        await NazunaSock.sendMessage(from, {
-          text: `🚨 Atenção! @${inf.participants[0].split('@')[0]} foi ${action} por @${by.split('@')[0]}.`,
-          mentions: [inf.participants[0], by],
-        });
-      }
-
-      if (inf.action === 'add' && jsonGp.antifake) {
-        const participant = inf.participants[0];
-        const countryCode = participant.split('@')[0].substring(0, 2);
-        if (!['55', '35'].includes(countryCode)) {
-          await NazunaSock.groupParticipantsUpdate(from, [participant], 'remove');
-          await NazunaSock.sendMessage(from, {
-            text: `🚫 @${participant.split('@')[0]} foi removido por suspeita de número falso (código de país não permitido).`,
-            mentions: [participant],
-          });
-        }
-      }
-
-      if (inf.action === 'add' && jsonGp.antipt) {
-        const participant = inf.participants[0];
-        const countryCode = participant.split('@')[0].substring(0, 3);
-        if (countryCode === '351') {
-          await NazunaSock.groupParticipantsUpdate(from, [participant], 'remove');
-          await NazunaSock.sendMessage(from, {
-            text: `🇵🇹 @${participant.split('@')[0]} foi removido por ser um número de Portugal (anti-PT ativado).`,
-            mentions: [participant],
-          });
-        }
-      }
-      
-      const globalBlacklistData = JSON.parse(await fs.readFile(path.join(__dirname, '..', 'database', 'dono', 'globalBlacklist.json'), 'utf-8').catch(() => '{}'));
-       
-      if (inf.action === 'add' && globalBlacklistData.users?.[inf.participants[0]]) {
-        const sender = inf.participants[0];
-        try {
-          await NazunaSock.groupParticipantsUpdate(from, [sender], 'remove');
-          await NazunaSock.sendMessage(from, {
-            text: `🚫 @${sender.split('@')[0]} foi removido do grupo por estar na blacklist global. Motivo: ${globalBlacklistData.users[sender].reason}`,
-            mentions: [sender],
-          });
-        } catch (e) {
-          console.error(`❌ Erro ao remover usuário da blacklist global no grupo ${from}: ${e.message}`);
-        }
-        return;
-      }
-
-      if (inf.action === 'add' && jsonGp.blacklist?.[inf.participants[0]]) {
-        const sender = inf.participants[0];
-        try {
-          await NazunaSock.groupParticipantsUpdate(from, [sender], 'remove');
-          await NazunaSock.sendMessage(from, {
-            text: `🚫 @${sender.split('@')[0]} foi removido do grupo por estar na lista negra. Motivo: ${jsonGp.blacklist[sender].reason}`,
-            mentions: [sender],
-          });
-        } catch (e) {
-          console.error(`❌ Erro ao remover usuário da lista negra no grupo ${from}: ${e.message}`);
-        }
-        return;
-      }
-
-      if (inf.action === 'add' && jsonGp.bemvindo) {
-        const sender = inf.participants[0];
-        const welcomeText = jsonGp.textbv && jsonGp.textbv.length > 1
-          ? jsonGp.textbv
-          : `🚀 Bem-vindo(a), @${sender.split('@')[0]}! Você entrou no grupo *${groupMetadata.subject}*. Leia as regras e aproveite! Membros: ${groupMetadata.participants.length}. Descrição: ${groupMetadata.desc || 'Nenhuma'}.`;
-
-        const formattedText = welcomeText
-          .replaceAll('#numerodele#', `@${sender.split('@')[0]}`)
-          .replaceAll('#nomedogp#', groupMetadata.subject)
-          .replaceAll('#desc#', groupMetadata.desc || '')
-          .replaceAll('#membros#', groupMetadata.participants.length);
-
-        try {
-          const message = { text: formattedText, mentions: [sender] };
-          if (jsonGp.welcome?.image) {
-            let profilePic = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1747053564257_bzswae.bin';
-            try {
-              profilePic = await NazunaSock.profilePictureUrl(sender, 'image');
-            } catch (error) {}
-            const image = jsonGp.welcome.image !== 'banner' ? { url: jsonGp.welcome.image } : {url: await banner.Welcome(profilePic, sender.split('@')[0], groupMetadata.subject, groupMetadata.participants.length)};
-            message.image = image;
-            message.caption = formattedText;
-            delete message.text;
-          }
-          await NazunaSock.sendMessage(from, message);
-        } catch (e) {
-          console.error(`❌ Erro ao enviar mensagem de boas-vindas no grupo ${from}: ${e.message}`);
-        }
-      }
-
-      if (inf.action === 'remove' && jsonGp.exit?.enabled) {
-        const sender = inf.participants[0];
-        const exitText = jsonGp.exit.text && jsonGp.exit.text.length > 1
-          ? jsonGp.exit.text
-          : `👋 @${sender.split('@')[0]} saiu do grupo *${groupMetadata.subject}*. Até mais! Membros restantes: ${groupMetadata.participants.length}.`;
-
-        const formattedText = exitText
-          .replaceAll('#numerodele#', `@${sender.split('@')[0]}`)
-          .replaceAll('#nomedogp#', groupMetadata.subject)
-          .replaceAll('#desc#', groupMetadata.desc || '')
-          .replaceAll('#membros#', groupMetadata.participants.length);
-
-        try {
-          const message = { text: formattedText, mentions: [sender] };
-          if (jsonGp.exit?.image) {
-            message.image = { url: jsonGp.exit.image };
-            message.caption = formattedText;
-            delete message.text;
-          }
-          await NazunaSock.sendMessage(from, message);
-        } catch (e) {
-          console.error(`❌ Erro ao enviar mensagem de saída no grupo ${from}: ${e.message}`);
-        }
-      }
+      await handleGroupParticipantsUpdate(NazunaSock, inf);
     });
 
     NazunaSock.ev.on('messages.upsert', async (m) => {
