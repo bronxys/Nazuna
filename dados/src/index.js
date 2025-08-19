@@ -2,7 +2,7 @@
 ═════════════════════════════
   Nazuna - Index principal
   Autor: Hiudy
-  Revisão: 03/08/2025
+  Revisão: 19/08/2025
 ═════════════════════════════
 */
 
@@ -396,6 +396,39 @@ const useActivationCode = (code, groupId, userId) => {
   }
 };
 
+const extendGroupRental = (groupId, extraDays) => {
+  if (!groupId || typeof groupId !== 'string' || !groupId.endsWith('@g.us')) {
+    return { success: false, message: 'ID de grupo inválido.' };
+  }
+  if (typeof extraDays !== 'number' || extraDays <= 0) {
+    return { success: false, message: 'Número de dias extras inválido. Deve ser um número positivo.' };
+  }
+  let rentalData = loadRentalData();
+  const groupInfo = rentalData.groups[groupId];
+  if (!groupInfo) {
+    return { success: false, message: 'Este grupo não possui aluguel configurado.' };
+  }
+  let newExpiresAt = null;
+  if (groupInfo.expiresAt === 'permanent') {
+    return { success: false, message: 'Aluguel já é permanente, não é possível estender.' };
+  }
+  const currentExpires = new Date(groupInfo.expiresAt);
+  const now = new Date();
+  if (currentExpires < now) {
+    const newExpiration = new Date();
+    newExpiration.setDate(newExpiration.getDate() + extraDays);
+    newExpiresAt = newExpiration.toISOString();
+  } else {
+    currentExpires.setDate(currentExpires.getDate() + extraDays);
+    newExpiresAt = currentExpires.toISOString();
+  }
+  rentalData.groups[groupId].expiresAt = newExpiresAt;
+  if (saveRentalData(rentalData)) {
+    return { success: true, message: `Aluguel estendido por ${extraDays} dias. Nova expiração: ${new Date(newExpiresAt).toLocaleDateString('pt-BR')}.` };
+  } else {
+    return { success: false, message: 'Erro ao salvar as informações de aluguel estendido.' };
+  }
+};
 
 const isModoLiteActive = (groupData, modoLiteGlobalConfig) => {
   const isModoLiteGlobal = modoLiteGlobalConfig?.status || false;
@@ -2541,6 +2574,46 @@ case 'ranklevel':
     rankMessage += `${index + 1}. @${userId.split('@')[0]} - Nível ${data.level} (XP: ${data.xp})\n`;
   });
   await reply(rankMessage, { mentions: sortedUsers.map(([userId]) => userId) });
+  break;
+  
+  case 'dayfree':
+  try {
+    if (!isDono && !isSubdono(sender)) return reply('❌ Este comando é exclusivo para o dono ou subdonos.');
+    if (!q) return reply(`Uso: ${prefix}adddiasaluguel <dias> [motivo opcional]\nEx: ${prefix}adddiasaluguel 7 Manutenção compensatória`);
+    const parts = q.split(' ');
+    const extraDays = parseInt(parts[0]);
+    if (isNaN(extraDays) || extraDays <= 0) return reply('O primeiro argumento deve ser um número positivo de dias.');
+    const motivo = parts.slice(1).join(' ') || 'Não especificado';
+    const rentalData = loadRentalData();
+    const groupIds = Object.keys(rentalData.groups);
+    if (groupIds.length === 0) return reply('Não há grupos com aluguel configurado.');
+    let successCount = 0;
+    let failCount = 0;
+    let summary = `📊 Resumo da extensão de aluguel:\n\n`;
+    for (const groupId of groupIds) {
+      const extendResult = extendGroupRental(groupId, extraDays);
+      if (extendResult.success) {
+        successCount++;
+        summary += `✅ ${groupId}: ${extendResult.message}\n`;
+        try {
+          const groupMeta = await nazu.groupMetadata(groupId);
+          const msg = `🎉 Atenção, ${groupMeta.subject}! Adicionados ${extraDays} dias extras de aluguel.\nNova expiração: ${new Date(rentalData.groups[groupId].expiresAt).toLocaleDateString('pt-BR')}.\nMotivo: ${motivo}`;
+          await nazu.sendMessage(groupId, { text: msg });
+        } catch (e) {
+          console.error(`Erro ao enviar mensagem para ${groupId}:`, e);
+          summary += `   ⚠️ Falha ao avisar no grupo.\n`;
+        }
+      } else {
+        failCount++;
+        summary += `❌ ${groupId}: ${extendResult.message}\n`;
+      }
+    }
+    summary += `\nTotal: ${successCount} sucessos | ${failCount} falhas`;
+    await reply(summary);
+  } catch (e) {
+    console.error('Erro no comando adddiasaluguel:', e);
+    await reply('Ocorreu um erro ao estender aluguel em todos os grupos.');
+  }
   break;
   
   case 'addaluguel':

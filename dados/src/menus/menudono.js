@@ -90,6 +90,7 @@ ${middleBorder}${menuItemIcon}${prefix}addaluguel
 ${middleBorder}${menuItemIcon}${prefix}gerarcodigo
 ${middleBorder}${menuItemIcon}${prefix}listaluguel
 ${middleBorder}${menuItemIcon}${prefix}limparaluguel
+${middleBorder}${menuItemIcon}${prefix}dayfree
 ${bottomBorder}
 
 ${menuTopBorder}${separatorIcon} *${adminMenuTitle}*
