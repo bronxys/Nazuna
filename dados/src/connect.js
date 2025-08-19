@@ -169,27 +169,6 @@ async function createBotSocket() {
 
     currentSocket = NazunaSock;
 
-    console.log(`🔧 Aplicando patch de timeout de ${SEND_MESSAGE_TIMEOUT_MS / 1000}s na função sendMessage...`);
-    const originalSendMessage = NazunaSock.sendMessage.bind(NazunaSock);
-    NazunaSock.sendMessage = async (...args) => {
-      try {
-        return await Promise.race([
-          originalSendMessage(...args),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new TimeoutError(`Envio da mensagem excedeu ${SEND_MESSAGE_TIMEOUT_MS / 1000}s`)), SEND_MESSAGE_TIMEOUT_MS)
-          ),
-        ]);
-      } catch (error) {
-        if (error instanceof TimeoutError) {
-          console.error(`❌⏱️ ERRO FATAL: ${error.message}.`);
-          safeShutdown();
-          return new Promise(() => {});
-        }
-        console.error(`❌ Erro durante o envio da mensagem (não-timeout): ${error.message}`);
-        throw error;
-      }
-    };
-
     registerEventHandlers(NazunaSock, banner);
 
     return NazunaSock;
