@@ -2578,8 +2578,8 @@ case 'ranklevel':
   
   case 'dayfree':
   try {
-    if (!isDono && !isSubdono(sender)) return reply('❌ Este comando é exclusivo para o dono ou subdonos.');
-    if (!q) return reply(`Uso: ${prefix}adddiasaluguel <dias> [motivo opcional]\nEx: ${prefix}adddiasaluguel 7 Manutenção compensatória`);
+    if (!isOwner) return reply('❌ Este comando é exclusivo para o dono ou subdonos.');
+    if (!q) return reply(`Uso: ${prefix}${command} <dias> [motivo opcional]\nEx: ${prefix}adddiasaluguel 7 Manutenção compensatória`);
     const parts = q.split(' ');
     const extraDays = parseInt(parts[0]);
     if (isNaN(extraDays) || extraDays <= 0) return reply('O primeiro argumento deve ser um número positivo de dias.');
