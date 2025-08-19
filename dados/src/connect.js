@@ -11,7 +11,7 @@ const {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
-} = require('@whiskeysockets/baileys');
+} = require('@cognima/walib');
 const { Boom } = require('@hapi/boom');
 const { NodeCache } = require('@cacheable/node-cache');
 const readline = require('readline');
