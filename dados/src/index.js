@@ -2530,7 +2530,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
   await reply(`🎚️ Sistema de leveling ${groupData.levelingEnabled ? 'ativado' : 'desativado'}!`);
   break;
 
-case 'level':
+  case 'level':
   const levelingDataLevel = loadJsonFile(LEVELING_FILE);
   const userDataLevel = levelingDataLevel.users[sender] || { level: 1, xp: 0, patent: "Iniciante", messages: 0, commands: 0 };
   const nextLevelXp = calculateNextLevelXp(userDataLevel.level);
@@ -2538,7 +2538,7 @@ case 'level':
   await reply(`🎚️ *Seu Nível*\n\n` + `🏅 *Nível:* ${userDataLevel.level}\n` + `🔹 *XP:* ${userDataLevel.xp} / ${nextLevelXp}\n` + `🎖️ *Patente:* ${userDataLevel.patent}\n` + `📈 *Falta para o próximo nível:* ${xpToNextLevel} XP\n`);
   break;
 
-case 'addxp':
+  case 'addxp':
   if (!isOwner) return reply("Apenas o dono pode usar este comando.");
   if (!menc_os2 || !q) return reply("Marque um usuário e especifique a quantidade de XP.");
   const xpToAdd = parseInt(q);
@@ -2551,7 +2551,7 @@ case 'addxp':
   await reply(`✅ Adicionado ${xpToAdd} XP para @${menc_os2.split('@')[0]}`, { mentions: [menc_os2] });
   break;
 
-case 'delxp':
+  case 'delxp':
   if (!isOwner) return reply("Apenas o dono pode usar este comando.");
   if (!menc_os2 || !q) return reply("Marque um usuário e especifique a quantidade de XP.");
   const xpToRemove = parseInt(q);
@@ -2564,7 +2564,7 @@ case 'delxp':
   await reply(`✅ Removido ${xpToRemove} XP de @${menc_os2.split('@')[0]}`, { mentions: [menc_os2] });
   break;
 
-case 'ranklevel':
+  case 'ranklevel':
   const levelingDataRank = loadJsonFile(LEVELING_FILE);
   const sortedUsers = Object.entries(levelingDataRank.users)
     .sort((a, b) => b[1].level - a[1].level || b[1].xp - a[1].xp)
@@ -3922,47 +3922,101 @@ break;
   };
   break
   
-  case 'rankativog':
+  case 'limpardb':
   try {
-    const userTotals = {};
-
-    const groupFiles = fs.readdirSync(__dirname + '/../database/grupos').filter(file => file.endsWith('.json'));
-    for (const file of groupFiles) {
-      try {
-        const groupData = JSON.parse(fs.readFileSync(__dirname + `/../database/grupos/${file}`));
-        if (groupData.contador && Array.isArray(groupData.contador)) {
-          groupData.contador.forEach(user => {
-            const userId = user.id;
-            if (!userTotals[userId]) {
-              userTotals[userId] = {
-                name: user.pushname || userId.split('@')[0],
-                messages: 0,
-                commands: 0,
-                stickers: 0
-              };
-            }
-            userTotals[userId].messages += (user.msg || 0);
-            userTotals[userId].commands += (user.cmd || 0);
-            userTotals[userId].stickers += (user.figu || 0);
-          });
-        }
-      } catch (e) {
-        console.error(`Erro ao ler ${file}:`, e);
-      };
-    };
-
-    const rankedUsers = Object.entries(userTotals) .map(([id, data]) => ({ id, name: data.name, total: data.messages + data.commands + data.stickers, messages: data.messages, commands: data.commands, stickers: data.stickers})).filter(user => user.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
-      
-    const rankMessage = rankedUsers.length > 0 ? rankedUsers.map((user, index) => { const emoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅'; return `${emoji} *${index + 1}. @${user.id.split('@')[0]}* - ${user.total} interações\n` + `   💬 Msgs: ${user.messages} | ⚒️ Cmds: ${user.commands} | 🎨 Figus: ${user.stickers}`; }).join('\n\n') : 'Nenhum dado de atividade registrado.';
-
-    const finalMessage = `🏆 *Ranking Global de Atividade - ${nomebot}* 🏆\n\n${rankMessage}\n\n✨ *Total de Usuários*: ${Object.keys(userTotals).length}\n📊 *Bot*: ${nomebot} by ${nomedono} ✨`;
-
-    await nazu.sendMessage(from, { text: finalMessage, mentions: rankedUsers.map(user => user.id).filter(id => id.includes('@s.whatsapp.net')) }, { quoted: info });
+    if (!isOwner) return reply("Apenas o dono pode limpar o banco de dados.");
+    const allGroups = await nazu.groupFetchAllParticipating();
+    const currentGroupIds = Object.keys(allGroups);
+    const groupFiles = fs.readdirSync(GRUPOS_DIR).filter(file => file.endsWith('.json'));
+    let removedCount = 0;
+    let removedGroups = [];
+    groupFiles.forEach(file => {
+      const groupId = file.replace('.json', '');
+      if (!currentGroupIds.includes(groupId)) {
+        fs.unlinkSync(pathz.join(GRUPOS_DIR, file));
+        removedCount++;
+        removedGroups.push(groupId);
+      }
+    });
+    await reply(`🧹 Limpeza do DB concluída!\n\nRemovidos ${removedCount} grupos obsoletos:\n${removedGroups.map(id => `• ${id}`).join('\n') || 'Nenhum grupo obsoleto encontrado.'}`);
   } catch (e) {
-    console.error(e);
-    await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+    console.error('Erro no comando limpardb:', e);
+    await reply("Ocorreu um erro ao limpar o DB 💔");
   }
-break;
+  break;
+
+  case 'limparrank':
+  try {
+    if (!isGroup) return reply("Este comando só funciona em grupos.");
+    if (!isGroupAdmin) return reply("Apenas administradores podem limpar o rank de atividade.");
+    const currentMembers = AllgroupMembers;
+    const oldContador = groupData.contador || [];
+    let removedCount = 0;
+    let removedUsers = [];
+    groupData.contador = oldContador.filter(user => {
+      if (!currentMembers.includes(user.id)) {
+        removedCount++;
+        removedUsers.push(user.id.split('@')[0]);
+        return false;
+      }
+      return true;
+    });
+    fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+    await reply(`🧹 Limpeza do rank de atividade concluída!\n\nRemovidos ${removedCount} usuários ausentes:\n${removedUsers.map(name => `• @${name}`).join('\n') || 'Nenhum usuário ausente encontrado.'}`, { mentions: removedUsers.map(name => `${name}@s.whatsapp.net`) });
+  } catch (e) {
+    console.error('Erro no comando limparrank:', e);
+    await reply("Ocorreu um erro ao limpar o rank 💔");
+  }
+  break;
+
+  case 'resetrank':
+  try {
+    if (!isGroup) return reply("Este comando só funciona em grupos.");
+    if (!isGroupAdmin) return reply("Apenas administradores podem resetar o rank de atividade.");
+    const oldCount = (groupData.contador || []).length;
+    groupData.contador = [];
+    fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+    await reply(`🔄 Reset do rank de atividade concluído!\n\nRemovidas ${oldCount} entradas de usuários. O rank agora está vazio.`);
+  } catch (e) {
+    console.error('Erro no comando resetarrank:', e);
+    await reply("Ocorreu um erro ao resetar o rank 💔");
+  }
+  break;
+
+  case 'limparrankg':
+  try {
+    if (!isOwner) return reply("Apenas o dono pode limpar os ranks de todos os grupos.");
+    const groupFiles = fs.readdirSync(GRUPOS_DIR).filter(file => file.endsWith('.json'));
+    let totalRemoved = 0;
+    let summary = [];
+    for (const file of groupFiles) {
+      const groupId = file.replace('.json', '');
+      const groupPath = pathz.join(GRUPOS_DIR, file);
+      let gData = JSON.parse(fs.readFileSync(groupPath));
+      const metadata = await nazu.groupMetadata(groupId).catch(() => null);
+      if (!metadata) continue;
+      const currentMembers = metadata.participants.map(p => p.id);
+      const oldContador = gData.contador || [];
+      let removedInGroup = 0;
+      gData.contador = oldContador.filter(user => {
+        if (!currentMembers.includes(user.id)) {
+          removedInGroup++;
+          totalRemoved++;
+          return false;
+        }
+        return true;
+      });
+      fs.writeFileSync(groupPath, JSON.stringify(gData, null, 2));
+      if (removedInGroup > 0) {
+        summary.push(`• ${groupId}: Removidos ${removedInGroup} usuários`);
+      }
+    }
+    await reply(`🧹 Limpeza de ranks em todos os grupos concluída!\n\nTotal de usuários removidos: ${totalRemoved}\n\nDetalhes:\n${summary.join('\n') || 'Nenhum usuário ausente encontrado em qualquer grupo.'}`);
+  } catch (e) {
+    console.error('Erro no comando limpartodosranks:', e);
+    await reply("Ocorreu um erro ao limpar ranks de todos os grupos 💔");
+  }
+  break;
 
   case 'rankativos': 
   case 'rankativo': try {

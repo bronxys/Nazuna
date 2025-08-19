@@ -113,6 +113,8 @@ ${middleBorder}${menuItemIcon}${prefix}tm
 ${middleBorder}${menuItemIcon}${prefix}cases
 ${middleBorder}${menuItemIcon}${prefix}getcase
 ${middleBorder}${menuItemIcon}${prefix}modoliteglobal
+${middleBorder}${menuItemIcon}${prefix}limpardb
+${middleBorder}${menuItemIcon}${prefix}limparrankg
 ${bottomBorder}
 `;
 }

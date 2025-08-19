@@ -41,6 +41,8 @@ ${middleBorder}${menuItemIcon}${prefix}listblocksgp
 ${middleBorder}${menuItemIcon}${prefix}addblacklist
 ${middleBorder}${menuItemIcon}${prefix}delblacklist
 ${middleBorder}${menuItemIcon}${prefix}listblacklist
+${middleBorder}${menuItemIcon}${prefix}limparrank
+${middleBorder}${menuItemIcon}${prefix}resetrank
 ${bottomBorder}
 
 ${menuTopBorder}${separatorIcon} *${managementMenuTitle}*
