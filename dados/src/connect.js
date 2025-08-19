@@ -169,7 +169,28 @@ async function createBotSocket() {
 
     currentSocket = NazunaSock;
 
-    registerEventHandlers(NazunaSock, banner);
+    console.log(`🔧 Aplicando patch de timeout de ${SEND_MESSAGE_TIMEOUT_MS / 1000}s na função sendMessage...`);
+    const originalSendMessage = NazunaSock.sendMessage.bind(NazunaSock);
+    NazunaSock.sendMessage = async (...args) => {
+      try {
+        return await Promise.race([
+          originalSendMessage(...args),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new TimeoutError(`Envio da mensagem excedeu ${SEND_MESSAGE_TIMEOUT_MS / 1000}s`)), SEND_MESSAGE_TIMEOUT_MS)
+          ),
+        ]);
+      } catch (error) {
+        if (error instanceof TimeoutError) {
+          console.error(`❌⏱️ ERRO FATAL: ${error.message}.`);
+          safeShutdown();
+          return new Promise(() => {});
+        }
+        console.error(`❌ Erro durante o envio da mensagem (não-timeout): ${error.message}`);
+        throw error;
+      }
+    };
+
+    registerEventHandlers(NazunaSock, banner, saveCreds);
 
     return NazunaSock;
   } catch (err) {
@@ -181,8 +202,8 @@ async function createBotSocket() {
   }
 }
 
-function registerEventHandlers(NazunaSock, banner) {
-  NazunaSock.ev.on('creds.update', useMultiFileAuthState(AUTH_DIR).saveCreds);
+function registerEventHandlers(NazunaSock, banner, saveCreds) {
+  NazunaSock.ev.on('creds.update', saveCreds);
   NazunaSock.ev.on('connection.update', (update) => handleConnectionUpdate(NazunaSock, update));
   NazunaSock.ev.on('messages.upsert', (m) => handleMessagesUpsert(NazunaSock, m));
   NazunaSock.ev.on('group-participants.update', (inf) => handleGroupParticipantsUpdate(NazunaSock, inf, banner));
