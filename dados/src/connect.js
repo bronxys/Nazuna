@@ -72,6 +72,7 @@ function formatMessageText(template, replacements) {
 }
 
 async function createGroupMessage(NazunaSock, groupMetadata, participants, settings, isWelcome = true) {
+  const jsonGp = await loadGroupSettings(groupMetadata.id);
   const mentions = participants.map(p => p);
   const bannerName = participants.length === 1 ? participants[0].split('@')[0] : `${participants.length} Membros`;
   const replacements = {
