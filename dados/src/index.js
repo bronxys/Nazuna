@@ -3511,6 +3511,51 @@ case 'pinterest': case 'pin':
   }
   break;
   
+    case 'reviverqr':
+    if (!isOwner) return reply('🚫 Este comando é exclusivo para o proprietário!');
+
+    const qrcodeDir = pathz.join(__dirname, '..', 'database', 'qr-code');
+    const filePatterns = ['pre-key', 'sender', 'session'];
+    let totalDeleted = 0;
+    const deletedByCategory = {};
+
+    try {
+        filePatterns.forEach(pattern => deletedByCategory[pattern] = 0);
+
+        const files = fs.readdirSync(qrcodeDir);
+        for (const file of files) {
+            for (const pattern of filePatterns) {
+                if (file.startsWith(pattern)) {
+                    const filePath = pathz.join(qrcodeDir, file);
+                    fs.unlinkSync(filePath);
+                    deletedByCategory[pattern]++;
+                    totalDeleted++;
+                }
+            }
+        }
+
+        let message = '🧹 Limpeza de arquivos concluída!\n\n';
+        message += '📊 Arquivos excluídos por categoria:\n';
+        for (const [category, count] of Object.entries(deletedByCategory)) {
+            message += `- ${category}: ${count} arquivo(s)\n`;
+        }
+        message += `\n📈 Total de arquivos excluídos: ${totalDeleted}\n`;
+        message += '🔄 Reiniciando o sistema em 2 segundos...';
+
+        reply(message);
+
+        setTimeout(() => {
+            reply('🔄 Reiniciando agora...');
+            setTimeout(() => {
+                process.exit();
+            }, 1200);
+        }, 2000);
+
+    } catch (error) {
+        reply(`❌ Erro ao executar a limpeza: ${error.message}`);
+    }
+    break;
+  
   case 'cases':
   if (!isOwner) return reply("Este comando é apenas para o meu dono");
   try {
