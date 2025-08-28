@@ -9,12 +9,18 @@ const generateTempFileName = (extension) => {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000000);
     const tmpDir = path.join(__dirname, '../../../database/tmp');
-    if (!fsSync.existsSync(tmpDir)) fsSync.mkdirSync(tmpDir, { recursive: true });
+    if (!fsSync.existsSync(tmpDir)) fsSync.mkdirSync(tmpDir, {
+        recursive: true
+    });
     return path.join(tmpDir, `${timestamp}_${random}.${extension}`);
 };
 
 async function getBuffer(url) {
-    const { data } = await axios.get(url, { responseType: 'arraybuffer' });
+    const {
+        data
+    } = await axios.get(url, {
+        responseType: 'arraybuffer'
+    });
     return Buffer.from(data);
 }
 
@@ -119,7 +125,16 @@ async function writeExif(media, metadata, isVideo = false, rename = false, force
     return buff;
 }
 
-const sendSticker = async (nazu, jid, { sticker: path, type = 'image', packname = '', author = '', rename = false, forceSquare = false }, { quoted } = {}) => {
+const sendSticker = async (nazu, jid, {
+    sticker: path,
+    type = 'image',
+    packname = '',
+    author = '',
+    rename = false,
+    forceSquare = false
+}, {
+    quoted
+} = {}) => {
     if (!['image', 'video'].includes(type)) {
         throw new Error('O tipo de mídia deve ser "image" ou "video".');
     }
@@ -139,12 +154,23 @@ const sendSticker = async (nazu, jid, { sticker: path, type = 'image', packname 
 
     let buffer;
     if (packname || author) {
-        buffer = await writeExif(buff, { packname, author }, type === 'video', rename, forceSquare);
+        buffer = await writeExif(buff, {
+            packname,
+            author
+        }, type === 'video', rename, forceSquare);
     } else {
         buffer = await convertToWebp(buff, type === 'video', forceSquare);
     }
 
-    await nazu.sendMessage(jid, { sticker: buffer, ...(packname || author ? { packname, author } : {}) }, { quoted });
+    await nazu.sendMessage(jid, {
+        sticker: buffer,
+        ...(packname || author ? {
+            packname,
+            author
+        } : {})
+    }, {
+        quoted
+    });
     return buffer;
 };
 

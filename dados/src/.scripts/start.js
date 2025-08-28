@@ -3,7 +3,10 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const { spawn, execSync } = require('child_process');
+const {
+  spawn,
+  execSync
+} = require('child_process');
 const readline = require('readline');
 const os = require('os');
 
@@ -51,11 +54,15 @@ async function setupTermuxAutostart() {
 
   try {
     const termuxProperties = path.join(process.env.HOME, '.termux', 'termux.properties');
-    await fs.mkdir(path.dirname(termuxProperties), { recursive: true });
+    await fs.mkdir(path.dirname(termuxProperties), {
+      recursive: true
+    });
     if (!fsSync.existsSync(termuxProperties)) {
       await fs.writeFile(termuxProperties, '');
     }
-    await execSync(`sed '/^# *allow-external-apps *= *true/s/^# *//' ${termuxProperties} -i && termux-reload-settings`, { stdio: 'inherit' });
+    await execSync(`sed '/^# *allow-external-apps *= *true/s/^# *//' ${termuxProperties} -i && termux-reload-settings`, {
+      stdio: 'inherit'
+    });
     mensagem('📝 Configuração de termux.properties concluída.');
 
     const bashrcPath = path.join(process.env.HOME, '.bashrc');
@@ -177,10 +184,13 @@ function startBot(codeMode = false) {
   if (codeMode) args.push('--code');
 
   info(`📷 Iniciando com ${codeMode ? 'código de pareamento' : 'QR Code'}`);
-  
+
   botProcess = spawn('node', args, {
     stdio: 'inherit',
-    env: { ...process.env, FORCE_COLOR: '1' },
+    env: {
+      ...process.env,
+      FORCE_COLOR: '1'
+    },
   });
 
   botProcess.on('error', (error) => {
@@ -209,7 +219,9 @@ function restartBot(codeMode) {
 async function checkAutoConnect() {
   try {
     if (!fsSync.existsSync(QR_CODE_DIR)) {
-      await fs.mkdir(QR_CODE_DIR, { recursive: true });
+      await fs.mkdir(QR_CODE_DIR, {
+        recursive: true
+      });
       return false;
     }
     const files = await fs.readdir(QR_CODE_DIR);
@@ -239,11 +251,15 @@ async function promptConnectionMethod() {
       switch (answer.trim()) {
         case '1':
           mensagem('📷 Iniciando conexão via QR Code...');
-          resolve({ method: 'qr' });
+          resolve({
+            method: 'qr'
+          });
           break;
         case '2':
           mensagem('🔑 Iniciando conexão via código de pareamento...');
-          resolve({ method: 'code' });
+          resolve({
+            method: 'code'
+          });
           break;
         case '3':
           mensagem('👋 Encerrando... Até mais!');
@@ -251,7 +267,9 @@ async function promptConnectionMethod() {
           break;
         default:
           aviso('⚠️ Opção inválida! Usando conexão via QR Code como padrão.');
-          resolve({ method: 'qr' });
+          resolve({
+            method: 'qr'
+          });
       }
     });
   });
@@ -263,13 +281,15 @@ async function main() {
     await displayHeader();
     await checkPrerequisites();
     await setupTermuxAutostart();
-    
+
     const hasSession = await checkAutoConnect();
     if (hasSession) {
       mensagem('📷 Sessão de QR Code detectada. Conectando automaticamente...');
       startBot(false);
     } else {
-      const { method } = await promptConnectionMethod();
+      const {
+        method
+      } = await promptConnectionMethod();
       startBot(method === 'code');
     }
   } catch (error) {

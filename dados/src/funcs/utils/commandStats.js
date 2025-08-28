@@ -9,24 +9,29 @@ function ensureStatsFile() {
   try {
     if (!fs.existsSync(STATS_FILE)) {
       const dir = pathz.dirname(STATS_FILE);
-      
+
       if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+        fs.mkdirSync(dir, {
+          recursive: true
+        });
       };
-      
+
       const defaultStats = {
         commands: {},
         lastUpdated: new Date().toISOString()
       };
-      
+
       fs.writeFileSync(STATS_FILE, JSON.stringify(defaultStats, null, 2));
       return defaultStats;
     };
-    
+
     return JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'));
   } catch (error) {
     console.error('Error ensuring stats file:', error);
-    return { commands: {}, lastUpdated: new Date().toISOString() };
+    return {
+      commands: {},
+      lastUpdated: new Date().toISOString()
+    };
   };
 };
 
@@ -34,7 +39,7 @@ function ensureStatsFile() {
 function trackCommandUsage(command, userId) {
   try {
     const stats = ensureStatsFile();
-    
+
     if (!stats.commands[command]) {
       stats.commands[command] = {
         count: 0,
@@ -48,7 +53,7 @@ function trackCommandUsage(command, userId) {
     if (!stats.commands[command].users[userId]) {
       stats.commands[command].users[userId] = 0;
     };
-    
+
     stats.commands[command].users[userId]++;
 
     stats.commands[command].lastUsed = new Date().toISOString();
@@ -87,18 +92,21 @@ function getMostUsedCommands(limit = 10) {
 function getCommandStats(command) {
   try {
     const stats = ensureStatsFile();
-    
+
     if (!stats.commands[command]) {
       return null;
     };
-    
+
     const commandStats = stats.commands[command];
 
     const topUsers = Object.entries(commandStats.users)
-      .map(([userId, count]) => ({ userId, count }))
+      .map(([userId, count]) => ({
+        userId,
+        count
+      }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-    
+
     return {
       name: command,
       count: commandStats.count,
@@ -117,4 +125,4 @@ module.exports = {
   trackCommandUsage,
   getMostUsedCommands,
   getCommandStats
-}; 
+};

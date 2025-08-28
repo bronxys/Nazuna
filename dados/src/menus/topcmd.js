@@ -2,8 +2,7 @@ async function menuTopCmd(
   prefix,
   botName = "MeuBot",
   userName = "Usuário",
-  topCommands = [],
-  {
+  topCommands = [], {
     header = `╭┈⊰ 🌸 『 *${botName}* 』\n┊Olá, #user#!\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`,
     menuTopBorder = "╭┈",
     bottomBorder = "╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯",

@@ -3,10 +3,15 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const { execSync, exec } = require('child_process');
+const {
+  execSync,
+  exec
+} = require('child_process');
 const readline = require('readline');
 const os = require('os');
-const { promisify } = require('util');
+const {
+  promisify
+} = require('util');
 const execAsync = promisify(exec);
 
 const REPO_URL = 'https://github.com/hiudyy/nazuna.git';
@@ -129,9 +134,15 @@ async function createBackup() {
   printMessage('📁 Criando backup dos arquivos...');
 
   try {
-    await fs.mkdir(path.join(BACKUP_DIR, 'dados', 'database'), { recursive: true });
-    await fs.mkdir(path.join(BACKUP_DIR, 'dados', 'src'), { recursive: true });
-    await fs.mkdir(path.join(BACKUP_DIR, 'dados', 'midias'), { recursive: true });
+    await fs.mkdir(path.join(BACKUP_DIR, 'dados', 'database'), {
+      recursive: true
+    });
+    await fs.mkdir(path.join(BACKUP_DIR, 'dados', 'src'), {
+      recursive: true
+    });
+    await fs.mkdir(path.join(BACKUP_DIR, 'dados', 'midias'), {
+      recursive: true
+    });
 
     const databaseDir = path.join(process.cwd(), 'dados', 'database');
     if (fsSync.existsSync(databaseDir)) {
@@ -160,7 +171,9 @@ async function createBackup() {
 
 async function copyDirectoryAsync(source, destination) {
   if (!fsSync.existsSync(destination)) {
-    await fs.mkdir(destination, { recursive: true });
+    await fs.mkdir(destination, {
+      recursive: true
+    });
   }
 
   const files = await fs.readdir(source);
@@ -185,9 +198,14 @@ async function downloadUpdate() {
   try {
     if (fsSync.existsSync(TEMP_DIR)) {
       if (isWindows) {
-        execSync(`rmdir /s /q "${TEMP_DIR}"`, { stdio: 'ignore' });
+        execSync(`rmdir /s /q "${TEMP_DIR}"`, {
+          stdio: 'ignore'
+        });
       } else {
-        await fs.rm(TEMP_DIR, { recursive: true, force: true });
+        await fs.rm(TEMP_DIR, {
+          recursive: true,
+          force: true
+        });
       }
     }
 
@@ -238,14 +256,41 @@ async function cleanOldFiles() {
   printMessage('🧹 Limpando arquivos antigos...');
 
   try {
-    const itemsToDelete = [
-      { path: path.join(process.cwd(), '.git'), type: 'dir', name: '.git' },
-      { path: path.join(process.cwd(), '.github'), type: 'dir', name: '.github' },
-      { path: path.join(process.cwd(), '.npm'), type: 'dir', name: '.npm' },
-      { path: path.join(process.cwd(), 'node_modules'), type: 'dir', name: 'node_modules' },
-      { path: path.join(process.cwd(), 'package.json'), type: 'file', name: 'package.json' },
-      { path: path.join(process.cwd(), 'package-lock.json'), type: 'file', name: 'package-lock.json' },
-      { path: path.join(process.cwd(), 'README.md'), type: 'file', name: 'README.md' },
+    const itemsToDelete = [{
+        path: path.join(process.cwd(), '.git'),
+        type: 'dir',
+        name: '.git'
+      },
+      {
+        path: path.join(process.cwd(), '.github'),
+        type: 'dir',
+        name: '.github'
+      },
+      {
+        path: path.join(process.cwd(), '.npm'),
+        type: 'dir',
+        name: '.npm'
+      },
+      {
+        path: path.join(process.cwd(), 'node_modules'),
+        type: 'dir',
+        name: 'node_modules'
+      },
+      {
+        path: path.join(process.cwd(), 'package.json'),
+        type: 'file',
+        name: 'package.json'
+      },
+      {
+        path: path.join(process.cwd(), 'package-lock.json'),
+        type: 'file',
+        name: 'package-lock.json'
+      },
+      {
+        path: path.join(process.cwd(), 'README.md'),
+        type: 'file',
+        name: 'README.md'
+      },
     ];
 
     for (const item of itemsToDelete) {
@@ -253,9 +298,14 @@ async function cleanOldFiles() {
         printDetail(`📂 Removendo ${item.name}...`);
         if (item.type === 'dir') {
           if (isWindows) {
-            execSync(`rmdir /s /q "${item.path}"`, { stdio: 'ignore' });
+            execSync(`rmdir /s /q "${item.path}"`, {
+              stdio: 'ignore'
+            });
           } else {
-            await fs.rm(item.path, { recursive: true, force: true });
+            await fs.rm(item.path, {
+              recursive: true,
+              force: true
+            });
           }
         } else {
           await fs.unlink(item.path);
@@ -289,9 +339,14 @@ async function cleanDirectoryAsync(directory, excludeDir) {
     const stats = await fs.stat(filePath);
     if (stats.isDirectory()) {
       if (isWindows) {
-        execSync(`rmdir /s /q "${filePath}"`, { stdio: 'ignore' });
+        execSync(`rmdir /s /q "${filePath}"`, {
+          stdio: 'ignore'
+        });
       } else {
-        await fs.rm(filePath, { recursive: true, force: true });
+        await fs.rm(filePath, {
+          recursive: true,
+          force: true
+        });
       }
     } else {
       await fs.unlink(filePath);
@@ -327,9 +382,14 @@ async function applyUpdate() {
 
     if (fsSync.existsSync(TEMP_DIR)) {
       if (isWindows) {
-        execSync(`rmdir /s /q "${TEMP_DIR}"`, { stdio: 'ignore' });
+        execSync(`rmdir /s /q "${TEMP_DIR}"`, {
+          stdio: 'ignore'
+        });
       } else {
-        await fs.rm(TEMP_DIR, { recursive: true, force: true });
+        await fs.rm(TEMP_DIR, {
+          recursive: true,
+          force: true
+        });
       }
     }
 
@@ -344,9 +404,15 @@ async function restoreBackup() {
   printMessage('📂 Restaurando backup...');
 
   try {
-    await fs.mkdir(path.join(process.cwd(), 'dados', 'database'), { recursive: true });
-    await fs.mkdir(path.join(process.cwd(), 'dados', 'src'), { recursive: true });
-    await fs.mkdir(path.join(process.cwd(), 'dados', 'midias'), { recursive: true });
+    await fs.mkdir(path.join(process.cwd(), 'dados', 'database'), {
+      recursive: true
+    });
+    await fs.mkdir(path.join(process.cwd(), 'dados', 'src'), {
+      recursive: true
+    });
+    await fs.mkdir(path.join(process.cwd(), 'dados', 'midias'), {
+      recursive: true
+    });
 
     const backupDatabaseDir = path.join(BACKUP_DIR, 'dados', 'database');
     if (fsSync.existsSync(backupDatabaseDir)) {
@@ -378,7 +444,9 @@ async function installDependencies() {
 
   try {
     await new Promise((resolve, reject) => {
-      const npmProcess = exec('npm run config:install', { shell: isWindows }, (error) =>
+      const npmProcess = exec('npm run config:install', {
+          shell: isWindows
+        }, (error) =>
         error ? reject(error) : resolve()
       );
 
@@ -410,9 +478,14 @@ async function cleanup() {
     if (fsSync.existsSync(BACKUP_DIR)) {
       printDetail('📂 Removendo diretório de backup...');
       if (isWindows) {
-        execSync(`rmdir /s /q "${BACKUP_DIR}"`, { stdio: 'ignore' });
+        execSync(`rmdir /s /q "${BACKUP_DIR}"`, {
+          stdio: 'ignore'
+        });
       } else {
-        await fs.rm(BACKUP_DIR, { recursive: true, force: true });
+        await fs.rm(BACKUP_DIR, {
+          recursive: true,
+          force: true
+        });
       }
       printDetail('✅ Backup removido.');
     }
@@ -442,16 +515,42 @@ async function main() {
     setupGracefulShutdown();
     await displayHeader();
 
-    const steps = [
-      { name: 'Verificando requisitos do sistema', func: checkRequirements },
-      { name: 'Confirmando atualização', func: confirmUpdate },
-      { name: 'Criando backup', func: createBackup },
-      { name: 'Baixando a versão mais recente', func: downloadUpdate },
-      { name: 'Limpando arquivos antigos', func: cleanOldFiles },
-      { name: 'Aplicando atualização', func: applyUpdate },
-      { name: 'Restaurando backup', func: restoreBackup },
-      { name: 'Instalando dependências', func: installDependencies },
-      { name: 'Finalizando e limpando', func: cleanup },
+    const steps = [{
+        name: 'Verificando requisitos do sistema',
+        func: checkRequirements
+      },
+      {
+        name: 'Confirmando atualização',
+        func: confirmUpdate
+      },
+      {
+        name: 'Criando backup',
+        func: createBackup
+      },
+      {
+        name: 'Baixando a versão mais recente',
+        func: downloadUpdate
+      },
+      {
+        name: 'Limpando arquivos antigos',
+        func: cleanOldFiles
+      },
+      {
+        name: 'Aplicando atualização',
+        func: applyUpdate
+      },
+      {
+        name: 'Restaurando backup',
+        func: restoreBackup
+      },
+      {
+        name: 'Instalando dependências',
+        func: installDependencies
+      },
+      {
+        name: 'Finalizando e limpando',
+        func: cleanup
+      },
     ];
 
     let completedSteps = 0;
@@ -465,7 +564,9 @@ async function main() {
 
     printMessage('🔄 Buscando informações do último commit...');
     const response = await fetch('https://api.github.com/repos/hiudyy/nazuna/commits?per_page=1', {
-      headers: { Accept: 'application/vnd.github+json' },
+      headers: {
+        Accept: 'application/vnd.github+json'
+      },
     });
 
     if (!response.ok) {
@@ -475,7 +576,9 @@ async function main() {
     const linkHeader = response.headers.get('link');
     const NumberUp = linkHeader?.match(/page=(\d+)>;\s*rel="last"/)?.[1];
 
-    const jsonUp = { total: NumberUp };
+    const jsonUp = {
+      total: NumberUp
+    };
     await fs.writeFile(path.join(__dirname, '..', '..', 'database', 'updateSave.json'), JSON.stringify(jsonUp));
 
     printSeparator();

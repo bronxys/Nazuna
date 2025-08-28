@@ -3,12 +3,16 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const { execSync, exec } = require('child_process');
+const {
+  execSync,
+  exec
+} = require('child_process');
 const readline = require('readline');
 const os = require('os');
-const { promisify } = require('util');
+const {
+  promisify
+} = require('util');
 const execAsync = promisify(exec);
-
 const CONFIG_FILE = path.join(process.cwd(), 'dados', 'src', 'config.json');
 const isWindows = os.platform() === 'win32';
 
@@ -16,8 +20,7 @@ let version = 'Desconhecida';
 try {
   const packageJson = JSON.parse(fsSync.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
   version = packageJson.version;
-} catch (error) {
-}
+} catch (error) {}
 
 const colors = {
   reset: '\x1b[0m',
@@ -155,7 +158,9 @@ async function installFFmpeg() {
     }
 
     await new Promise((resolve, reject) => {
-      const ffmpegProcess = exec(command, { shell: isWindows }, (error) =>
+      const ffmpegProcess = exec(command, {
+          shell: isWindows
+        }, (error) =>
         error ? reject(error) : resolve()
       );
 
@@ -200,7 +205,9 @@ async function installDependencies() {
 
   try {
     await new Promise((resolve, reject) => {
-      const npmProcess = exec('npm install --no-optional --force --no-bin-links', { shell: isWindows }, (error) =>
+      const npmProcess = exec('npm install --no-optional --force --no-bin-links', {
+          shell: isWindows
+        }, (error) =>
         error ? reject(error) : resolve()
       );
 
@@ -294,12 +301,17 @@ async function main() {
       enablePanel: false,
     };
 
-    let config = { ...defaultConfig };
+    let config = {
+      ...defaultConfig
+    };
 
     try {
       if (fsSync.existsSync(CONFIG_FILE)) {
         const existingConfig = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf8'));
-        config = { ...config, ...existingConfig };
+        config = {
+          ...config,
+          ...existingConfig
+        };
         printInfo('📂 Configuração existente carregada.');
       }
     } catch (error) {
@@ -325,7 +337,9 @@ async function main() {
     try {
       const configDir = path.dirname(CONFIG_FILE);
       if (!fsSync.existsSync(configDir)) {
-        await fs.mkdir(configDir, { recursive: true });
+        await fs.mkdir(configDir, {
+          recursive: true
+        });
       }
 
       await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));

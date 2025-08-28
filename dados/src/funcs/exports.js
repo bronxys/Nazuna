@@ -41,7 +41,9 @@ const utilsDir = path.join(__dirname, 'utils');
 const jsonDir = path.join(__dirname, 'json');
 
 
-const { requireRemote } = loadModule(path.join(utilsDir, 'import.js'), 'import');
+const {
+  requireRemote
+} = loadModule(path.join(utilsDir, 'import.js'), 'import');
 
 
 const remoteModuleUrls = {
@@ -65,7 +67,6 @@ const tictactoe = loadModule(path.join(utilsDir, 'tictactoe.js'), 'tictactoe');
 const sendSticker = loadModule(path.join(utilsDir, 'sticker.js'), 'sendSticker').sendSticker;
 const commandStats = loadModule(path.join(utilsDir, 'commandStats.js'), 'commandStats');
 
-
 module.exports = (async () => {
 
   const modules = {
@@ -82,15 +83,19 @@ module.exports = (async () => {
   };
 
   try {
-  
+
     const downloadPromises = Object.entries(remoteModuleUrls).map(async ([key, url]) => {
       modules[key] = await loadRemoteModuleWithRetry(url, key);
       modules[key] = modules[key].default ? modules[key].default : modules[key]
     });
 
     const jsonPromises = [
-      loadJson(path.join(jsonDir, 'tools.json'), 'tools.json').then(data => ({ toolsJson: data })),
-      loadJson(path.join(jsonDir, 'vab.json'), 'vab.json').then(data => ({ vabJson: data }))
+      loadJson(path.join(jsonDir, 'tools.json'), 'tools.json').then(data => ({
+        toolsJson: data
+      })),
+      loadJson(path.join(jsonDir, 'vab.json'), 'vab.json').then(data => ({
+        vabJson: data
+      }))
     ];
 
     await Promise.all([...downloadPromises, ...jsonPromises]);
@@ -108,7 +113,7 @@ module.exports = (async () => {
       commandStats,
       tictactoe
     };
-    
+
   } catch (error) {
     console.error(`[${new Date().toISOString()}] Erro na inicialização:`, error.message);
     console.log(`[${new Date().toISOString()}] Retornando valores padrão após falha`);

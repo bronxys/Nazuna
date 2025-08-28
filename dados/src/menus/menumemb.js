@@ -1,8 +1,7 @@
 async function menuMembros(
   prefix,
   botName = "MeuBot",
-  userName = "Usuário",
-  {
+  userName = "Usuário", {
     header = `╭┈⊰ 🌸 『 *${botName}* 』\n┊Olá, #user#!\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`,
     menuTopBorder = "╭┈",
     bottomBorder = "╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯",

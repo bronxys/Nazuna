@@ -3,7 +3,10 @@ const CONFIG = {
   GAME_TIMEOUT: 30 * 60 * 1000,
   MAX_GAMES_PER_GROUP: 1,
   BOARD_SIZE: 9,
-  SYMBOLS: { X: '❌', O: '⭕' }
+  SYMBOLS: {
+    X: '❌',
+    O: '⭕'
+  }
 };
 
 
@@ -13,13 +16,13 @@ const GameState = {
 
   cleanup() {
     const now = Date.now();
-    
+
     for (const [groupId, game] of this.activeGames) {
       if (now - game.startTime > CONFIG.GAME_TIMEOUT) {
         this.activeGames.delete(groupId);
       };
     };
-    
+
     for (const [groupId, invitation] of this.pendingInvitations) {
       if (now - invitation.timestamp > CONFIG.INVITATION_TIMEOUT) {
         this.pendingInvitations.delete(groupId);
@@ -35,7 +38,10 @@ setInterval(() => GameState.cleanup(), 5 * 60 * 1000);
 class TicTacToe {
   constructor(player1, player2) {
     this.board = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
-    this.players = { X: player1, O: player2 };
+    this.players = {
+      X: player1,
+      O: player2
+    };
     this.currentTurn = 'X';
     this.moves = 0;
     this.startTime = Date.now();
@@ -43,38 +49,38 @@ class TicTacToe {
   }
 
   makeMove(player, position) {
-  if (!this.isValidGame()) {
-    return this.createResponse(false, '❌ Erro: Jogadores inválidos');
+    if (!this.isValidGame()) {
+      return this.createResponse(false, '❌ Erro: Jogadores inválidos');
+    }
+
+    if (!this.isPlayerTurn(player)) {
+      return this.createResponse(false, '❌ Não é sua vez!');
+    }
+
+    const index = this.validatePosition(position);
+    if (index === -1) {
+      return this.createResponse(false, '❌ Posição inválida! Use 1-9.');
+    }
+
+    if (this.board[index] === CONFIG.SYMBOLS.X || this.board[index] === CONFIG.SYMBOLS.O) {
+      return this.createResponse(false, '❌ Posição já ocupada!');
+    }
+
+    this.board[index] = CONFIG.SYMBOLS[this.currentTurn];
+    this.moves++;
+    this.lastMoveTime = Date.now();
+
+    if (this.checkWin()) {
+      return this.createWinResponse();
+    }
+
+    if (this.moves === CONFIG.BOARD_SIZE) {
+      return this.createDrawResponse();
+    }
+
+    this.currentTurn = this.currentTurn === 'X' ? 'O' : 'X';
+    return this.createTurnResponse();
   }
-
-  if (!this.isPlayerTurn(player)) {
-    return this.createResponse(false, '❌ Não é sua vez!');
-  }
-
-  const index = this.validatePosition(position);
-  if (index === -1) {
-    return this.createResponse(false, '❌ Posição inválida! Use 1-9.');
-  }
-
-  if (this.board[index] === CONFIG.SYMBOLS.X || this.board[index] === CONFIG.SYMBOLS.O) {
-    return this.createResponse(false, '❌ Posição já ocupada!');
-  }
-
-  this.board[index] = CONFIG.SYMBOLS[this.currentTurn];
-  this.moves++;
-  this.lastMoveTime = Date.now();
-
-  if (this.checkWin()) {
-    return this.createWinResponse();
-  }
-
-  if (this.moves === CONFIG.BOARD_SIZE) {
-    return this.createDrawResponse();
-  }
-
-  this.currentTurn = this.currentTurn === 'X' ? 'O' : 'X';
-  return this.createTurnResponse();
-}
 
   renderBoard() {
     const display = pos => this.board[pos] || (pos + 1);
@@ -83,9 +89,14 @@ class TicTacToe {
 
   checkWin() {
     const patterns = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8],
-      [0, 3, 6], [1, 4, 7], [2, 5, 8],
-      [0, 4, 8], [2, 4, 6]
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6]
     ];
 
     return patterns.some(([a, b, c]) =>
@@ -102,22 +113,25 @@ class TicTacToe {
   }
 
   validatePosition(position) {
-  if (typeof position !== 'string' && typeof position !== 'number') {
-    return -1;
-  }
+    if (typeof position !== 'string' && typeof position !== 'number') {
+      return -1;
+    }
     const pos = parseInt(position);
     return (!isNaN(pos) && pos >= 1 && pos <= 9) ? pos - 1 : -1;
   }
 
   createResponse(success, message, extras = {}) {
-    return { success, message, ...extras };
+    return {
+      success,
+      message,
+      ...extras
+    };
   }
 
   createWinResponse() {
     const winner = this.players[this.currentTurn];
-    return this.createResponse(true, 
-      `🎮 *JOGO DA VELHA - FIM*\n\n🎉 @${winner.split('@')[0]} venceu! 🏆\n\n${this.renderBoard()}`,
-      {
+    return this.createResponse(true,
+      `🎮 *JOGO DA VELHA - FIM*\n\n🎉 @${winner.split('@')[0]} venceu! 🏆\n\n${this.renderBoard()}`, {
         finished: true,
         winner,
         board: this.renderBoard(),
@@ -128,8 +142,7 @@ class TicTacToe {
 
   createDrawResponse() {
     return this.createResponse(true,
-      `🎮 *JOGO DA VELHA - FIM*\n\n🤝 Empate!\n\n${this.renderBoard()}`,
-      {
+      `🎮 *JOGO DA VELHA - FIM*\n\n🤝 Empate!\n\n${this.renderBoard()}`, {
         finished: true,
         draw: true,
         board: this.renderBoard(),
@@ -141,8 +154,7 @@ class TicTacToe {
   createTurnResponse() {
     const nextPlayer = this.players[this.currentTurn];
     return this.createResponse(true,
-      `🎮 *JOGO DA VELHA*\n\n👉 Vez de @${nextPlayer.split('@')[0]}\n\n${this.renderBoard()}\n\n💡 Digite um número de 1 a 9.`,
-      {
+      `🎮 *JOGO DA VELHA*\n\n👉 Vez de @${nextPlayer.split('@')[0]}\n\n${this.renderBoard()}\n\n💡 Digite um número de 1 a 9.`, {
         finished: false,
         board: this.renderBoard(),
         mentions: [nextPlayer]
@@ -154,21 +166,30 @@ class TicTacToe {
 
 async function invitePlayer(groupId, inviter, invitee) {
   if (!groupId || !inviter || !invitee || inviter === invitee) {
-    return { success: false, message: '❌ Dados inválidos para o convite' };
+    return {
+      success: false,
+      message: '❌ Dados inválidos para o convite'
+    };
   }
 
   if (GameState.activeGames.has(groupId)) {
-    return { success: false, message: '❌ Já existe um jogo em andamento!' };
+    return {
+      success: false,
+      message: '❌ Já existe um jogo em andamento!'
+    };
   }
 
   if (GameState.pendingInvitations.has(groupId)) {
-    return { success: false, message: '❌ Já existe um convite pendente!' };
+    return {
+      success: false,
+      message: '❌ Já existe um convite pendente!'
+    };
   }
 
-  GameState.pendingInvitations.set(groupId, { 
-    inviter, 
-    invitee, 
-    timestamp: Date.now() 
+  GameState.pendingInvitations.set(groupId, {
+    inviter,
+    invitee,
+    timestamp: Date.now()
   });
 
   return {
@@ -181,9 +202,12 @@ async function invitePlayer(groupId, inviter, invitee) {
 
 function processInvitationResponse(groupId, invitee, response) {
   const invitation = GameState.pendingInvitations.get(groupId);
-  
+
   if (!invitation || invitation.invitee !== invitee) {
-    return { success: false, message: '❌ Nenhum convite pendente para você' };
+    return {
+      success: false,
+      message: '❌ Nenhum convite pendente para você'
+    };
   }
 
   const acceptResponses = ['s', 'sim', 'y', 'yes'];
@@ -193,7 +217,10 @@ function processInvitationResponse(groupId, invitee, response) {
   GameState.pendingInvitations.delete(groupId);
 
   if (!acceptResponses.includes(normalizedResponse) && !rejectResponses.includes(normalizedResponse)) {
-    return { success: false, message: '❌ Resposta inválida. Use "sim" ou "não"' };
+    return {
+      success: false,
+      message: '❌ Resposta inválida. Use "sim" ou "não"'
+    };
   }
 
   if (rejectResponses.includes(normalizedResponse)) {
@@ -219,41 +246,53 @@ function processInvitationResponse(groupId, invitee, response) {
 
 function makeMove(groupId, player, position) {
   const game = GameState.activeGames.get(groupId);
-  
+
   if (!game) {
-    return { success: false, message: '❌ Nenhum jogo em andamento!' };
+    return {
+      success: false,
+      message: '❌ Nenhum jogo em andamento!'
+    };
   }
 
   if (Date.now() - game.startTime > CONFIG.GAME_TIMEOUT) {
     GameState.activeGames.delete(groupId);
-    return { success: false, message: '❌ Jogo encerrado por inatividade (30 minutos)' };
+    return {
+      success: false,
+      message: '❌ Jogo encerrado por inatividade (30 minutos)'
+    };
   }
 
   if (Date.now() - game.lastMoveTime > 5 * 60 * 1000) {
     GameState.activeGames.delete(groupId);
-    return { success: false, message: '❌ Jogo encerrado por inatividade (5 minutos sem jogada)' };
+    return {
+      success: false,
+      message: '❌ Jogo encerrado por inatividade (5 minutos sem jogada)'
+    };
   }
 
   const result = game.makeMove(player, position);
-  
+
   if (result.finished) {
     GameState.activeGames.delete(groupId);
   }
-  
+
   return result;
 }
 
 
 function endGame(groupId) {
   const game = GameState.activeGames.get(groupId);
-  
+
   if (!game) {
-    return { success: false, message: '❌ Nenhum jogo em andamento!' };
+    return {
+      success: false,
+      message: '❌ Nenhum jogo em andamento!'
+    };
   }
 
   const players = Object.values(game.players);
   GameState.activeGames.delete(groupId);
-  
+
   return {
     success: true,
     message: '🎮 Jogo encerrado manualmente!',

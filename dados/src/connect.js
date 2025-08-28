@@ -4,21 +4,38 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
 } = require('@cognima/walib');
-const { Boom } = require('@hapi/boom');
-const { NodeCache } = require('@cacheable/node-cache');
+const {
+  Boom
+} = require('@hapi/boom');
+const {
+  NodeCache
+} = require('@cacheable/node-cache');
 const readline = require('readline');
 const pino = require('pino');
 const fs = require('fs').promises;
 const path = require('path');
 const qrcode = require('qrcode-terminal');
 
-const logger = pino({ level: 'silent' });
+const logger = pino({
+  level: 'silent'
+});
 const AUTH_DIR = path.join(__dirname, '..', 'database', 'qr-code');
 const DATABASE_DIR = path.join(__dirname, '..', 'database', 'grupos');
 const GLOBAL_BLACKLIST_PATH = path.join(__dirname, '..', 'database', 'dono', 'globalBlacklist.json');
-const msgRetryCounterCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
-const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
-const { prefixo, nomebot, nomedono, numerodono } = require('./config.json');
+const msgRetryCounterCache = new NodeCache({
+  stdTTL: 5 * 60,
+  useClones: false
+});
+const groupCache = new NodeCache({
+  stdTTL: 5 * 60,
+  useClones: false
+});
+const {
+  prefixo,
+  nomebot,
+  nomedono,
+  numerodono
+} = require('./config.json');
 const indexModule = require(path.join(__dirname, 'index.js'));
 
 const codeMode = process.argv.includes('--code');
@@ -26,7 +43,10 @@ const messagesCache = new Map();
 setInterval(() => messagesCache.clear(), 600000);
 
 const ask = (question) => {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
   return new Promise((resolve) => rl.question(question, (answer) => {
     rl.close();
     resolve(answer.trim());
@@ -35,7 +55,10 @@ const ask = (question) => {
 
 async function clearAuthDir() {
   try {
-    await fs.rm(AUTH_DIR, { recursive: true, force: true });
+    await fs.rm(AUTH_DIR, {
+      recursive: true,
+      force: true
+    });
     console.log(`🗑️ Pasta de autenticação (${AUTH_DIR}) excluída com sucesso.`);
   } catch (err) {
     console.error(`❌ Erro ao excluir pasta de autenticação: ${err.message}`);
@@ -82,21 +105,30 @@ async function createGroupMessage(NazunaSock, groupMetadata, participants, setti
     '#membros#': groupMetadata.participants.length,
   };
 
-  const defaultText = isWelcome
-  ? (jsonGp.textbv ? jsonGp.textbv : "🚀 Bem-vindo(a/s), #numerodele#! Vocês entraram no grupo *#nomedogp#*. Membros: #membros#.")
-  : (jsonGp.exit.text ? jsonGp.exit.text : "👋 Adeus, #numerodele#! Até mais!");
+  const defaultText = isWelcome ?
+    (jsonGp.textbv ? jsonGp.textbv : "🚀 Bem-vindo(a/s), #numerodele#! Vocês entraram no grupo *#nomedogp#*. Membros: #membros#.") :
+    (jsonGp.exit.text ? jsonGp.exit.text : "👋 Adeus, #numerodele#! Até mais!");
   const text = formatMessageText(settings.text || defaultText, replacements);
 
-  const message = { text, mentions };
+  const message = {
+    text,
+    mentions
+  };
   if (settings.image) {
     let profilePicUrl = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1747053564257_bzswae.bin';
     if (participants.length === 1 && isWelcome) {
       profilePicUrl = await NazunaSock.profilePictureUrl(participants[0], 'image').catch(() => profilePicUrl);
     }
-    const { banner } = await require(path.join(__dirname, 'funcs', 'exports.js'));
-    const image = settings.image !== 'banner'
-      ? { url: settings.image }
-      : { url: await banner.Welcome(profilePicUrl, bannerName, groupMetadata.subject, groupMetadata.participants.length) };
+    const {
+      banner
+    } = await require(path.join(__dirname, 'funcs', 'exports.js'));
+    const image = settings.image !== 'banner' ?
+      {
+        url: settings.image
+      } :
+      {
+        url: await banner.Welcome(profilePicUrl, bannerName, groupMetadata.subject, groupMetadata.participants.length)
+      };
     message.image = image;
     message.caption = text;
     delete message.text;
@@ -162,7 +194,9 @@ async function handleGroupParticipantsUpdate(NazunaSock, inf) {
 
         if (membersToWelcome.length > 0) {
           console.log(`[BOAS-VINDAS] Enviando mensagem para ${membersToWelcome.length} novos membros em ${groupMetadata.subject}.`);
-          const message = await createGroupMessage(NazunaSock, groupMetadata, membersToWelcome, groupSettings.welcome || { text: groupSettings.textbv });
+          const message = await createGroupMessage(NazunaSock, groupMetadata, membersToWelcome, groupSettings.welcome || {
+            text: groupSettings.textbv
+          });
           await NazunaSock.sendMessage(from, message);
         }
         break;
@@ -197,13 +231,25 @@ async function handleGroupParticipantsUpdate(NazunaSock, inf) {
 
 async function createBotSocket(authDir) {
   try {
-    const { banner } = await require(path.join(__dirname, 'funcs', 'exports.js'));
+    const {
+      banner
+    } = await require(path.join(__dirname, 'funcs', 'exports.js'));
 
-    await fs.mkdir(DATABASE_DIR, { recursive: true });
-    await fs.mkdir(authDir, { recursive: true });
+    await fs.mkdir(DATABASE_DIR, {
+      recursive: true
+    });
+    await fs.mkdir(authDir, {
+      recursive: true
+    });
 
-    const { state, saveCreds } = await useMultiFileAuthState(authDir);
-    const { version, isLatest } = await fetchLatestBaileysVersion();
+    const {
+      state,
+      saveCreds
+    } = await useMultiFileAuthState(authDir);
+    const {
+      version,
+      isLatest
+    } = await fetchLatestBaileysVersion();
 
     const NazunaSock = makeWASocket({
       version,
@@ -270,11 +316,17 @@ async function createBotSocket(authDir) {
     });
 
     NazunaSock.ev.on('connection.update', async (update) => {
-      const { connection, lastDisconnect, qr } = update;
+      const {
+        connection,
+        lastDisconnect,
+        qr
+      } = update;
 
       if (qr && !NazunaSock.authState.creds.registered && !codeMode) {
         console.log('🔗 QR Code gerado para autenticação:');
-        qrcode.generate(qr, { small: true }, (qrcodeText) => {
+        qrcode.generate(qr, {
+          small: true
+        }, (qrcodeText) => {
           console.log(qrcodeText);
         });
         console.log('📱 Escaneie o QR code acima com o WhatsApp para autenticar o bot.');
@@ -295,7 +347,7 @@ async function createBotSocket(authDir) {
           [DisconnectReason.timedOut]: 'Tempo de conexão esgotado',
           [DisconnectReason.badSession]: 'Sessão inválida',
           [DisconnectReason.restartRequired]: 'Reinício necessário',
-        }[reason] || 'Motivo desconhecido';
+        } [reason] || 'Motivo desconhecido';
         console.log(`❌ Conexão fechada. Código: ${reason} | Motivo: ${reasonMessage}`);
 
         if (reason === DisconnectReason.badSession || reason === DisconnectReason.loggedOut) {
