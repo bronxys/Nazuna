@@ -8817,7 +8817,7 @@ function getDiskSpaceInfo() {
             console.warn(`Plataforma ${platform} não suportada para informações de disco`);
             return defaultResult;
         };
-
+ 
         if (totalBytes > 0 && freeBytes >= 0) {
             const usedBytes = totalBytes - freeBytes;
             const totalGb = (totalBytes / 1024 / 1024 / 1024).toFixed(2);
