@@ -13,10 +13,7 @@ import pino from 'pino';
 import fs from 'fs/promises';
 import path from 'path';
 import qrcode from 'qrcode-terminal';
-import config from './config.json'
-assert {
-    type: 'json'
-};
+import config from './config.json' assert { type: 'json' };
 import {
     fileURLToPath
 } from 'url';
