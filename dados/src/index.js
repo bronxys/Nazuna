@@ -5,33 +5,34 @@
   Revisão: 19/08/2025
 ═════════════════════════════
 */
-
-
-const {
+import {
     downloadContentFromMessage,
     generateWAMessageFromContent,
     generateWAMessage,
     isJidNewsletter
-} = require('@cognima/walib');
-const {
+} from '@cognima/walib';
+import {
     exec,
     execSync
-} = require('child_process');
-const {
+} from 'child_process';
+import {
     parseHTML
-} = require('linkedom');
-const axios = require('axios');
-const pathz = require('path');
-const fs = require('fs');
-const os = require('os');
-const https = require('https');
-
-
-const {
-    version: botVersion
-} = JSON.parse(fs.readFileSync(pathz.join(__dirname, '..', '..', 'package.json')));
-
-
+} from 'linkedom';
+import axios from 'axios';
+import * as pathz from 'path';
+import fs from 'fs';
+import os from 'os';
+import https from 'https';
+import {
+    fileURLToPath
+} from 'url';
+import {
+    dirname
+} from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(fs.readFileSync(pathz.join(__dirname, '..', '..', 'package.json'), 'utf-8'));
+const botVersion = packageJson.version;
 const DATABASE_DIR = __dirname + '/../database';
 const GRUPOS_DIR = DATABASE_DIR + '/grupos';
 const USERS_DIR = DATABASE_DIR + '/users';
@@ -42,7 +43,6 @@ const CUSTOM_AUTORESPONSES_FILE = pathz.join(DATABASE_DIR, 'customAutoResponses.
 const NO_PREFIX_COMMANDS_FILE = pathz.join(DATABASE_DIR, 'noPrefixCommands.json');
 const COMMAND_ALIASES_FILE = pathz.join(DATABASE_DIR, 'commandAliases.json');
 const GLOBAL_BLACKLIST_FILE = pathz.join(DONO_DIR, 'globalBlacklist.json');
-
 
 function formatUptime(seconds, longFormat = false, showZero = false) {
     const d = Math.floor(seconds / (24 * 3600));
@@ -61,20 +61,22 @@ function formatUptime(seconds, longFormat = false, showZero = false) {
         s: (val) => `${val}s`
     };
     const uptimeStr = [];
-    if (d > 0 || showZero) uptimeStr.push(formats.d(d));
-    if (h > 0 || showZero) uptimeStr.push(formats.h(h));
-    if (m > 0 || showZero) uptimeStr.push(formats.m(m));
-    if (s > 0 || showZero) uptimeStr.push(formats.s(s));
+    if (d > 0 || showZero)
+        uptimeStr.push(formats.d(d));
+    if (h > 0 || showZero)
+        uptimeStr.push(formats.h(h));
+    if (m > 0 || showZero)
+        uptimeStr.push(formats.m(m));
+    if (s > 0 || showZero)
+        uptimeStr.push(formats.s(s));
     return uptimeStr.length > 0 ? uptimeStr.join(longFormat ? ', ' : ' ') : (longFormat ? '0 segundos' : '0s');
 };
-
-
 const normalizar = (texto, keepCase = false) => {
-    if (!texto || typeof texto !== 'string') return '';
+    if (!texto || typeof texto !== 'string')
+        return '';
     const normalizedText = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     return keepCase ? normalizedText : normalizedText.toLowerCase();
 };
-
 
 function ensureDirectoryExists(dirPath) {
     try {
@@ -90,7 +92,6 @@ function ensureDirectoryExists(dirPath) {
     };
 };
 
-
 function ensureJsonFileExists(filePath, defaultContent = {}) {
     try {
         if (!fs.existsSync(filePath)) {
@@ -104,8 +105,6 @@ function ensureJsonFileExists(filePath, defaultContent = {}) {
         return false;
     };
 };
-
-
 const loadJsonFile = (path, defaultValue = {}) => {
     try {
         return fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, 'utf-8')) : defaultValue;
@@ -114,14 +113,10 @@ const loadJsonFile = (path, defaultValue = {}) => {
         return defaultValue;
     }
 };
-
-
 ensureDirectoryExists(GRUPOS_DIR);
 ensureDirectoryExists(USERS_DIR);
 ensureDirectoryExists(DONO_DIR);
 ensureDirectoryExists(PARCERIAS_DIR);
-
-
 ensureJsonFileExists(DATABASE_DIR + '/antiflood.json');
 ensureJsonFileExists(DATABASE_DIR + '/cmdlimit.json');
 ensureJsonFileExists(DATABASE_DIR + '/antipv.json', {
@@ -246,21 +241,15 @@ ensureJsonFileExists(LEVELING_FILE, {
         }
     ]
 });
-
-
 const SUBDONOS_FILE = pathz.join(DONO_DIR, 'subdonos.json');
 ensureJsonFileExists(SUBDONOS_FILE, {
     subdonos: []
 });
-
-
 const loadSubdonos = () => {
     return loadJsonFile(SUBDONOS_FILE, {
         subdonos: []
     }).subdonos || [];
 };
-
-
 const saveSubdonos = (subdonoList) => {
     try {
         ensureDirectoryExists(DONO_DIR);
@@ -273,14 +262,10 @@ const saveSubdonos = (subdonoList) => {
         return false;
     };
 };
-
-
 const isSubdono = (userId) => {
     const currentSubdonos = loadSubdonos();
     return currentSubdonos.includes(userId);
 };
-
-
 const addSubdono = (userId, numerodono) => {
     if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
         return {
@@ -315,8 +300,6 @@ const addSubdono = (userId, numerodono) => {
         };
     };
 };
-
-
 const removeSubdono = (userId) => {
     if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
         return {
@@ -351,17 +334,11 @@ const removeSubdono = (userId) => {
         };
     };
 };
-
-
 const getSubdonos = () => {
     return [...loadSubdonos()];
 };
-
-
 const ALUGUEIS_FILE = pathz.join(DONO_DIR, 'alugueis.json');
 const CODIGOS_ALUGUEL_FILE = pathz.join(DONO_DIR, 'codigos_aluguel.json');
-
-
 ensureJsonFileExists(ALUGUEIS_FILE, {
     globalMode: false,
     groups: {}
@@ -369,16 +346,12 @@ ensureJsonFileExists(ALUGUEIS_FILE, {
 ensureJsonFileExists(CODIGOS_ALUGUEL_FILE, {
     codes: {}
 });
-
-
 const loadRentalData = () => {
     return loadJsonFile(ALUGUEIS_FILE, {
         globalMode: false,
         groups: {}
     });
 };
-
-
 const saveRentalData = (data) => {
     try {
         ensureDirectoryExists(DONO_DIR);
@@ -389,21 +362,15 @@ const saveRentalData = (data) => {
         return false;
     }
 };
-
-
 const isRentalModeActive = () => {
     const rentalData = loadRentalData();
     return rentalData.globalMode === true;
 };
-
-
 const setRentalMode = (isActive) => {
     let rentalData = loadRentalData();
     rentalData.globalMode = !!isActive;
     return saveRentalData(rentalData);
 };
-
-
 const getGroupRentalStatus = (groupId) => {
     const rentalData = loadRentalData();
     const groupInfo = rentalData.groups[groupId];
@@ -443,8 +410,6 @@ const getGroupRentalStatus = (groupId) => {
         permanent: false
     };
 };
-
-
 const setGroupRental = (groupId, durationDays) => {
     if (!groupId || typeof groupId !== 'string' || !groupId.endsWith('@g.us')) {
         return {
@@ -484,15 +449,11 @@ const setGroupRental = (groupId, durationDays) => {
         };
     }
 };
-
-
 const loadActivationCodes = () => {
     return loadJsonFile(CODIGOS_ALUGUEL_FILE, {
         codes: {}
     });
 };
-
-
 const saveActivationCodes = (data) => {
     try {
         ensureDirectoryExists(DONO_DIR);
@@ -503,10 +464,8 @@ const saveActivationCodes = (data) => {
         return false;
     }
 };
-
-
 const generateActivationCode = (durationDays, targetGroupId = null) => {
-    const crypto = require('crypto');
+    import * as crypto from 'crypto';
     let code = '';
     let codesData = loadActivationCodes();
     do {
@@ -552,12 +511,9 @@ const generateActivationCode = (durationDays, targetGroupId = null) => {
         };
     }
 };
-
-
 const validateActivationCode = (code) => {
     const codesData = loadActivationCodes();
     const codeInfo = codesData.codes[code?.toUpperCase()];
-
     if (!codeInfo) {
         return {
             valid: false,
@@ -575,8 +531,6 @@ const validateActivationCode = (code) => {
         ...codeInfo
     };
 };
-
-
 const useActivationCode = (code, groupId, userId) => {
     const validation = validateActivationCode(code);
     if (!validation.valid) {
@@ -618,7 +572,6 @@ const useActivationCode = (code, groupId, userId) => {
         };
     }
 };
-
 const extendGroupRental = (groupId, extraDays) => {
     if (!groupId || typeof groupId !== 'string' || !groupId.endsWith('@g.us')) {
         return {
@@ -670,7 +623,6 @@ const extendGroupRental = (groupId, extraDays) => {
         };
     }
 };
-
 const isModoLiteActive = (groupData, modoLiteGlobalConfig) => {
     const isModoLiteGlobal = modoLiteGlobalConfig?.status || false;
     const isModoLiteGrupo = groupData?.modolite || false;
@@ -680,7 +632,6 @@ const isModoLiteActive = (groupData, modoLiteGlobalConfig) => {
     }
     return isModoLiteGlobal;
 };
-
 const loadParceriasData = (groupId) => {
     const filePath = pathz.join(PARCERIAS_DIR, `${groupId}.json`);
     return loadJsonFile(filePath, {
@@ -688,7 +639,6 @@ const loadParceriasData = (groupId) => {
         partners: {}
     });
 };
-
 const saveParceriasData = (groupId, data) => {
     const filePath = pathz.join(PARCERIAS_DIR, `${groupId}.json`);
     try {
@@ -733,16 +683,15 @@ function checkLevelDown(userId, userData, levelingData) {
         const prevLevelXp = calculateNextLevelXp(userData.level - 1);
         userData.xp += prevLevelXp;
     }
-    if (userData.xp < 0) userData.xp = 0;
+    if (userData.xp < 0)
+        userData.xp = 0;
     userData.patent = getPatent(userData.level, levelingData.patents);
 }
-
 const loadCustomAutoResponses = () => {
     return loadJsonFile(CUSTOM_AUTORESPONSES_FILE, {
         responses: []
     }).responses || [];
 };
-
 const saveCustomAutoResponses = (responses) => {
     try {
         ensureDirectoryExists(DATABASE_DIR);
@@ -755,13 +704,11 @@ const saveCustomAutoResponses = (responses) => {
         return false;
     }
 };
-
 const loadNoPrefixCommands = () => {
     return loadJsonFile(NO_PREFIX_COMMANDS_FILE, {
         commands: []
     }).commands || [];
 };
-
 const saveNoPrefixCommands = (commands) => {
     try {
         ensureDirectoryExists(DATABASE_DIR);
@@ -774,13 +721,11 @@ const saveNoPrefixCommands = (commands) => {
         return false;
     }
 };
-
 const loadCommandAliases = () => {
     return loadJsonFile(COMMAND_ALIASES_FILE, {
         aliases: []
     }).aliases || [];
 };
-
 const saveCommandAliases = (aliases) => {
     try {
         ensureDirectoryExists(DATABASE_DIR);
@@ -793,14 +738,12 @@ const saveCommandAliases = (aliases) => {
         return false;
     }
 };
-
 const loadGlobalBlacklist = () => {
     return loadJsonFile(GLOBAL_BLACKLIST_FILE, {
         users: {},
         groups: {}
     });
 };
-
 const saveGlobalBlacklist = (data) => {
     try {
         ensureDirectoryExists(DONO_DIR);
@@ -811,7 +754,6 @@ const saveGlobalBlacklist = (data) => {
         return false;
     }
 };
-
 const addGlobalBlacklist = (userId, reason, addedBy) => {
     if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
         return {
@@ -843,7 +785,6 @@ const addGlobalBlacklist = (userId, reason, addedBy) => {
         };
     }
 };
-
 const removeGlobalBlacklist = (userId) => {
     if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
         return {
@@ -871,11 +812,9 @@ const removeGlobalBlacklist = (userId) => {
         };
     }
 };
-
 const getGlobalBlacklist = () => {
     return loadGlobalBlacklist();
 };
-
 async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     var config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
     var {
@@ -886,7 +825,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         debug
     } = config;
     var KeyCog = config.apikey || false;
-    var {
+    const {
         menu,
         menudown,
         menuadm,
@@ -899,10 +838,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         menuAlterador,
         menuLogos,
         menuTopCmd
-    } = require(`${__dirname}/menus/index.js`);
+    } = await import(join(__dirname, 'menus', 'index.js'));
     var prefix = prefixo;
     var numerodono = String(numerodono);
-
     const {
         youtube,
         banner,
@@ -923,8 +861,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         commandStats,
         ia,
         VerifyUpdate
-    } = await require(__dirname + '/funcs/exports.js');
-
+    } = await import(join(__dirname, 'funcs', 'exports.js'));
     const antipvData = loadJsonFile(DATABASE_DIR + '/antipv.json');
     const premiumListaZinha = loadJsonFile(DONO_DIR + '/premium.json');
     const banGpIds = loadJsonFile(DONO_DIR + '/bangp.json');
@@ -937,22 +874,19 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const botState = loadJsonFile(DATABASE_DIR + '/botState.json', {
         status: 'on'
     });
-
     const modoLiteFile = DATABASE_DIR + '/modolite.json';
     let modoLiteGlobal = loadJsonFile(modoLiteFile, {
         status: false
     });
-
     if (!fs.existsSync(modoLiteFile)) {
         fs.writeFileSync(modoLiteFile, JSON.stringify(modoLiteGlobal, null, 2));
     };
-
     global.autoStickerMode = global.autoStickerMode || 'default';
-
     try {
         const from = info.key.remoteJid;
         const isGroup = from?.endsWith('@g.us') || false;
-        if (!info.key.participant && !info.key.remoteJid) return;
+        if (!info.key.participant && !info.key.remoteJid)
+            return;
         const sender = isGroup ? (info.key.participant?.includes('whatsapp.net') ? info.key.participant : info.key.participantPn) : info.key.remoteJid;
         const pushname = info.pushName || '';
         const isStatus = from?.endsWith('@broadcast') || false;
@@ -961,10 +895,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         const isSubOwner = isSubdono(sender);
         const isOwner = (nmrdn === sender) || info.key.fromMe || isSubOwner;
         const isOwnerOrSub = isOwner || isSubOwner;
-
-        const WaLib = require('@cognima/walib');
+        import WaLib from '@cognima/walib';
         const type = WaLib.getContentType(info.message);
-
         const isMedia = ["imageMessage", "videoMessage", "audioMessage"].includes(type);
         const isImage = type === 'imageMessage';
         const isVideo = type === 'videoMessage';
@@ -972,29 +904,24 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         const isVisuU = type === 'viewOnceMessage';
         const isButtonMessage = (info.message.interactiveMessage || info.message.templateButtonReplyMessage || info.message.buttonsMessage) ? true : false;
         const isStatusMention = JSON.stringify(info.message).includes('groupStatusMentionMessage');
-
         const getMessageText = (message) => {
-            if (!message) return '';
+            if (!message)
+                return '';
             return message.conversation || message.extendedTextMessage?.text || message.imageMessage?.caption || message.videoMessage?.caption || message.documentWithCaptionMessage?.message?.documentMessage?.caption || message.viewOnceMessage?.message?.imageMessage?.caption || message.viewOnceMessage?.message?.videoMessage?.caption || message.viewOnceMessageV2?.message?.imageMessage?.caption || message.viewOnceMessageV2?.message?.videoMessage?.caption || message.editedMessage?.message?.protocolMessage?.editedMessage?.extendedTextMessage?.text || message.editedMessage?.message?.protocolMessage?.editedMessage?.imageMessage?.caption || '';
         };
-
         const body = getMessageText(info.message) || info?.text || '';
-
         const args = body.trim().split(/ +/).slice(1);
         var q = args.join(' ');
         const budy2 = normalizar(body);
-
         const menc_prt = info.message?.extendedTextMessage?.contextInfo?.participant;
         const menc_jid = q.replace("@", "").split(' ')[0] + "@s.whatsapp.net";
         const menc_jid2 = info.message?.extendedTextMessage?.contextInfo?.mentionedJid;
         const menc_os2 = q.includes("@") ? menc_jid : menc_prt;
         const sender_ou_n = q.includes("@") ? menc_jid : (menc_prt || sender);
-
         const groupFile = pathz.join(__dirname, '..', 'database', 'grupos', `${from}.json`);
         let groupData = {};
         const groupMetadata = !isGroup ? {} : await nazu.groupMetadata(from).catch(() => ({}));
         const groupName = groupMetadata?.subject || '';
-
         if (isGroup) {
             if (!fs.existsSync(groupFile)) {
                 fs.writeFileSync(groupFile, JSON.stringify({
@@ -1003,7 +930,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     groupName: groupName
                 }, null, 2));
             };
-
             try {
                 groupData = JSON.parse(fs.readFileSync(groupFile));
             } catch (error) {
@@ -1012,31 +938,25 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     mark: {}
                 };
             };
-
             groupData.moderators = groupData.moderators || [];
             groupData.allowedModCommands = groupData.allowedModCommands || [];
             groupData.mutedUsers = groupData.mutedUsers || {};
             groupData.levelingEnabled = groupData.levelingEnabled || false;
-
             if (groupName && groupData.groupName !== groupName) {
                 groupData.groupName = groupName;
                 fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
             };
         };
-
         let parceriasData = {};
         if (isGroup) {
             parceriasData = loadParceriasData(from);
         };
-
         const groupPrefix = groupData.customPrefix || prefixo;
         var isCmd = body.trim().startsWith(groupPrefix);
         const aliases = loadCommandAliases();
         const matchedAlias = aliases.find(item => normalizar(budy2.trim().slice(groupPrefix.length).split(/ +/).shift().trim()) === item.alias);
         var command = isCmd ? (matchedAlias ? matchedAlias.command : normalizar(body.trim().slice(groupPrefix.length).split(/ +/).shift().trim()).replace(/\s+/g, '')) : null;
-
         const isPremium = premiumListaZinha[sender] || premiumListaZinha[from] || isOwner;
-
         if (!isGroup) {
             if (antipvData.mode === 'antipv' && !isOwner && !isPremium) {
                 return;
@@ -1055,23 +975,18 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 return;
             };
         };
-
         if (isGroup && banGpIds[from] && !isOwner && !isPremium) {
             return;
         };
-
         const AllgroupMembers = !isGroup ? [] : groupMetadata.participants?.map(p => p.jid || p.id) || [];
         const groupAdmins = !isGroup ? [] : groupMetadata.participants?.filter(p => p.admin).map(p => p.jid || p.id) || [];
-
         const botNumber = nazu.user.id.split(':')[0] + '@s.whatsapp.net';
         const isBotAdmin = !isGroup ? false : groupAdmins.includes(botNumber);
-
         let isGroupAdmin = false;
         if (isGroup) {
             const isModeratorActionAllowed = groupData.moderators?.includes(sender) && groupData.allowedModCommands?.includes(command);
             isGroupAdmin = groupAdmins.includes(sender) || isOwner || isModeratorActionAllowed;
         };
-
         const isModoBn = groupData.modobrincadeira;
         const isOnlyAdmin = groupData.soadm;
         const isAntiPorn = groupData.antiporn;
@@ -1083,7 +998,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         const isAutoRepo = groupData.autorepo;
         const isAssistente = groupData.assistente;
         const isModoLite = isGroup && isModoLiteActive(groupData, modoLiteGlobal);
-
         if (isGroup && isStatusMention && isAntiStatus && !isGroupAdmin) {
             if (isBotAdmin) {
                 await nazu.sendMessage(from, {
@@ -1099,7 +1013,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 await reply("⚠️ Não posso remover o usuário porque não sou administrador.");
             };
         };
-
         if (isGroup && isButtonMessage && isAntiBtn && !isGroupAdmin) {
             if (isBotAdmin) {
                 await nazu.sendMessage(from, {
@@ -1115,14 +1028,13 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 await reply("⚠️ Não posso remover o usuário porque não sou administrador.");
             };
         };
-
         if (isGroup && isCmd && isOnlyAdmin && !isGroupAdmin) {
             return;
         };
-
         if (isGroup && info.message.protocolMessage && info.message.protocolMessage.type === 0 && isAntiDel) {
             const msg = messagesCache.get(info.message.protocolMessage.key.id);
-            if (!msg) return;
+            if (!msg)
+                return;
             const clone = JSON.parse(JSON.stringify(msg).replaceAll('conversation', 'text').replaceAll('Message', ''));
             for (const key in clone) {
                 const media = clone[key];
@@ -1139,13 +1051,11 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             }
             await nazu.sendMessage(from, clone);
         };
-
         if (isGroup && isCmd && !isGroupAdmin &&
             groupData.blockedCommands && groupData.blockedCommands[command]) {
             await reply('⛔ Este comando foi bloqueado pelos administradores do grupo.');
             return;
         };
-
         if (isGroup && groupData.afkUsers && groupData.afkUsers[sender]) {
             try {
                 const afkReason = groupData.afkUsers[sender].reason;
@@ -1157,7 +1067,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 console.error("Erro ao processar remoção de AFK:", error);
             };
         };
-
         if (isGroup && isMuted) {
             try {
                 await nazu.sendMessage(from, {
@@ -1186,24 +1095,19 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 console.error("Erro ao processar usuário mutado:", error);
             };
         };
-
         const rentalModeOn = isRentalModeActive();
         let groupHasActiveRental = false;
         let rentalStatusChecked = false;
-
         if (isGroup && rentalModeOn) {
             const rentalStatus = getGroupRentalStatus(from);
             groupHasActiveRental = rentalStatus.active;
             rentalStatusChecked = true;
-
             const allowedCommandsBypass = ['modoaluguel', 'addaluguel', 'gerarcodigo', 'addsubdono', 'remsubdono', 'listasubdonos'];
-
             if (!groupHasActiveRental && isCmd && !isOwnerOrSub && !allowedCommandsBypass.includes(command)) {
                 await reply("⏳ Oops! Parece que o aluguel deste grupo expirou ou não está ativo. Para usar os comandos, ative com um código ou peça para o dono renovar! 😊");
                 return;
             };
         };
-
         if (isGroup && !isCmd && body && /\b[A-F0-9]{8}\b/.test(body.toUpperCase())) {
             const potentialCode = body.match(/\b[A-F0-9]{8}\b/)[0].toUpperCase();
             const validation = validateActivationCode(potentialCode);
@@ -1219,13 +1123,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 };
             };
         };
-
         if (isGroup) {
             try {
                 groupData.contador = groupData.contador || [];
-
                 const userIndex = groupData.contador.findIndex(user => user.id === sender);
-
                 if (userIndex !== -1) {
                     const userData = groupData.contador[userIndex];
                     if (isCmd) {
@@ -1255,7 +1156,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 console.error("Erro no sistema de contagem de mensagens:", error);
             };
         };
-
         if (isGroup && groupData.levelingEnabled) {
             const levelingData = loadJsonFile(LEVELING_FILE);
             levelingData.users[sender] = levelingData.users[sender] || {
@@ -1276,30 +1176,22 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             checkLevelUp(sender, userData, levelingData, nazu, from);
             fs.writeFileSync(LEVELING_FILE, JSON.stringify(levelingData, null, 2));
         };
-
         async function reply(text, options = {}) {
             try {
                 const {
-                    mentions = [],
-                        noForward = false,
-                        noQuote = false,
-                        buttons = null
+                    mentions = [], noForward = false, noQuote = false, buttons = null
                 } = options;
-
                 const messageContent = {
                     text: text.trim(),
                     mentions: mentions
                 };
-
                 if (buttons) {
                     messageContent.buttons = buttons;
                     messageContent.headerType = 1;
                 }
-
                 const sendOptions = {
                     sendEphemeral: true
                 };
-
                 if (!noForward) {
                     sendOptions.contextInfo = {
                         forwardingScore: 50,
@@ -1309,11 +1201,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                         }
                     };
                 }
-
                 if (!noQuote) {
                     sendOptions.quoted = info;
                 }
-
                 const result = await nazu.sendMessage(from, messageContent, sendOptions);
                 return result;
             } catch (error) {
@@ -1321,32 +1211,26 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 return null;
             }
         }
-
         nazu.reply = reply;
-
         const reagir = async (emj, options = {}) => {
             try {
                 const messageKey = options.key || info.key;
                 const delay = options.delay || 500;
-
                 if (!messageKey) {
                     console.error("Chave de mensagem inválida para reação");
                     return false;
                 }
-
                 if (typeof emj === 'string') {
                     if (emj.length < 1 || emj.length > 5) {
                         console.warn("Emoji inválido para reação:", emj);
                         return false;
                     }
-
                     await nazu.sendMessage(from, {
                         react: {
                             text: emj,
                             key: messageKey
                         }
                     });
-
                     return true;
                 } else if (Array.isArray(emj) && emj.length > 0) {
                     for (const emoji of emj) {
@@ -1354,31 +1238,25 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                             console.warn("Emoji inválido na sequência:", emoji);
                             continue;
                         }
-
                         await nazu.sendMessage(from, {
                             react: {
                                 text: emoji,
                                 key: messageKey
                             }
                         });
-
                         if (delay > 0 && emj.indexOf(emoji) < emj.length - 1) {
                             await new Promise(resolve => setTimeout(resolve, delay));
                         }
                     }
-
                     return true;
                 }
-
                 return false;
             } catch (error) {
                 console.error("Erro ao reagir com emoji:", error);
                 return false;
             }
         };
-
         nazu.react = reagir;
-
         const getFileBuffer = async (mediakey, mediaType, options = {}) => {
             try {
                 if (!mediakey) {
@@ -1395,7 +1273,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                         throw new Error(`Tamanho máximo de buffer excedido (${MAX_BUFFER_SIZE / (1024 * 1024)}MB)`);
                     }
                 }
-
                 if (options.saveToTemp) {
                     try {
                         const tempDir = pathz.join(__dirname, '..', 'database', 'tmp');
@@ -1407,57 +1284,55 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                             audio: '.mp3',
                             document: '.bin'
                         };
-
                         const extension = extensionMap[mediaType] || '.dat';
-
                         const filePath = pathz.join(tempDir, fileName + extension);
-
                         fs.writeFileSync(filePath, buffer);
-
                         return filePath;
                     } catch (fileError) {
                         console.error('Erro ao salvar arquivo temporário:', fileError);
                     }
                 }
-
                 return buffer;
             } catch (error) {
                 console.error(`Erro ao obter buffer de ${mediaType}:`, error);
                 throw error;
             }
-        }
-
-
+        };
         const getMediaInfo = (message) => {
-            if (!message) return null;
-            if (message.imageMessage) return {
-                media: message.imageMessage,
-                type: 'image'
-            };
-            if (message.videoMessage) return {
-                media: message.videoMessage,
-                type: 'video'
-            };
-            if (message.viewOnceMessage?.message?.imageMessage) return {
-                media: message.viewOnceMessage.message.imageMessage,
-                type: 'image'
-            };
-            if (message.viewOnceMessage?.message?.videoMessage) return {
-                media: message.viewOnceMessage.message.videoMessage,
-                type: 'video'
-            };
-            if (message.viewOnceMessageV2?.message?.imageMessage) return {
-                media: message.viewOnceMessageV2.message.imageMessage,
-                type: 'image'
-            };
-            if (message.viewOnceMessageV2?.message?.videoMessage) return {
-                media: message.viewOnceMessageV2.message.videoMessage,
-                type: 'video'
-            };
+            if (!message)
+                return null;
+            if (message.imageMessage)
+                return {
+                    media: message.imageMessage,
+                    type: 'image'
+                };
+            if (message.videoMessage)
+                return {
+                    media: message.videoMessage,
+                    type: 'video'
+                };
+            if (message.viewOnceMessage?.message?.imageMessage)
+                return {
+                    media: message.viewOnceMessage.message.imageMessage,
+                    type: 'image'
+                };
+            if (message.viewOnceMessage?.message?.videoMessage)
+                return {
+                    media: message.viewOnceMessage.message.videoMessage,
+                    type: 'video'
+                };
+            if (message.viewOnceMessageV2?.message?.imageMessage)
+                return {
+                    media: message.viewOnceMessageV2.message.imageMessage,
+                    type: 'image'
+                };
+            if (message.viewOnceMessageV2?.message?.videoMessage)
+                return {
+                    media: message.viewOnceMessageV2.message.videoMessage,
+                    type: 'video'
+                };
             return null;
         };
-
-
         if (isGroup && info.message?.extendedTextMessage?.contextInfo?.mentionedJid) {
             const mentioned = info.message.extendedTextMessage.contextInfo.mentionedJid;
             if (groupData.afkUsers) {
@@ -1478,8 +1353,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 }
             }
         }
-
-
         if (isGroup && isAntiPorn && !info.key.fromMe) {
             const mediaInfo = getMediaInfo(info.message);
             if (mediaInfo && mediaInfo.type === 'image') {
@@ -1543,8 +1416,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 };
             };
         };
-
-
         if (isGroup && groupData.antiloc && !isGroupAdmin && type === 'locationMessage') {
             await nazu.sendMessage(from, {
                 delete: {
@@ -1559,8 +1430,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 mentions: [sender]
             });
         };
-
-
         if (isGroup && antifloodData[from]?.enabled && isCmd && !isGroupAdmin) {
             antifloodData[from].users = antifloodData[from].users || {};
             const now = Date.now();
@@ -1574,8 +1443,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             };
             fs.writeFileSync(__dirname + '/../database/antiflood.json', JSON.stringify(antifloodData, null, 2));
         };
-
-
         if (isGroup && groupData.antidoc && !isGroupAdmin && (type === 'documentMessage' || type === 'documentWithCaptionMessage')) {
             await nazu.sendMessage(from, {
                 delete: {
@@ -1590,8 +1457,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 mentions: [sender]
             });
         };
-
-
         if (isGroup && cmdLimitData[from]?.enabled && isCmd && !isGroupAdmin) {
             cmdLimitData[from].users = cmdLimitData[from].users || {};
             const today = new Date().toISOString().split('T')[0];
@@ -1611,8 +1476,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             cmdLimitData[from].users[sender].count++;
             fs.writeFileSync(__dirname + '/../database/cmdlimit.json', JSON.stringify(cmdLimitData, null, 2));
         };
-
-
         if (isGroup && groupData.autodl && budy2.includes('http') && !isCmd) {
             const urlMatch = body.match(/(https?:\/\/[^\s]+)/g);
             if (urlMatch) {
@@ -1659,8 +1522,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 }
             }
         }
-
-
         if (isGroup && groupData.autoSticker && !info.key.fromMe) {
             try {
                 const mediaImage = info.message?.imageMessage || info.message?.viewOnceMessageV2?.message?.imageMessage || info.message?.viewOnceMessage?.message?.imageMessage;
@@ -1670,12 +1531,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     if (isVideo && mediaVideo.seconds > 9.9) {
                         return;
                     }
-                    const buffer = await getFileBuffer(
-                        isVideo ? mediaVideo : mediaImage,
-                        isVideo ? 'video' : 'image'
-                    );
+                    const buffer = await getFileBuffer(isVideo ? mediaVideo : mediaImage, isVideo ? 'video' : 'image');
                     const shouldForceSquare = global.autoStickerMode === 'square';
-
                     await sendSticker(nazu, from, {
                         sticker: buffer,
                         author: `『${pushname}』\n『${nomebot}』\n『${nomedono}』\n『cognima.com.br』`,
@@ -1690,8 +1547,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 console.error("Erro ao converter mídia em figurinha automática:", e);
             }
         };
-
-
         if (isGroup && groupData.antilinkhard && !isGroupAdmin && budy2.includes('http') && !isOwner) {
             try {
                 await nazu.sendMessage(from, {
@@ -1717,13 +1572,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 console.error("Erro no sistema antilink hard:", error);
             };
         };
-
-
         let quotedMessageContent = null;
         if (type === 'extendedTextMessage' && info.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
             quotedMessageContent = info.message.extendedTextMessage.contextInfo.quotedMessage;
         }
-
         const isQuotedMsg = !!quotedMessageContent?.conversation;
         const isQuotedMsg2 = !!quotedMessageContent?.extendedTextMessage?.text;
         const isQuotedImage = !!quotedMessageContent?.imageMessage;
@@ -1737,10 +1589,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         const isQuotedContact = !!quotedMessageContent?.contactMessage;
         const isQuotedLocation = !!quotedMessageContent?.locationMessage;
         const isQuotedProduct = !!quotedMessageContent?.productMessage;
-
-
         if (body.startsWith('$')) {
-            if (!isOwner) return;
+            if (!isOwner)
+                return;
             try {
                 exec(q, (err, stdout) => {
                     if (err) {
@@ -1754,10 +1605,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 reply(`❌ *Erro ao executar comando*\n\n${error}`);
             };
         };
-
-
         if (body.startsWith('>>')) {
-            if (!isOwner) return;
+            if (!isOwner)
+                return;
             try {
                 (async () => {
                     try {
@@ -1789,13 +1639,13 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 reply(`❌ *Erro crítico*\n\n${String(e)}`);
             };
         };
-
-
         if (isGroup && isAntiLinkGp && !isGroupAdmin && budy2.includes('chat.whatsapp.com')) {
             try {
-                if (isOwner) return;
+                if (isOwner)
+                    return;
                 const link_dgp = await nazu.groupInviteCode(from);
-                if (budy2.includes(link_dgp)) return;
+                if (budy2.includes(link_dgp))
+                    return;
                 await nazu.sendMessage(from, {
                     delete: {
                         remoteJid: from,
@@ -1804,7 +1654,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                         participant: sender
                     }
                 });
-                if (!AllgroupMembers.includes(sender)) return;
+                if (!AllgroupMembers.includes(sender))
+                    return;
                 if (isBotAdmin) {
                     await nazu.groupParticipantsUpdate(from, [sender], 'remove');
                     await reply(`🔗 Ops! @${sender.split('@')[0]}, links de outros grupos não são permitidos aqui e você foi removido(a).`, {
@@ -1820,12 +1671,11 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 console.error("Erro no sistema antilink de grupos:", error);
             }
         };
-
-
         const botStateFile = __dirname + '/../database/botState.json';
-        if (botState.status === 'off' && !isOwner) return;
-        if (botState.viewMessages) nazu.readMessages([info.key]);
-
+        if (botState.status === 'off' && !isOwner)
+            return;
+        if (botState.viewMessages)
+            nazu.readMessages([info.key]);
         try {
             if (budy2 && budy2.length > 1) {
                 const timestamp = new Date().toLocaleTimeString('pt-BR', {
@@ -1838,7 +1688,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 console.log(`┃ ${messageType} [${context}]${' '.repeat(36 - messageType.length - context.length)}`);
                 console.log('┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫');
                 console.log(`┃ 📜 Conteúdo: ${messagePreview.padEnd(28)}`);
-
                 if (isGroup) {
                     console.log(`┃ 👥 Grupo: ${(groupName || 'Desconhecido').padEnd(28)}`);
                     console.log(`┃ 👤 Usuário: ${(pushname || 'Sem Nome').padEnd(28)}`);
@@ -1853,8 +1702,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         } catch (error) {
             console.error('┃ 🚨 Erro ao gerar logs:', error, '');
         };
-
-
         if (isGroup) {
             try {
                 if (tictactoe.hasPendingInvitation(from) && budy2) {
@@ -1867,7 +1714,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                         });
                     }
                 };
-
                 if (tictactoe.hasActiveGame(from) && budy2) {
                     if (['tttend', 'rv', 'fimjogo'].includes(budy2)) {
                         if (!isGroupAdmin) {
@@ -1896,28 +1742,20 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 console.error("Erro no sistema de jogo da velha:", error);
             };
         };
-
-
         if (isGroup && groupData.blockedUsers && (groupData.blockedUsers[sender] || groupData.blockedUsers[sender.split('@')[0]]) && isCmd) {
             return reply(`🚫 Oops! Parece que você não pode usar comandos neste grupo.\nMotivo: ${groupData.blockedUsers[sender] ? groupData.blockedUsers[sender].reason : groupData.blockedUsers[sender.split('@')[0]].reason}`);
         };
-
         if (globalBlocks.users && (globalBlocks.users[sender.split('@')[0]] || globalBlocks.users[sender]) && isCmd) {
             return reply(`🚫 Parece que você está bloqueado de usar meus comandos globalmente.\nMotivo: ${globalBlocks.users[sender] ? globalBlocks.users[sender].reason : globalBlocks.users[sender.split('@')[0]].reason}`);
         };
-
         if (isCmd && globalBlocks.commands && globalBlocks.commands[command]) {
             return reply(`🚫 O comando *${command}* está temporariamente desativado globalmente.\nMotivo: ${globalBlocks.commands[command].reason}`);
         };
-
-
         if (isCmd && commandStats && commandStats.trackCommandUsage && command && command.length > 0) {
             commandStats.trackCommandUsage(command, sender);
         };
-
-
-        if (budy2.match(/^(\d+)d(\d+)$/)) reply(+budy2.match(/^(\d+)d(\d+)$/)[1] > 50 || +budy2.match(/^(\d+)d(\d+)$/)[2] > 100 ? "❌ Limite: max 50 dados e 100 lados" : "🎲 Rolando " + budy2.match(/^(\d+)d(\d+)$/)[1] + "d" + budy2.match(/^(\d+)d(\d+)$/)[2] + "...\n🎯 Resultados: " + (r = [...Array(+budy2.match(/^(\d+)d(\d+)$/)[1])].map(_ => 1 + Math.floor(Math.random() * +budy2.match(/^(\d+)d(\d+)$/)[2]))).join(", ") + "\n📊 Total: " + r.reduce((a, b) => a + b, 0));
-
+        if (budy2.match(/^(\d+)d(\d+)$/))
+            reply(+budy2.match(/^(\d+)d(\d+)$/)[1] > 50 || +budy2.match(/^(\d+)d(\d+)$/)[2] > 100 ? "❌ Limite: max 50 dados e 100 lados" : "🎲 Rolando " + budy2.match(/^(\d+)d(\d+)$/)[1] + "d" + budy2.match(/^(\d+)d(\d+)$/)[2] + "...\n🎯 Resultados: " + (r = [...Array(+budy2.match(/^(\d+)d(\d+)$/)[1])].map(_ => 1 + Math.floor(Math.random() * +budy2.match(/^(\d+)d(\d+)$/)[2]))).join(", ") + "\n📊 Total: " + r.reduce((a, b) => a + b, 0));
         if (((!info.key.fromMe && isAssistente && !isCmd) && ((budy2.includes('@' + nazu.user.id.split(':')[0])) || (menc_os2 && menc_os2 == (nazu.user.id.split(':')[0] + '@s.whatsapp.net')))) && KeyCog) {
             if (budy2.replaceAll('@' + nazu.user.id.split(':')[0], '').length > 2) {
                 const jSoNzIn = {
@@ -1960,12 +1798,15 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 }, pathz.join(__dirname, 'index.js'), KeyCog || null);
                 if (respAssist.resp && respAssist.resp.length > 0) {
                     for (msgza of respAssist.resp) {
-                        if (msgza.react) await nazu.react(msgza.react.replaceAll(' ', '').replaceAll('\n', ''), {
-                            key: info.key
-                        });
-                        if (msgza.resp && msgza.resp.length > 0) await reply(msgza.resp);
+                        if (msgza.react)
+                            await nazu.react(msgza.react.replaceAll(' ', '').replaceAll('\n', ''), {
+                                key: info.key
+                            });
+                        if (msgza.resp && msgza.resp.length > 0)
+                            await reply(msgza.resp);
                         if (msgza.actions) {
-                            if (msgza.actions.comando) var command = msgza.actions.comando;
+                            if (msgza.actions.comando)
+                                var command = msgza.actions.comando;
                             if (msgza.actions.params) {
                                 if (Array.isArray(msgza.actions.params)) {
                                     var q = msgza.actions.params.join(' ');
@@ -1978,28 +1819,22 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 };
             };
         };
-
-
         //ANTI FLOOD DE MENSAGENS
         if (isGroup && groupData.messageLimit?.enabled && !isGroupAdmin && !isOwnerOrSub && !info.key.fromMe) {
             try {
                 groupData.messageLimit.warnings = groupData.messageLimit.warnings || {};
                 groupData.messageLimit.users = groupData.messageLimit.users || {};
-
                 const now = Date.now();
                 const userData = groupData.messageLimit.users[sender] || {
                     count: 0,
                     lastReset: now
                 };
-
                 if (now - userData.lastReset >= groupData.messageLimit.interval * 1000) {
                     userData.count = 0;
                     userData.lastReset = now;
                 };
-
                 userData.count++;
                 groupData.messageLimit.users[sender] = userData;
-
                 if (userData.count > groupData.messageLimit.limit) {
                     if (groupData.messageLimit.action === 'ban' && isBotAdmin) {
                         await nazu.groupParticipantsUpdate(from, [sender], 'remove');
@@ -2010,7 +1845,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     } else if (groupData.messageLimit.action === 'adv') {
                         groupData.messageLimit.warnings[sender] = (groupData.messageLimit.warnings[sender] || 0) + 1;
                         const warnings = groupData.messageLimit.warnings[sender];
-
                         if (warnings >= 3 && isBotAdmin) {
                             await nazu.groupParticipantsUpdate(from, [sender], 'remove');
                             await reply(`🚨 @${sender.split('@')[0]} foi banido por exceder o limite de mensagens (${groupData.messageLimit.limit} em ${groupData.messageLimit.interval}s) 3 vezes!`, {
@@ -2025,13 +1859,11 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                         }
                     }
                 }
-
                 fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
             } catch (e) {
                 console.error("Erro no sistema de limite de mensagens:", e);
             }
         }
-
         //SISTEMA DE PARCERIA
         if (isGroup && parceriasData.active && !isGroupAdmin && body.includes('chat.whatsapp.com') && !info.key.fromMe) {
             if (parceriasData.partners[sender]) {
@@ -2056,8 +1888,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 });
             };
         };
-
-
         //ANTI FIGURINHAS
         if (isGroup && groupData.antifig && groupData.antifig.enabled && type === "stickerMessage" && !isGroupAdmin && !info.key.fromMe) {
             try {
@@ -2076,17 +1906,14 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 };
                 groupData.warnings[sender].count += 1;
                 groupData.warnings[sender].lastWarned = new Date().toISOString();
-
                 const warnCount = groupData.warnings[sender].count;
                 const warnLimit = groupData.antifig.warnLimit || 3;
-
                 let warnMessage = `🚫 @${sender.split('@')[0]}, figurinhas não são permitidas neste grupo! Advertência ${warnCount}/${warnLimit}.`;
                 if (warnCount >= warnLimit && isBotAdmin) {
                     warnMessage += `\n⚠️ Você atingiu o limite de advertências e será removido.`;
                     await nazu.groupParticipantsUpdate(from, [sender], 'remove');
                     delete groupData.warnings[sender];
                 }
-
                 await nazu.sendMessage(from, {
                     text: warnMessage,
                     mentions: [sender]
@@ -2099,8 +1926,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 });
             }
         }
-
-
         if (!isCmd) {
             const noPrefixCommands = loadNoPrefixCommands();
             const matchedCommand = noPrefixCommands.find(item => budy2.split(' ')[0].trim() === item.trigger);
@@ -2109,14 +1934,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                 var isCmd = true;
             };
         };
-
         switch (command) {
-
-
-
-
             //ALTERADORES
-
             case 'speedup':
             case 'boyvoice':
             case 'vozmenino':
@@ -2206,7 +2025,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                         fs.writeFileSync(rane, buffimg);
                         const gem = rane;
                         const ran = __dirname + `/../database/tmp/${Math.random()}.mp3`;
-
                         const effect = audioEffects[command];
                         exec(`ffmpeg -i ${gem} -filter:a "${effect}" ${ran}`, async (err, stderr, stdout) => {
                             await fs.unlinkSync(gem);
@@ -2230,8 +2048,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'videorapido':
             case 'fastvid':
             case 'videoslow':
@@ -2271,13 +2088,12 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                             rotacionar: 'rotate=90*PI/180',
                             rotate: 'rotate=90*PI/180'
                         };
-                        const rane = __dirname + `/../database/tmp/${Math.random()}.mp4`
+                        const rane = __dirname + `/../database/tmp/${Math.random()}.mp4`;
                         const buffimg = await getFileBuffer(encmedia, 'video');
                         fs.writeFileSync(rane, buffimg);
                         const media = rane;
                         const outputExt = command === 'tomp3' ? '.mp3' : '.mp4';
-                        const ran = __dirname + `/../database/tmp/${Math.random()}${outputExt}`
-
+                        const ran = __dirname + `/../database/tmp/${Math.random()}${outputExt}`;
                         let ffmpegCmd;
                         if (command === 'tomp3') {
                             ffmpegCmd = `ffmpeg -i ${media} -q:a 0 -map a ${ran}`;
@@ -2293,7 +2109,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                                 ffmpegCmd = `ffmpeg -i ${media} -filter_complex "${effect}" -map "[v]" -map "[a]" ${ran}`;
                             }
                         }
-
                         exec(ffmpegCmd, async (err) => {
                             await fs.unlinkSync(media);
                             if (err) {
@@ -2321,12 +2136,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
-
-
-
                 //INTELIGENCIA ARTIFICIAL
-
             case 'genrealism':
             case 'genghibli':
             case 'gencyberpunk':
@@ -2344,7 +2154,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                         });
                         return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
                     }
-                    if (!q) return reply(`Falta o prompt.\nEx: ${prefix}${command} Black Cat`);
+                    if (!q)
+                        return reply(`Falta o prompt.\nEx: ${prefix}${command} Black Cat`);
                     await reply('⏳ Só um segundinho, estou gerando a imagem... ✨');
                     ImageS = await ia.makeCognimaImageRequest({
                         model: "deepimg",
@@ -2353,7 +2164,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                         style: styleKey,
                         n: 1
                     }, KeyCog);
-                    if (!ImageS || !ImageS[0]) return reply('😓 Poxa, algo deu errado aqui');
+                    if (!ImageS || !ImageS[0])
+                        return reply('😓 Poxa, algo deu errado aqui');
                     await nazu.sendMessage(from, {
                         image: {
                             url: ImageS[0].url
@@ -2366,9 +2178,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply('😓 Poxa, algo deu errado aqui');
                 }
                 break;
-
             case 'gemma':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Gemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Gemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2384,10 +2196,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Gemma! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'phi':
             case 'phi3':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Phi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Phi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2403,9 +2215,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Phi! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'qwen2':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Qwen2? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Qwen2? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2421,10 +2233,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Qwen2! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'qwen':
             case 'qwen3':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Qwen? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Qwen? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2440,10 +2252,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Qwen! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'llama':
             case 'llama3':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Llama? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Llama? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2459,10 +2271,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Llama! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'baichuan':
             case 'baichuan2':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Baichuan? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Baichuan? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2478,9 +2290,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Baichuan! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'marin':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Marin? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Marin? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2496,10 +2308,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Marin! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'kimi':
             case 'kimik2':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Kimi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Kimi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2515,9 +2327,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Kimi! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'mistral':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Mistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Mistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2533,9 +2345,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Mistral! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'magistral':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Magistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Magistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2551,10 +2363,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Magistral! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'rakutenai':
             case 'rocket':
-                if (!q) return reply(`🤔 Qual sua dúvida para o RakutenAI? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o RakutenAI? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2570,9 +2382,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o RakutenAI! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'yi':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Yi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Yi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2588,9 +2400,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Yi! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'gemma2':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Gemma2? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Gemma2? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2606,9 +2418,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Gemma2! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'swallow':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Swallow? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Swallow? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2624,9 +2436,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Swallow! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'falcon':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Falcon? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Falcon? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2642,9 +2454,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Falcon! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'qwencoder':
-                if (!q) return reply(`🤔 Qual sua dúvida para o Qwencoder? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o Qwencoder? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2660,9 +2472,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o Qwencoder! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'codegemma':
-                if (!q) return reply(`🤔 Qual sua dúvida para o CodeGemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
+                if (!q)
+                    return reply(`🤔 Qual sua dúvida para o CodeGemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2678,9 +2490,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply(`😓 Poxa, algo deu errado com o CodeGemma! Tente novamente em alguns instantes, tá? 🌈`);
                 }
                 break;
-
             case 'resumir':
-                if (!q) return reply(`📝 Quer um resumo? Envie o texto logo após o comando ${prefix}resumir! Exemplo: ${prefix}resumir [seu texto aqui] 😊`);
+                if (!q)
+                    return reply(`📝 Quer um resumo? Envie o texto logo após o comando ${prefix}resumir! Exemplo: ${prefix}resumir [seu texto aqui] 😊`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2697,9 +2509,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply('😓 Ops, não consegui resumir agora! Que tal tentar de novo? 🌟');
                 }
                 break;
-
             case 'resumirurl':
-                if (!q) return reply(`🌐 Quer resumir uma página? Envie a URL após o comando ${prefix}resumirurl! Exemplo: ${prefix}resumirurl https://exemplo.com/artigo 😊`);
+                if (!q)
+                    return reply(`🌐 Quer resumir uma página? Envie a URL após o comando ${prefix}resumirurl! Exemplo: ${prefix}resumirurl https://exemplo.com/artigo 😊`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2710,30 +2522,22 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     if (!q.startsWith('http://') && !q.startsWith('https://')) {
                         return reply(`🚫 Ops, parece que a URL é inválida! Certifique-se de incluir http:// ou https://. Exemplo: ${prefix}resumirurl https://exemplo.com/artigo 😊`);
                     }
-
                     await reply('⏳ Aguarde enquanto busco e resumo a página para você... ✨');
-
                     const response = await axios.get(q, {
                         timeout: 10000,
                         headers: {
                             'User-Agent': 'Mozilla/5.0 (compatible; Bot/1.0)'
                         }
                     });
-
                     const {
                         document
                     } = parseHTML(response.data);
-
                     document.querySelectorAll('script, style, noscript, iframe').forEach(el => el.remove());
-
                     const cleanText = document.body.textContent.replace(/\s+/g, ' ').trim();
-
                     if (!cleanText || cleanText.length < 50) {
                         return reply(`😓 Ops, não encontrei conteúdo suficiente para resumir nessa página! Tente outra URL, tá? 🌐`);
                     }
-
                     const prompt = `Resuma o seguinte conteúdo extraído de uma página web em poucos parágrafos, de forma clara e objetiva, destacando os pontos principais:\n\n${cleanText.substring(0, 5000)}`;
-
                     const iaResponse = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', prompt, null, KeyCog || null);
                     await reply(iaResponse.data.choices[0].message.content);
                 } catch (e) {
@@ -2747,10 +2551,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     }
                 }
                 break;
-
             case 'ideias':
             case 'ideia':
-                if (!q) return reply(`💡 Quer ideias criativas? Diga o tema após o comando ${prefix}ideias! Exemplo: ${prefix}ideias nomes para um aplicativo de receitas 😊`);
+                if (!q)
+                    return reply(`💡 Quer ideias criativas? Diga o tema após o comando ${prefix}ideias! Exemplo: ${prefix}ideias nomes para um aplicativo de receitas 😊`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2767,10 +2571,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply('😓 Poxa, não consegui gerar ideias agora! Tente de novo em breve, tá? 🌈');
                 }
                 break;
-
             case 'explicar':
             case 'explique':
-                if (!q) return reply(`🤓 Quer entender algo? Diga o que deseja explicar após o comando ${prefix}explicar! Exemplo: ${prefix}explicar o que é inteligência artificial 😊`);
+                if (!q)
+                    return reply(`🤓 Quer entender algo? Diga o que deseja explicar após o comando ${prefix}explicar! Exemplo: ${prefix}explicar o que é inteligência artificial 😊`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2787,10 +2591,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply('😓 Vixe, não consegui explicar agora! Tente de novo em alguns instantes, tá? 🌈');
                 }
                 break;
-
             case 'corrigir':
             case 'correcao':
-                if (!q) return reply(`✍️ Quer corrigir um texto? Envie o texto após o comando ${prefix}corrigir! Exemplo: ${prefix}corrigir Eu foi no mercado e comprei frutas. 😊`);
+                if (!q)
+                    return reply(`✍️ Quer corrigir um texto? Envie o texto após o comando ${prefix}corrigir! Exemplo: ${prefix}corrigir Eu foi no mercado e comprei frutas. 😊`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2807,9 +2611,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply('😓 Ops, não consegui corrigir o texto agora! Tente novamente, tá? 🌟');
                 }
                 break;
-
             case 'cog':
-                if (!q) return reply(`📢 Ei, falta a pergunta! Me diga o que quer saber após o comando ${prefix}cog! 😴`);
+                if (!q)
+                    return reply(`📢 Ei, falta a pergunta! Me diga o que quer saber após o comando ${prefix}cog! 😴`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2825,10 +2629,10 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     await reply('😓 Vixe, algo deu errado por aqui! Tente novamente em breve, combinado? 🌈');
                 }
                 break;
-
             case 'tradutor':
             case 'translator':
-                if (!q) return reply(`🌍 Quer traduzir algo? Me diga o idioma e o texto assim: ${prefix}${command} idioma | texto
+                if (!q)
+                    return reply(`🌍 Quer traduzir algo? Me diga o idioma e o texto assim: ${prefix}${command} idioma | texto
 Exemplo: ${prefix}tradutor inglês | Bom dia! 😊`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
@@ -2853,9 +2657,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Awnn... 🥺 Não consegui fazer a tradução agora... Poderia tentar de novo, por favorzinho? 💔");
                 }
                 break;
-
             case 'qrcode':
-                if (!q) return reply(`📲 Quer gerar um QR Code? Me envie o texto ou link depois do comando ${prefix}qrcode! 😊`);
+                if (!q)
+                    return reply(`📲 Quer gerar um QR Code? Me envie o texto ou link depois do comando ${prefix}qrcode! 😊`);
                 try {
                     await reply('Aguarde um momentinho... ☀️');
                     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(q)}`;
@@ -2872,9 +2676,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Oh céus! 🥺 Tive um probleminha para gerar seu QR Code... Poderia tentar de novo? 💔");
                 }
                 break;
-
             case 'wikipedia':
-                if (!q) return reply(`📚 O que você quer pesquisar na Wikipédia? Me diga o termo após o comando ${prefix}wikipedia! 😊`);
+                if (!q)
+                    return reply(`📚 O que você quer pesquisar na Wikipédia? Me diga o termo após o comando ${prefix}wikipedia! 😊`);
                 reply("📚 Consultando a Wikipédia... Só um instante! ⏳");
                 try {
                     let found = false;
@@ -2890,7 +2694,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                             const link = content_urls?.desktop?.page || '';
                             const thumbUrl = thumbnail?.source || '';
                             let mensagem = `📖✨ *Encontrei isso na Wikipédia (PT):*\n\n*${title || q}*\n\n${extract}\n\n`;
-                            if (link) mensagem += `🔗 *Saiba mais:* ${link}\n`;
+                            if (link)
+                                mensagem += `🔗 *Saiba mais:* ${link}\n`;
                             if (thumbUrl) {
                                 await nazu.sendMessage(from, {
                                     image: {
@@ -2908,7 +2713,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     } catch (err) {
                         console.log("Busca PT falhou, tentando EN...");
                     }
-
                     if (!found) {
                         try {
                             const respEN = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`);
@@ -2922,7 +2726,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                                 const link = content_urls?.desktop?.page || '';
                                 const thumbUrl = thumbnail?.source || '';
                                 let mensagem = `📖✨ *Encontrei isso na Wikipédia (EN):*\n\n*${title || q}*\n\n${extract}\n\n`;
-                                if (link) mensagem += `🔗 *Saiba mais:* ${link}\n`;
+                                if (link)
+                                    mensagem += `🔗 *Saiba mais:* ${link}\n`;
                                 if (thumbUrl) {
                                     await nazu.sendMessage(from, {
                                         image: {
@@ -2941,20 +2746,18 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                             console.log("Busca EN também falhou.");
                         }
                     }
-
                     if (!found) {
                         await reply("Awnn... 🥺 Não consegui encontrar nada sobre isso na Wikipédia... Tente uma palavra diferente, talvez? 💔");
                     }
-
                 } catch (e) {
                     console.error("Erro ao buscar na Wikipédia:", e);
                     await reply("📚 Oops! Tive um probleminha para acessar a Wikipédia agora... 😥 Tente de novo daqui a pouco, por favor! ✨");
                 }
                 break;
-
             case 'dicionario':
             case 'dictionary':
-                if (!q) return reply(`📔 Qual palavra você quer procurar no dicionário? Me diga após o comando ${prefix}${command}! 😊`);
+                if (!q)
+                    return reply(`📔 Qual palavra você quer procurar no dicionário? Me diga após o comando ${prefix}${command}! 😊`);
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
                         text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
@@ -2995,17 +2798,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         await reply(`${bahz.data.choices[0].message.content}`);
                         definicaoEncontrada = true;
                     }
-
                 } catch (e) {
                     console.error("Erro geral ao buscar no dicionário:", e);
                     await reply("Awnn... 🥺 Tive um probleminha para encontrar essa palavra... Poderia tentar de novo? 💔");
                 }
                 break;
-
             case 'updates':
                 try {
-                    if (!isOwner || (isOwner && isSubOwner)) return reply("🚫 Apenas o Dono principal pode utilizar esse comando!");
-                    if (!fs.existsSync(pathz.join(__dirname, '..', 'database', 'updateSave.json'))) return reply('❌ Sua versão não tem suporte a esse sistema ainda.');
+                    if (!isOwner || (isOwner && isSubOwner))
+                        return reply("🚫 Apenas o Dono principal pode utilizar esse comando!");
+                    if (!fs.existsSync(pathz.join(__dirname, '..', 'database', 'updateSave.json')))
+                        return reply('❌ Sua versão não tem suporte a esse sistema ainda.');
                     const AtualCom = await axios.get('https://api.github.com/repos/hiudyy/nazuna/commits?per_page=1', {
                         headers: {
                             Accept: 'application/vnd.github+json'
@@ -3023,10 +2826,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 } catch (e) {
                     console.error(e);
                 };
-                break
-
+                break;
             case 'addsubdono':
-                if (!isOwner || (isOwner && isSubOwner)) return reply("🚫 Apenas o Dono principal pode adicionar subdonos!");
+                if (!isOwner || (isOwner && isSubOwner))
+                    return reply("🚫 Apenas o Dono principal pode adicionar subdonos!");
                 try {
                     const targetUserJid = menc_jid2 && menc_jid2.length > 0 ? menc_jid2[0] : (q.includes('@') ? q.split(' ')[0].replace('@', '') + '@s.whatsapp.net' : null);
                     if (!targetUserJid) {
@@ -3040,10 +2843,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro inesperado ao tentar adicionar o subdono.");
                 }
                 break;
-
             case 'remsubdono':
             case 'rmsubdono':
-                if (!isOwner || (isOwner && isSubOwner)) return reply("🚫 Apenas o Dono principal pode remover subdonos!");
+                if (!isOwner || (isOwner && isSubOwner))
+                    return reply("🚫 Apenas o Dono principal pode remover subdonos!");
                 try {
                     const targetUserJid = menc_jid2 && menc_jid2.length > 0 ? menc_jid2[0] : (q.includes('@') ? q.split(' ')[0].replace('@', '') + '@s.whatsapp.net' : null);
                     if (!targetUserJid) {
@@ -3057,10 +2860,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro inesperado ao tentar remover o subdono.");
                 }
                 break;
-
             case 'listasubdonos':
             case 'listsubdonos':
-                if (!isOwnerOrSub) return reply("🚫 Apenas o Dono e Subdonos podem ver a lista!");
+                if (!isOwnerOrSub)
+                    return reply("🚫 Apenas o Dono e Subdonos podem ver a lista!");
                 try {
                     const subdonos = getSubdonos();
                     if (subdonos.length === 0) {
@@ -3087,17 +2890,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro inesperado ao tentar listar os subdonos.");
                 }
                 break;
-
             case 'viewmsg':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
-                    if (!q) return reply(`Por favor, use: ${prefix}viewmsg [on/off]`);
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!q)
+                        return reply(`Por favor, use: ${prefix}viewmsg [on/off]`);
                     const botStateFile = DATABASE_DIR + '/botState.json';
                     let botState = loadJsonFile(botStateFile, {
                         status: 'on',
                         viewMessages: true
                     });
-
                     if (q.toLowerCase() === 'on') {
                         botState.viewMessages = true;
                         fs.writeFileSync(botStateFile, JSON.stringify(botState, null, 2));
@@ -3114,9 +2917,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply('😥 Ocorreu um erro ao alterar a visualização de mensagens.');
                 }
                 break;
-
             case 'modoaluguel':
-                if (!isOwner || (isOwner && isSubOwner)) return reply("🚫 Apenas o Dono principal pode gerenciar o modo de aluguel!");
+                if (!isOwner || (isOwner && isSubOwner))
+                    return reply("🚫 Apenas o Dono principal pode gerenciar o modo de aluguel!");
                 try {
                     const action = q.toLowerCase().trim();
                     if (action === 'on' || action === 'ativar') {
@@ -3140,23 +2943,19 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro inesperado.");
                 }
                 break;
-
             case 'listaralugueis':
             case 'aluguelist':
             case 'listaluguel':
             case 'listaaluguel':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
-
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
                     const rentalData = loadRentalData();
                     const globalMode = rentalData.globalMode ? '🟢 Ativo' : '🔴 Desativado';
                     const groupRentals = rentalData.groups || {};
                     const groupCount = Object.keys(groupRentals).length;
-
                     const filtro = args[0]?.toLowerCase();
-
                     let message = `╭───「 *Lista de Aluguéis* 」───╮\n│ 🌍 *Modo Aluguel Global*: ${globalMode}\n│ 📊 *Total de Grupos*: ${groupCount}\n╰────────────────╯\n`;
-
                     if (groupCount === 0) {
                         message += '📪 Nenhum grupo com aluguel registrado.';
                     } else {
@@ -3167,21 +2966,18 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                                 subject: 'Desconhecido'
                             }));
                             const groupName = groupMetadata.subject || 'Sem Nome';
-
                             let status = 'Expirado';
                             if (info.expiresAt === 'permanent') {
                                 status = 'Permanente';
                             } else if (new Date(info.expiresAt) > new Date()) {
                                 status = 'Ativo';
                             }
-
                             const shouldInclude = !filtro ||
                                 (filtro === 'ven' && status === 'Expirado') ||
                                 (filtro === 'atv' && status === 'Ativo') ||
                                 (filtro === 'perm' && status === 'Permanente');
-
-                            if (!shouldInclude) continue;
-
+                            if (!shouldInclude)
+                                continue;
                             const expires = info.expiresAt === 'permanent' ?
                                 '∞ Permanente' :
                                 info.expiresAt ?
@@ -3189,31 +2985,29 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                                     timeZone: 'America/Sao_Paulo'
                                 }) :
                                 'N/A';
-
                             message += `🔹 *${index}. ${groupName}*\n`;
                             message += `  - *Status*: ${status}\n`;
                             message += `  - *Expira em*: ${expires}\n\n`;
                             index++;
                         }
-
-                        if (index === 1) message += '📪 Nenhum grupo encontrado com esse filtro.';
+                        if (index === 1)
+                            message += '📪 Nenhum grupo encontrado com esse filtro.';
                     }
-
                     await reply(message);
                 } catch (e) {
                     console.error('Erro no comando listaluguel:', e);
                     await reply("Ocorreu um erro ao listar os aluguéis 💔");
                 }
                 break;
-
             case 'leveling':
-                if (!isGroup) return reply("Este comando só funciona em grupos.");
-                if (!isGroupAdmin) return reply("Apenas administradores podem usar este comando.");
+                if (!isGroup)
+                    return reply("Este comando só funciona em grupos.");
+                if (!isGroupAdmin)
+                    return reply("Apenas administradores podem usar este comando.");
                 groupData.levelingEnabled = !groupData.levelingEnabled;
                 fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                 await reply(`🎚️ Sistema de leveling ${groupData.levelingEnabled ? 'ativado' : 'desativado'}!`);
                 break;
-
             case 'level':
                 const levelingDataLevel = loadJsonFile(LEVELING_FILE);
                 const userDataLevel = levelingDataLevel.users[sender] || {
@@ -3227,12 +3021,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 const xpToNextLevel = nextLevelXp - userDataLevel.xp;
                 await reply(`🎚️ *Seu Nível*\n\n` + `🏅 *Nível:* ${userDataLevel.level}\n` + `🔹 *XP:* ${userDataLevel.xp} / ${nextLevelXp}\n` + `🎖️ *Patente:* ${userDataLevel.patent}\n` + `📈 *Falta para o próximo nível:* ${xpToNextLevel} XP\n`);
                 break;
-
             case 'addxp':
-                if (!isOwner) return reply("Apenas o dono pode usar este comando.");
-                if (!menc_os2 || !q) return reply("Marque um usuário e especifique a quantidade de XP.");
+                if (!isOwner)
+                    return reply("Apenas o dono pode usar este comando.");
+                if (!menc_os2 || !q)
+                    return reply("Marque um usuário e especifique a quantidade de XP.");
                 const xpToAdd = parseInt(q);
-                if (isNaN(xpToAdd)) return reply("Quantidade de XP inválida.");
+                if (isNaN(xpToAdd))
+                    return reply("Quantidade de XP inválida.");
                 const levelingDataAdd = loadJsonFile(LEVELING_FILE);
                 const userDataAdd = levelingDataAdd.users[menc_os2] || {
                     level: 1,
@@ -3248,12 +3044,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     mentions: [menc_os2]
                 });
                 break;
-
             case 'delxp':
-                if (!isOwner) return reply("Apenas o dono pode usar este comando.");
-                if (!menc_os2 || !q) return reply("Marque um usuário e especifique a quantidade de XP.");
+                if (!isOwner)
+                    return reply("Apenas o dono pode usar este comando.");
+                if (!menc_os2 || !q)
+                    return reply("Marque um usuário e especifique a quantidade de XP.");
                 const xpToRemove = parseInt(q);
-                if (isNaN(xpToRemove)) return reply("Quantidade de XP inválida.");
+                if (isNaN(xpToRemove))
+                    return reply("Quantidade de XP inválida.");
                 const levelingDataDel = loadJsonFile(LEVELING_FILE);
                 const userDataDel = levelingDataDel.users[menc_os2] || {
                     level: 1,
@@ -3269,7 +3067,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     mentions: [menc_os2]
                 });
                 break;
-
             case 'ranklevel':
                 const levelingDataRank = loadJsonFile(LEVELING_FILE);
                 const sortedUsers = Object.entries(levelingDataRank.users)
@@ -3283,18 +3080,21 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     mentions: sortedUsers.map(([userId]) => userId)
                 });
                 break;
-
             case 'dayfree':
                 try {
-                    if (!isOwner) return reply('❌ Este comando é exclusivo para o dono ou subdonos.');
-                    if (!q) return reply(`Uso: ${prefix}${command} <dias> [motivo opcional]\nEx: ${prefix}adddiasaluguel 7 Manutenção compensatória`);
+                    if (!isOwner)
+                        return reply('❌ Este comando é exclusivo para o dono ou subdonos.');
+                    if (!q)
+                        return reply(`Uso: ${prefix}${command} <dias> [motivo opcional]\nEx: ${prefix}adddiasaluguel 7 Manutenção compensatória`);
                     const parts = q.split(' ');
                     const extraDays = parseInt(parts[0]);
-                    if (isNaN(extraDays) || extraDays <= 0) return reply('O primeiro argumento deve ser um número positivo de dias.');
+                    if (isNaN(extraDays) || extraDays <= 0)
+                        return reply('O primeiro argumento deve ser um número positivo de dias.');
                     const motivo = parts.slice(1).join(' ') || 'Não especificado';
                     const rentalData = loadRentalData();
                     const groupIds = Object.keys(rentalData.groups);
-                    if (groupIds.length === 0) return reply('Não há grupos com aluguel configurado.');
+                    if (groupIds.length === 0)
+                        return reply('Não há grupos com aluguel configurado.');
                     let successCount = 0;
                     let failCount = 0;
                     let summary = `📊 Resumo da extensão de aluguel:\n\n`;
@@ -3325,15 +3125,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply('Ocorreu um erro ao estender aluguel em todos os grupos.');
                 }
                 break;
-
             case 'addaluguel':
-                if (!isOwner) return reply("🚫 Apenas o Dono principal pode adicionar aluguel!");
-                if (!isGroup) return reply("Este comando só pode ser usado em grupos.");
+                if (!isOwner)
+                    return reply("🚫 Apenas o Dono principal pode adicionar aluguel!");
+                if (!isGroup)
+                    return reply("Este comando só pode ser usado em grupos.");
                 try {
                     const parts = q.toLowerCase().trim().split(' ');
                     const durationArg = parts[0];
                     let durationDays = null;
-
                     if (durationArg === 'permanente') {
                         durationDays = 'permanent';
                     } else if (!isNaN(parseInt(durationArg)) && parseInt(durationArg) > 0) {
@@ -3341,18 +3141,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     } else {
                         return reply(`🤔 Duração inválida. Use um número de dias (ex: 30) ou a palavra "permanente".\nExemplo: ${prefix}addaluguel 30`);
                     }
-
                     const result = setGroupRental(from, durationDays);
                     await reply(result.message);
-
                 } catch (e) {
                     console.error("Erro no comando addaluguel:", e);
                     await reply("❌ Ocorreu um erro inesperado ao adicionar o aluguel.");
                 }
                 break;
-
             case 'gerarcodigo':
-                if (!isOwner) return reply("🚫 Apenas o Dono principal pode gerar códigos!");
+                if (!isOwner)
+                    return reply("🚫 Apenas o Dono principal pode gerar códigos!");
                 try {
                     const parts = q.trim().split(' ');
                     const durationArg = parts[0]?.toLowerCase();
@@ -3369,7 +3167,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     } else {
                         return reply('🤔 Duração inválida. Use um número de dias (ex: 7) ou a palavra "permanente".');
                     }
-
                     if (targetGroupArg) {
                         if (targetGroupArg.includes('@g.us')) {
                             targetGroupId = targetGroupArg;
@@ -3391,18 +3188,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro inesperado ao gerar o código.");
                 }
                 break;
-
             case 'limparaluguel':
                 try {
-                    if (!isOwner) return reply("Apenas o dono pode usar este comando. 🚫");
-
+                    if (!isOwner)
+                        return reply("Apenas o dono pode usar este comando. 🚫");
                     let rentalData = loadRentalData();
                     let groupsCleaned = 0;
                     let groupsExpired = 0;
                     let groupsLeft = [];
                     let adminsNotified = 0;
                     const symbols = ['✨', '🌟', '⚡', '🔥', '🌈', '🍀', '💫', '🎉'];
-
                     const currentGroups = await nazu.groupFetchAllParticipating();
                     const currentGroupIds = Object.keys(currentGroups);
                     for (const groupId in rentalData.groups) {
@@ -3411,25 +3206,21 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                             groupsCleaned++;
                         }
                     }
-
                     for (const groupId in rentalData.groups) {
                         const rentalStatus = getGroupRentalStatus(groupId);
-                        if (rentalStatus.active || rentalStatus.permanent) continue;
-
+                        if (rentalStatus.active || rentalStatus.permanent)
+                            continue;
                         const groupMetadata = await nazu.groupMetadata(groupId).catch(() => null);
                         if (!groupMetadata) {
                             delete rentalData.groups[groupId];
                             groupsCleaned++;
                             continue;
                         }
-
                         groupsExpired++;
                         groupsLeft.push(groupId);
-
                         await nazu.sendMessage(groupId, {
                             text: `⏰ O aluguel deste grupo (${groupMetadata.subject}) expirou. Estou saindo, mas vocês podem renovar o aluguel entrando em contato com o dono! Até mais! 😊${symbols[Math.floor(Math.random() * symbols.length)]}`
                         });
-
                         const admins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
                         for (const admin of admins) {
                             const delay = Math.floor(Math.random() * (500 - 100 + 1)) + 100;
@@ -3439,12 +3230,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                             });
                             adminsNotified++;
                         }
-
                         await nazu.groupLeave(groupId);
                     }
-
                     saveRentalData(rentalData);
-
                     let summary = `🧹 *Resumo da Limpeza de Aluguel* 🧹\n\n`;
                     summary += `✅ Grupos removidos dos registros (bot não está mais neles): *${groupsCleaned}*\n`;
                     summary += `⏰ Grupos vencidos processados e saídos: *${groupsExpired}*\n`;
@@ -3455,21 +3243,22 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         summary += `\n📋 Nenhum grupo vencido encontrado para sair.\n`;
                     }
                     summary += `\n✨ Limpeza concluída com sucesso!`;
-
                     await reply(summary);
                 } catch (e) {
                     console.error('Erro no comando limparaluguel:', e);
                     await reply("Ocorreu um erro ao limpar alugueis 💔");
                 }
                 break;
-
             case 'addautoresponse':
             case 'addauto':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
-                    if (!q || !q.includes('/')) return reply(`Por favor, forneça a mensagem recebida e a resposta separadas por /. Ex: ${groupPrefix}addauto bom dia/Olá, bom dia!`);
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!q || !q.includes('/'))
+                        return reply(`Por favor, forneça a mensagem recebida e a resposta separadas por /. Ex: ${groupPrefix}addauto bom dia/Olá, bom dia!`);
                     const [received, response] = q.split('/').map(s => s.trim());
-                    if (!received || !response) return reply("Formato inválido. Use: mensagem recebida/mensagem do bot");
+                    if (!received || !response)
+                        return reply("Formato inválido. Use: mensagem recebida/mensagem do bot");
                     const autoResponses = loadCustomAutoResponses();
                     autoResponses.push({
                         received: normalizar(received),
@@ -3485,13 +3274,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao adicionar auto-resposta 💔");
                 }
                 break;
-
             case 'listautoresponses':
             case 'listauto':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
                     const autoResponses = loadCustomAutoResponses();
-                    if (autoResponses.length === 0) return reply("📜 Nenhuma auto-resposta definida.");
+                    if (autoResponses.length === 0)
+                        return reply("📜 Nenhuma auto-resposta definida.");
                     let responseText = `📜 *Auto-Respostas do Grupo ${groupName}*\n\n`;
                     autoResponses.forEach((item, index) => {
                         responseText += `${index + 1}. Recebida: ${item.received}\n   Resposta: ${item.response}\n`;
@@ -3502,15 +3292,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao listar auto-respostas 💔");
                 }
                 break;
-
             case 'delautoresponse':
             case 'delauto':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
-                    if (!q || isNaN(parseInt(q))) return reply(`Por favor, forneça o número da auto-resposta a ser removida. Ex: ${groupPrefix}delauto 1`);
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!q || isNaN(parseInt(q)))
+                        return reply(`Por favor, forneça o número da auto-resposta a ser removida. Ex: ${groupPrefix}delauto 1`);
                     const index = parseInt(q) - 1;
                     const autoResponses = loadCustomAutoResponses();
-                    if (index < 0 || index >= autoResponses.length) return reply(`❌ Número inválido. Use ${groupPrefix}listauto para ver a lista.`);
+                    if (index < 0 || index >= autoResponses.length)
+                        return reply(`❌ Número inválido. Use ${groupPrefix}listauto para ver a lista.`);
                     const removed = autoResponses.splice(index, 1)[0];
                     if (saveCustomAutoResponses(autoResponses)) {
                         await reply(`🗑️ Auto-resposta removida:\nMensagem recebida: ${removed.received}\nResposta: ${removed.response}`);
@@ -3522,14 +3314,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao remover auto-resposta 💔");
                 }
                 break;
-
             case 'addnoprefix':
             case 'addnopref':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
-                    if (!q || !q.includes('/')) return reply(`Por favor, forneça a mensagem e o comando separados por /. Ex: ${groupPrefix}addnoprefix 😸/ban`);
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!q || !q.includes('/'))
+                        return reply(`Por favor, forneça a mensagem e o comando separados por /. Ex: ${groupPrefix}addnoprefix 😸/ban`);
                     const [trigger, targetCommand] = q.split('/').map(s => s.trim());
-                    if (!trigger || !targetCommand) return reply("Formato inválido. Use: mensagem/comando");
+                    if (!trigger || !targetCommand)
+                        return reply("Formato inválido. Use: mensagem/comando");
                     const noPrefixCommands = loadNoPrefixCommands();
                     if (noPrefixCommands.some(cmd => cmd.trigger === trigger)) {
                         return reply(`A mensagem "${trigger}" já está mapeada para um comando.`);
@@ -3548,13 +3342,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao adicionar comando sem prefixo 💔");
                 }
                 break;
-
             case 'listnoprefix':
             case 'listnopref':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
                     const noPrefixCommands = loadNoPrefixCommands();
-                    if (noPrefixCommands.length === 0) return reply("📜 Nenhum comando sem prefixo definido.");
+                    if (noPrefixCommands.length === 0)
+                        return reply("📜 Nenhum comando sem prefixo definido.");
                     let responseText = `📜 *Comandos Sem Prefixo do Grupo ${groupName}*\n\n`;
                     noPrefixCommands.forEach((item, index) => {
                         responseText += `${index + 1}. Mensagem: ${item.trigger}\n   Comando: ${item.command}\n`;
@@ -3565,15 +3360,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao listar comandos sem prefixo 💔");
                 }
                 break;
-
             case 'delnoprefix':
             case 'delnopref':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
-                    if (!q || isNaN(parseInt(q))) return reply(`Por favor, forneça o número do comando sem prefixo a ser removido. Ex: ${groupPrefix}delnoprefix 1`);
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!q || isNaN(parseInt(q)))
+                        return reply(`Por favor, forneça o número do comando sem prefixo a ser removido. Ex: ${groupPrefix}delnoprefix 1`);
                     const index = parseInt(q) - 1;
                     const noPrefixCommands = loadNoPrefixCommands();
-                    if (index < 0 || index >= noPrefixCommands.length) return reply(`❌ Número inválido. Use ${groupPrefix}listnoprefix para ver a lista.`);
+                    if (index < 0 || index >= noPrefixCommands.length)
+                        return reply(`❌ Número inválido. Use ${groupPrefix}listnoprefix para ver a lista.`);
                     const removed = noPrefixCommands.splice(index, 1)[0];
                     if (saveNoPrefixCommands(noPrefixCommands)) {
                         await reply(`🗑️ Comando sem prefixo removido:\nMensagem: ${removed.trigger}\nComando: ${removed.command}`);
@@ -3585,13 +3382,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao remover comando sem prefixo 💔");
                 }
                 break;
-
             case 'addalias':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
-                    if (!q || !q.includes('/')) return reply(`Por favor, forneça o apelido e o comando separados por /. Ex: ${groupPrefix}addalias h/hidetag`);
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!q || !q.includes('/'))
+                        return reply(`Por favor, forneça o apelido e o comando separados por /. Ex: ${groupPrefix}addalias h/hidetag`);
                     const [alias, targetCommand] = q.split('/').map(s => s.trim());
-                    if (!alias || !targetCommand) return reply("Formato inválido. Use: apelido/comando");
+                    if (!alias || !targetCommand)
+                        return reply("Formato inválido. Use: apelido/comando");
                     const aliases = loadCommandAliases();
                     if (aliases.some(item => item.alias === normalizar(alias))) {
                         return reply(`O apelido "${alias}" já está em uso.`);
@@ -3610,12 +3409,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao adicionar apelido 💔");
                 }
                 break;
-
             case 'listalias':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
                     const aliases = loadCommandAliases();
-                    if (aliases.length === 0) return reply("📜 Nenhum apelido de comando definido.");
+                    if (aliases.length === 0)
+                        return reply("📜 Nenhum apelido de comando definido.");
                     let responseText = `📜 *Apelidos de Comandos do Grupo ${groupName}*\n\n`;
                     aliases.forEach((item, index) => {
                         responseText += `${index + 1}. Apelido: ${groupPrefix}${item.alias}\n   Comando: ${groupPrefix}${item.command}\n`;
@@ -3626,14 +3426,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao listar apelidos 💔");
                 }
                 break;
-
             case 'delalias':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
-                    if (!q || isNaN(parseInt(q))) return reply(`Por favor, forneça o número do apelido a ser removido. Ex: ${groupPrefix}delalias 1`);
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!q || isNaN(parseInt(q)))
+                        return reply(`Por favor, forneça o número do apelido a ser removido. Ex: ${groupPrefix}delalias 1`);
                     const index = parseInt(q) - 1;
                     const aliases = loadCommandAliases();
-                    if (index < 0 || index >= aliases.length) return reply(`❌ Número inválido. Use ${groupPrefix}listaliases para ver a lista.`);
+                    if (index < 0 || index >= aliases.length)
+                        return reply(`❌ Número inválido. Use ${groupPrefix}listaliases para ver a lista.`);
                     const removed = aliases.splice(index, 1)[0];
                     if (saveCommandAliases(aliases)) {
                         await reply(`🗑️ Apelido removido:\nApelido: ${groupPrefix}${removed.alias}\nComando: ${groupPrefix}${removed.command}`);
@@ -3645,11 +3447,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao remover apelido 💔");
                 }
                 break;
-
             case 'addblackglobal':
                 try {
-                    if (!isOwner) return reply("Apenas o dono pode adicionar usuários à blacklist global.");
-                    if (!menc_os2 && !q) return reply(`Marque o usuário ou forneça o número (ex: ${prefix}addblackglobal @usuario motivo).`);
+                    if (!isOwner)
+                        return reply("Apenas o dono pode adicionar usuários à blacklist global.");
+                    if (!menc_os2 && !q)
+                        return reply(`Marque o usuário ou forneça o número (ex: ${prefix}addblackglobal @usuario motivo).`);
                     const reason = args.length > 1 ? args.slice(1).join(' ') : 'Não especificado';
                     const targetUser = menc_os2 || (q.split(' ')[0].replace(/\D/g, '') + '@s.whatsapp.net');
                     const result = addGlobalBlacklist(targetUser, reason, pushname);
@@ -3661,11 +3464,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao adicionar à blacklist global 💔");
                 }
                 break;
-
             case 'rmblackglobal':
                 try {
-                    if (!isOwner) return reply("Apenas o dono pode remover usuários da blacklist global.");
-                    if (!menc_os2 && !q) return reply(`Marque o usuário ou forneça o número (ex: ${prefix}remblackglobal @usuario).`);
+                    if (!isOwner)
+                        return reply("Apenas o dono pode remover usuários da blacklist global.");
+                    if (!menc_os2 && !q)
+                        return reply(`Marque o usuário ou forneça o número (ex: ${prefix}remblackglobal @usuario).`);
                     const targetUser = menc_os2 || (q.split(' ')[0].replace(/\D/g, '') + '@s.whatsapp.net');
                     const result = removeGlobalBlacklist(targetUser);
                     await reply(result.message, {
@@ -3676,10 +3480,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao remover da blacklist global 💔");
                 }
                 break;
-
             case 'listblackglobal':
                 try {
-                    if (!isOwner) return reply("Apenas o dono pode listar a blacklist global.");
+                    if (!isOwner)
+                        return reply("Apenas o dono pode listar a blacklist global.");
                     const blacklistData = getGlobalBlacklist();
                     if (Object.keys(blacklistData.users).length === 0) {
                         return reply("🛑 A blacklist global está vazia.");
@@ -3696,56 +3500,56 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao listar a blacklist global 💔");
                 }
                 break;
-
                 //FERRAMENTAS
             case 'encurtalink':
             case 'tinyurl':
                 try {
-                    if (!q) return reply(`❌️ *Forma incorreta, use está como exemplo:* ${prefix + command} https://instagram.com/hiudyyy_`);
+                    if (!q)
+                        return reply(`❌️ *Forma incorreta, use está como exemplo:* ${prefix + command} https://instagram.com/hiudyyy_`);
                     anu = await axios.get(`https://tinyurl.com/api-create.php?url=${q}`);
                     reply(`${anu.data}`);
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'nick':
             case 'gerarnick':
             case 'nickgenerator':
                 try {
-                    if (!q) return reply('Digite o nick após o comando.');
+                    if (!q)
+                        return reply('Digite o nick após o comando.');
                     datzn = await styleText(q);
                     await reply(datzn.join('\n'));
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'printsite':
             case 'ssweb':
                 try {
-                    if (!q) return reply(`Cade o link?`)
+                    if (!q)
+                        return reply(`Cade o link?`);
                     await nazu.sendMessage(from, {
                         image: {
                             url: `https://image.thum.io/get/fullpage/${q}`
                         }
                     }, {
                         quoted: info
-                    })
+                    });
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'upload':
             case 'imgpralink':
             case 'videopralink':
             case 'gerarlink':
                 try {
-                    if (!isQuotedImage && !isQuotedVideo && !isQuotedDocument && !isQuotedAudio) return reply(`Marque um video, uma foto, um audio ou um documento`);
+                    if (!isQuotedImage && !isQuotedVideo && !isQuotedDocument && !isQuotedAudio)
+                        return reply(`Marque um video, uma foto, um audio ou um documento`);
                     var foto1 = isQuotedImage ? info.message.extendedTextMessage.contextInfo.quotedMessage.imageMessage : {};
                     var video1 = isQuotedVideo ? info.message.extendedTextMessage.contextInfo.quotedMessage.videoMessage : {};
                     var docc1 = isQuotedDocument ? info.message.extendedTextMessage.contextInfo.quotedMessage.documentMessage : {};
@@ -3766,15 +3570,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
-                break
-
+                break;
                 //DOWNLOADS
             case 'assistir':
                 try {
-                    if (!q) return reply('Cadê o nome do filme ou episódio de série? 🤔');
+                    if (!q)
+                        return reply('Cadê o nome do filme ou episódio de série? 🤔');
                     await reply('Um momento, estou buscando as informações para você 🕵️‍♂️');
                     datyz = await FilmesDL(q);
-                    if (!datyz || !datyz.url) return reply('Desculpe, não consegui encontrar nada. Tente com outro nome de filme ou série. 😔');
+                    if (!datyz || !datyz.url)
+                        return reply('Desculpe, não consegui encontrar nada. Tente com outro nome de filme ou série. 😔');
                     await nazu.sendMessage(from, {
                         image: {
                             url: datyz.img
@@ -3788,13 +3593,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'mcplugin':
             case 'mcplugins':
                 try {
-                    if (!q) return reply('Cadê o nome do plugin para eu pesquisar? 🤔');
+                    if (!q)
+                        return reply('Cadê o nome do plugin para eu pesquisar? 🤔');
                     datz = await mcPlugin(q);
-                    if (!datz.ok) return reply(datz.msg);
+                    if (!datz.ok)
+                        return reply(datz.msg);
                     await nazu.sendMessage(from, {
                         image: {
                             url: datz.image
@@ -3807,8 +3613,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'shazam':
                 if (!KeyCog) {
                     await nazu.sendMessage(nmrdn, {
@@ -3867,18 +3672,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'play':
             case 'ytmp3':
                 try {
                     if (!q) {
                         return reply(`📝 Digite o nome da música ou um link do YouTube.\n\n📌 *Exemplo:* ${prefix + command} Back to Black`);
                     }
-
                     let videoUrl;
                     let videoInfo;
-
                     if (q.includes('youtube.com') || q.includes('youtu.be')) {
                         videoUrl = q;
                         await reply('Aguarde um momentinho... ☀️');
@@ -3907,7 +3709,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                                 throw audioError;
                             };
                         };
-                        return
+                        return;
                     } else {
                         videoInfo = await youtube.search(q);
                         if (!videoInfo.ok) {
@@ -3915,21 +3717,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         }
                         videoUrl = videoInfo.data.url;
                     }
-
                     if (!videoInfo.ok) {
                         return reply(`❌ Não foi possível encontrar informações sobre o vídeo: ${videoInfo.msg}`);
                     }
-
                     if (videoInfo.data.seconds > 1800) {
                         return reply(`⚠️ Este vídeo é muito longo (${videoInfo.data.timestamp}).\nPor favor, escolha um vídeo com menos de 30 minutos.`);
                     };
-
                     const views = typeof videoInfo.data.views === 'number' ? videoInfo.data.views.toLocaleString('pt-BR') : videoInfo.data.views;
-
                     const description = videoInfo.data.description ? videoInfo.data.description.slice(0, 100) + (videoInfo.data.description.length > 100 ? '...' : '') : 'Sem descrição disponível';
-
                     const caption = `🎵 *Música Encontrada* 🎵\n\n📌 *Título:* ${videoInfo.data.title}\n👤 *Artista/Canal:* ${videoInfo.data.author.name}\n⏱ *Duração:* ${videoInfo.data.timestamp} (${videoInfo.data.seconds} segundos)\n👀 *Visualizações:* ${views}\n📅 *Publicado:* ${videoInfo.data.ago}\n📜 *Descrição:* ${description}\n🔗 *Link:* ${videoInfo.data.url}\n\n🎧 *Baixando e processando sua música, aguarde...*`;
-
                     await nazu.sendMessage(from, {
                         image: {
                             url: videoInfo.data.thumbnail
@@ -3939,12 +3735,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     }, {
                         quoted: info
                     });
-
                     const dlRes = await youtube.mp3(videoUrl);
                     if (!dlRes.ok) {
                         return reply(`❌ Erro ao baixar o áudio: ${dlRes.msg}`);
                     };
-
                     try {
                         await nazu.sendMessage(from, {
                             audio: dlRes.buffer,
@@ -3966,27 +3760,26 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                             throw audioError;
                         };
                     };
-
                 } catch (error) {
                     if (String(error).includes("age")) {
                         return reply(`🔞 Este conteúdo possui restrição de idade e não pode ser baixado.`);
                     }
-
                     console.error('Erro no comando play/ytmp3:', error);
                     reply("❌ Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente mais tarde.");
                 }
                 break;
-
             case 'playvid':
             case 'ytmp4':
                 try {
-                    if (!q) return reply(`Digite o nome do vídeo ou um link do YouTube.\n> Ex: ${prefix + command} Back to Black`);
+                    if (!q)
+                        return reply(`Digite o nome do vídeo ou um link do YouTube.\n> Ex: ${prefix + command} Back to Black`);
                     let videoUrl;
                     if (q.includes('youtube.com') || q.includes('youtu.be')) {
                         videoUrl = q;
                         await reply('Aguarde um momentinho... ☀️');
                         const dlRes = await youtube.mp4(videoUrl);
-                        if (!dlRes.ok) return reply(dlRes.msg);
+                        if (!dlRes.ok)
+                            return reply(dlRes.msg);
                         try {
                             await nazu.sendMessage(from, {
                                 video: dlRes.buffer,
@@ -4009,14 +3802,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                                 throw videoError;
                             }
                         }
-                        return
+                        return;
                     } else {
                         const searchResult = await youtube.search(q);
-                        if (!searchResult.ok) return reply(searchResult.msg);
+                        if (!searchResult.ok)
+                            return reply(searchResult.msg);
                         videoUrl = searchResult.data.url;
                     }
                     const videoInfo = (await youtube.search(q));
-                    if (!videoInfo.ok) return reply(videoInfo.msg);
+                    if (!videoInfo.ok)
+                        return reply(videoInfo.msg);
                     const caption = `
 🎬 *Vídeo Encontrado* 🎬
 
@@ -4029,7 +3824,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
 🔗 *Link:* ${videoInfo.data.url}
 
 📹 *Enviando seu vídeo, aguarde!*`;
-
                     await nazu.sendMessage(from, {
                         image: {
                             url: videoInfo.data.thumbnail
@@ -4040,7 +3834,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         quoted: info
                     });
                     const dlRes = await youtube.mp4(videoUrl);
-                    if (!dlRes.ok) return reply(dlRes.msg);
+                    if (!dlRes.ok)
+                        return reply(dlRes.msg);
                     try {
                         await nazu.sendMessage(from, {
                             video: dlRes.buffer,
@@ -4068,11 +3863,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'letra':
             case 'lyrics':
                 try {
-                    if (!q) return reply('cade o nome da musica?');
+                    if (!q)
+                        return reply('cade o nome da musica?');
                     await reply('Aguarde um momentinho... ☀️');
                     await reply(await Lyrics(q));
                 } catch (e) {
@@ -4080,7 +3875,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 };
                 break;
-
             case 'tiktok':
             case 'tiktokaudio':
             case 'tiktokvideo':
@@ -4089,11 +3883,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             case 'ttk':
             case 'tkk':
                 try {
-                    if (!q) return reply(`Digite um nome ou o link de um vídeo.\n> Ex: ${prefix}${command} Gato`);
+                    if (!q)
+                        return reply(`Digite um nome ou o link de um vídeo.\n> Ex: ${prefix}${command} Gato`);
                     await reply('Aguarde um momentinho... ☀️');
                     let isTikTokUrl = /^https?:\/\/(?:www\.|m\.|vm\.|t\.)?tiktok\.com\//.test(q);
                     let datinha = await (isTikTokUrl ? tiktok.dl(q) : tiktok.search(q));
-                    if (!datinha.ok) return reply(datinha.msg);
+                    if (!datinha.ok)
+                        return reply(datinha.msg);
                     for (const urlz of datinha.urls) {
                         await nazu.sendMessage(from, {
                             [datinha.type]: {
@@ -4103,30 +3899,32 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                             quoted: info
                         });
                     }
-                    if (datinha.audio) await nazu.sendMessage(from, {
-                        audio: {
-                            url: datinha.audio
-                        },
-                        mimetype: 'audio/mp4'
-                    }, {
-                        quoted: info
-                    });
+                    if (datinha.audio)
+                        await nazu.sendMessage(from, {
+                            audio: {
+                                url: datinha.audio
+                            },
+                            mimetype: 'audio/mp4'
+                        }, {
+                            quoted: info
+                        });
                 } catch (e) {
                     console.error(e);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'instagram':
             case 'igdl':
             case 'ig':
             case 'instavideo':
             case 'igstory':
                 try {
-                    if (!q) return reply(`Digite um link do Instagram.\n> Ex: ${prefix}${command} https://www.instagram.com/reel/DFaq_X7uoiT/?igsh=M3Q3N2ZyMWU1M3Bo`);
+                    if (!q)
+                        return reply(`Digite um link do Instagram.\n> Ex: ${prefix}${command} https://www.instagram.com/reel/DFaq_X7uoiT/?igsh=M3Q3N2ZyMWU1M3Bo`);
                     await reply('Aguarde um momentinho... ☀️');
                     const datinha = await igdl.dl(q);
-                    if (!datinha.ok) return reply(datinha.msg);
+                    if (!datinha.ok)
+                        return reply(datinha.msg);
                     for (const item of datinha.data) {
                         await nazu.sendMessage(from, {
                             [item.type]: item.buff
@@ -4139,11 +3937,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'pinterest':
             case 'pin':
                 try {
-                    if (!q) return reply('Digite o termo para pesquisar no Pinterest. Exemplo: ' + prefix + 'pinterest gatinhos /3');
+                    if (!q)
+                        return reply('Digite o termo para pesquisar no Pinterest. Exemplo: ' + prefix + 'pinterest gatinhos /3');
                     const [searchTerm, limitStr] = q.split('/').map(s => s.trim());
                     let maxImages = 5;
                     if (limitStr && !isNaN(parseInt(limitStr))) {
@@ -4169,7 +3967,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao pesquisar no Pinterest 💔");
                 }
                 break;
-
             case 'menu':
             case 'help':
             case 'comandos':
@@ -4195,7 +3992,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply(`${menuText}\n\n⚠️ *Nota*: Ocorreu um erro ao carregar a mídia do menu.`);
                 }
                 break;
-
             case 'alteradores':
             case 'menualterador':
             case 'menualteradores':
@@ -4208,7 +4004,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro ao carregar o menu de alteradores");
                 }
                 break;
-
             case 'menuia':
             case 'aimenu':
             case 'menuias':
@@ -4219,7 +4014,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro ao carregar o menu de IA");
                 }
                 break;
-
             case 'menubn':
             case 'menubrincadeira':
             case 'menubrincadeiras':
@@ -4232,7 +4026,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro ao carregar o menu de brincadeiras");
                 }
                 break;
-
             case 'menudown':
             case 'menudownload':
             case 'menudownloads':
@@ -4245,7 +4038,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro ao carregar o menu de downloads");
                 }
                 break;
-
             case 'ferramentas':
             case 'menuferramentas':
             case 'menuferramenta':
@@ -4258,7 +4050,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro ao carregar o menu de ferramentas");
                 }
                 break;
-
             case 'menuadm':
             case 'menuadmin':
             case 'menuadmins':
@@ -4270,7 +4061,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro ao carregar o menu de administração");
                 }
                 break;
-
             case 'menumembros':
             case 'menumemb':
             case 'menugeral':
@@ -4283,7 +4073,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro ao carregar o menu de membros");
                 }
                 break;
-
             case 'menudono':
             case 'ownermenu':
                 try {
@@ -4297,7 +4086,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro ao carregar o menu do dono");
                 }
                 break;
-
             case 'stickermenu':
             case 'menusticker':
             case 'menufig':
@@ -4308,18 +4096,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("❌ Ocorreu um erro ao carregar o menu de stickers");
                 }
                 break;
-
                 async function sendMenuWithMedia(menuType, menuFunction) {
                     const menuVideoPath = __dirname + '/../midias/menu.mp4';
                     const menuImagePath = __dirname + '/../midias/menu.jpg';
-
                     const useVideo = fs.existsSync(menuVideoPath);
                     const mediaPath = useVideo ? menuVideoPath : menuImagePath;
-
                     const mediaBuffer = fs.readFileSync(mediaPath);
-
                     const menuText = typeof menuFunction === 'function' ? (typeof menuFunction.then === 'function' ? await menuFunction : await menuFunction(prefix, nomebot, pushname)) : 'Menu não disponível';
-
                     await nazu.sendMessage(from, {
                         [useVideo ? 'video' : 'image']: mediaBuffer,
                         caption: menuText,
@@ -4329,11 +4112,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         quoted: info
                     });
                 };
-
-
             case 'antipv3':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono 💔");
                     antipvData.mode = antipvData.mode === 'antipv3' ? null : 'antipv3';
                     fs.writeFileSync(__dirname + '/../database/antipv.json', JSON.stringify(antipvData, null, 2));
                     await reply(`✅ Antipv3 ${antipvData.mode ? 'ativado' : 'desativado'}! O bot agora ${antipvData.mode ? 'bloqueia usuários que usam comandos no privado' : 'responde normalmente no privado'}.`);
@@ -4342,10 +4124,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antipv2':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono 💔");
                     antipvData.mode = antipvData.mode === 'antipv2' ? null : 'antipv2';
                     fs.writeFileSync(__dirname + '/../database/antipv.json', JSON.stringify(antipvData, null, 2));
                     await reply(`✅ Antipv2 ${antipvData.mode ? 'ativado' : 'desativado'}! O bot agora ${antipvData.mode ? 'avisa que comandos só funcionam em grupos no privado' : 'responde normalmente no privado'}.`);
@@ -4354,10 +4136,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antipv4':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono 💔");
                     antipvData.mode = antipvData.mode === 'antipv4' ? null : 'antipv4';
                     fs.writeFileSync(__dirname + '/../database/antipv.json', JSON.stringify(antipvData, null, 2));
                     await reply(`✅ Antipv4 ${antipvData.mode ? 'ativado' : 'desativado'}! O bot agora ${antipvData.mode ? 'avisa que o bot so funciona em grupos' : 'responde normalmente no privado'}.`);
@@ -4366,19 +4148,18 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antipvmessage':
             case 'antipvmsg':
                 try {
-                    if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
-                    if (!q) return reply(`Por favor, forneça a nova mensagem para o antipv. Exemplo: ${prefix}antipvmessage Comandos no privado estão desativados!`);
-
+                    if (!isOwner)
+                        return reply('🚫 Este comando é apenas para o dono do bot!');
+                    if (!q)
+                        return reply(`Por favor, forneça a nova mensagem para o antipv. Exemplo: ${prefix}antipvmessage Comandos no privado estão desativados!`);
                     const antipvFile = DATABASE_DIR + '/antipv.json';
                     let antipvData = loadJsonFile(antipvFile, {
                         mode: 'off',
                         message: '🚫 Este comando só funciona em grupos!'
                     });
-
                     antipvData.message = q.trim();
                     fs.writeFileSync(antipvFile, JSON.stringify(antipvData, null, 2));
                     await reply(`✅ Mensagem do antipv atualizada para: "${antipvData.message}"`);
@@ -4387,10 +4168,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao configurar a mensagem do antipv 💔");
                 }
                 break;
-
             case 'antipv':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono 💔");
                     antipvData.mode = antipvData.mode === 'antipv' ? null : 'antipv';
                     fs.writeFileSync(__dirname + '/../database/antipv.json', JSON.stringify(antipvData, null, 2));
                     await reply(`✅ Antipv ${antipvData.mode ? 'ativado' : 'desativado'}! O bot agora ${antipvData.mode ? 'ignora mensagens no privado' : 'responde normalmente no privado'}.`);
@@ -4399,11 +4180,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'entrar':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
-                    if (!q || !q.includes('chat.whatsapp.com')) return reply('Digite um link de convite válido! Exemplo: ' + prefix + 'entrar https://chat.whatsapp.com/...');
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono 💔");
+                    if (!q || !q.includes('chat.whatsapp.com'))
+                        return reply('Digite um link de convite válido! Exemplo: ' + prefix + 'entrar https://chat.whatsapp.com/...');
                     const code = q.split('https://chat.whatsapp.com/')[1];
                     await nazu.groupAcceptInvite(code).then((res) => {
                         reply(`✅ Entrei no grupo com sucesso!`);
@@ -4415,11 +4197,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'tm':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
-                    if (!q && !isQuotedImage && !isQuotedVideo) return reply('Digite uma mensagem ou marque uma imagem/vídeo! Exemplo: ' + prefix + 'tm Olá a todos!');
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono 💔");
+                    if (!q && !isQuotedImage && !isQuotedVideo)
+                        return reply('Digite uma mensagem ou marque uma imagem/vídeo! Exemplo: ' + prefix + 'tm Olá a todos!');
                     let message = {};
                     if (isQuotedImage) {
                         const image = await getFileBuffer(info.message.extendedTextMessage.contextInfo.quotedMessage.imageMessage, 'image');
@@ -4449,18 +4232,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'reviverqr':
-                if (!isOwner) return reply('🚫 Este comando é exclusivo para o proprietário!');
-
+                if (!isOwner)
+                    return reply('🚫 Este comando é exclusivo para o proprietário!');
                 const qrcodeDir = pathz.join(__dirname, '..', 'database', 'qr-code');
                 const filePatterns = ['pre-key', 'sender', 'session'];
                 let totalDeleted = 0;
                 const deletedByCategory = {};
-
                 try {
                     filePatterns.forEach(pattern => deletedByCategory[pattern] = 0);
-
                     const files = fs.readdirSync(qrcodeDir);
                     for (const file of files) {
                         for (const pattern of filePatterns) {
@@ -4472,7 +4252,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                             }
                         }
                     }
-
                     let message = '🧹 Limpeza de arquivos concluída!\n\n';
                     message += '📊 Arquivos excluídos por categoria:\n';
                     for (const [category, count] of Object.entries(deletedByCategory)) {
@@ -4480,23 +4259,20 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     }
                     message += `\n📈 Total de arquivos excluídos: ${totalDeleted}\n`;
                     message += '🔄 Reiniciando o sistema em 2 segundos...';
-
                     reply(message);
-
                     setTimeout(() => {
                         reply('🔄 Reiniciando agora...');
                         setTimeout(() => {
                             process.exit();
                         }, 1200);
                     }, 2000);
-
                 } catch (error) {
                     reply(`❌ Erro ao executar a limpeza: ${error.message}`);
                 }
                 break;
-
             case 'cases':
-                if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                if (!isOwner)
+                    return reply("Este comando é apenas para o meu dono");
                 try {
                     const indexContent = fs.readFileSync(__dirname + '/index.js', 'utf-8');
                     const caseRegex = /case\s+'([^']+)'\s*:/g;
@@ -4517,11 +4293,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'getcase':
-                if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                if (!isOwner)
+                    return reply("Este comando é apenas para o meu dono");
                 try {
-                    if (!q) return reply('❌ Digite o nome do comando. Exemplo: ' + prefix + 'getcase menu');
+                    if (!q)
+                        return reply('❌ Digite o nome do comando. Exemplo: ' + prefix + 'getcase menu');
                     caseCode = (fs.readFileSync(__dirname + "/index.js", "utf-8").match(new RegExp(`case\\s*["'\`]${q}["'\`]\\s*:[\\s\\S]*?break\\s*;?`, "i")) || [])[0];
                     await nazu.sendMessage(from, {
                         document: Buffer.from(caseCode, 'utf-8'),
@@ -4535,13 +4312,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'boton':
             case 'botoff':
-                if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                if (!isOwner)
+                    return reply("Este comando é apenas para o meu dono");
                 try {
                     const botStateFile = __dirname + '/../database/botState.json';
-
                     const isOn = botState.status === 'on';
                     if (command === 'boton' && isOn) {
                         return reply('🌟 O bot já está ativado!');
@@ -4549,25 +4325,23 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     if (command === 'botoff' && !isOn) {
                         return reply('🌙 O bot já está desativado!');
                     }
-
                     botState.status = command === 'boton' ? 'on' : 'off';
                     fs.writeFileSync(botStateFile, JSON.stringify(botState, null, 2));
-
                     const message = command === 'boton' ? '✅ *Bot ativado!* Agora todos podem usar os comandos.' : '✅ *Bot desativado!* Apenas o dono pode usar comandos.';
-
                     await reply(message);
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'blockcmdg':
-                if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                if (!isOwner)
+                    return reply("Este comando é apenas para o meu dono");
                 try {
                     const cmdToBlock = q?.toLowerCase().split(' ')[0];
                     const reason = q?.split(' ').slice(1).join(' ') || 'Sem motivo informado';
-                    if (!cmdToBlock) return reply('❌ Informe o comando a bloquear! Ex.: ' + prefix + 'blockcmd sticker');
+                    if (!cmdToBlock)
+                        return reply('❌ Informe o comando a bloquear! Ex.: ' + prefix + 'blockcmd sticker');
                     const blockFile = __dirname + '/../database/globalBlocks.json';
                     globalBlocks.commands = globalBlocks.commands || {};
                     globalBlocks.commands[cmdToBlock] = {
@@ -4581,12 +4355,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'unblockcmdg':
-                if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                if (!isOwner)
+                    return reply("Este comando é apenas para o meu dono");
                 try {
                     const cmdToUnblock = q?.toLowerCase().split(' ')[0];
-                    if (!cmdToUnblock) return reply('❌ Informe o comando a desbloquear! Ex.: ' + prefix + 'unblockcmd sticker');
+                    if (!cmdToUnblock)
+                        return reply('❌ Informe o comando a desbloquear! Ex.: ' + prefix + 'unblockcmd sticker');
                     const blockFile = __dirname + '/../database/globalBlocks.json';
                     if (!globalBlocks.commands || !globalBlocks.commands[cmdToUnblock]) {
                         return reply(`❌ O comando *${cmdToUnblock}* não está bloqueado!`);
@@ -4599,13 +4374,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'blockuserg':
-                if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                if (!isOwner)
+                    return reply("Este comando é apenas para o meu dono");
                 try {
                     reason = q ? q.includes('@') ? q.includes(' ') ? q.split(' ').slice(1).join(' ') : "Não informado" : q : 'Não informado';
                     menc_os3 = menc_os2.includes(' ') ? menc_os2.split(' ')[0] : menc_os2;
-                    if (!menc_os3) return reply("Marque alguém 🙄");
+                    if (!menc_os3)
+                        return reply("Marque alguém 🙄");
                     const blockFile = __dirname + '/../database/globalBlocks.json';
                     globalBlocks.users = globalBlocks.users || {};
                     globalBlocks.users[menc_os3] = {
@@ -4621,11 +4397,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'unblockuserg':
-                if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                if (!isOwner)
+                    return reply("Este comando é apenas para o meu dono");
                 try {
-                    if (!menc_os2) return reply("Marque alguém 🙄");
+                    if (!menc_os2)
+                        return reply("Marque alguém 🙄");
                     const blockFile = __dirname + '/../database/globalBlocks.json';
                     if (!globalBlocks.users || (!globalBlocks.users[menc_os2] && !globalBlocks.users[menc_os2.split('@')[0]])) {
                         return reply(`❌ O usuário @${menc_os2.split('@')[0]} não está bloqueado!`, {
@@ -4646,9 +4423,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'listblocks':
-                if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                if (!isOwner)
+                    return reply("Este comando é apenas para o meu dono");
                 try {
                     const blockFile = __dirname + '/../database/globalBlocks.json';
                     const blockedCommands = globalBlocks.commands ? Object.entries(globalBlocks.commands).map(([cmd, data]) => `🔧 *${cmd}* - Motivo: ${data.reason}`).join('\n') : 'Nenhum comando bloqueado.';
@@ -4663,32 +4440,33 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'seradm':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono");
                     await nazu.groupParticipantsUpdate(from, [sender], "promote");
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'sermembro':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono");
                     await nazu.groupParticipantsUpdate(from, [sender], "demote");
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'prefixo':
             case 'prefix':
                 try {
-                    if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
-                    if (!q) return reply(`Por favor, digite o novo prefixo.\nExemplo: ${prefix}${command} /`);
+                    if (!isOwner)
+                        return reply("Este comando é exclusivo para o meu dono!");
+                    if (!q)
+                        return reply(`Por favor, digite o novo prefixo.\nExemplo: ${prefix}${command} /`);
                     let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
                     config.prefixo = q;
                     fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
@@ -4698,12 +4476,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes, por favor! 🥺");
                 }
                 break;
-
             case 'numerodono':
             case 'numero-dono':
                 try {
-                    if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
-                    if (!q) return reply(`Por favor, digite o novo número do dono.\nExemplo: ${prefix}${command} +553399285117`);
+                    if (!isOwner)
+                        return reply("Este comando é exclusivo para o meu dono!");
+                    if (!q)
+                        return reply(`Por favor, digite o novo número do dono.\nExemplo: ${prefix}${command} +553399285117`);
                     let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
                     config.numerodono = q;
                     fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
@@ -4713,12 +4492,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes, por favor! 🥺");
                 }
                 break;
-
             case 'nomedono':
             case 'nome-dono':
                 try {
-                    if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
-                    if (!q) return reply(`Por favor, digite o novo nome do dono.\nExemplo: ${prefix}${command} Hiudy`);
+                    if (!isOwner)
+                        return reply("Este comando é exclusivo para o meu dono!");
+                    if (!q)
+                        return reply(`Por favor, digite o novo nome do dono.\nExemplo: ${prefix}${command} Hiudy`);
                     let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
                     config.nomedono = q;
                     fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
@@ -4728,13 +4508,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes, por favor! 🥺");
                 }
                 break;
-
             case 'nomebot':
             case 'botname':
             case 'nome-bot':
                 try {
-                    if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
-                    if (!q) return reply(`Por favor, digite o novo nome do bot.\nExemplo: ${prefix}${command} Nazuna`);
+                    if (!isOwner)
+                        return reply("Este comando é exclusivo para o meu dono!");
+                    if (!q)
+                        return reply(`Por favor, digite o novo nome do bot.\nExemplo: ${prefix}${command} Nazuna`);
                     let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
                     config.nomebot = q;
                     fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
@@ -4744,12 +4525,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes, por favor! 🥺");
                 }
                 break;
-
             case 'apikey':
             case 'api-key':
                 try {
-                    if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
-                    if (!q) return reply(`Por favor, digite a nova API key.\nExemplo: ${prefix}${command} abc123xyz`);
+                    if (!isOwner)
+                        return reply("Este comando é exclusivo para o meu dono!");
+                    if (!q)
+                        return reply(`Por favor, digite a nova API key.\nExemplo: ${prefix}${command} abc123xyz`);
                     let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
                     config.apikey = q;
                     fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
@@ -4759,19 +4541,22 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes, por favor! 🥺");
                 }
                 break;
-
             case 'fotomenu':
             case 'videomenu':
             case 'mediamenu':
             case 'midiamenu':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono");
-                    if (fs.existsSync(__dirname + '/../midias/menu.jpg')) fs.unlinkSync(__dirname + '/../midias/menu.jpg');
-                    if (fs.existsSync(__dirname + '/../midias/menu.mp4')) fs.unlinkSync(__dirname + '/../midias/menu.mp4');
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono");
+                    if (fs.existsSync(__dirname + '/../midias/menu.jpg'))
+                        fs.unlinkSync(__dirname + '/../midias/menu.jpg');
+                    if (fs.existsSync(__dirname + '/../midias/menu.mp4'))
+                        fs.unlinkSync(__dirname + '/../midias/menu.mp4');
                     var RSM = info.message?.extendedTextMessage?.contextInfo?.quotedMessage;
                     var boij2 = RSM?.imageMessage || info.message?.imageMessage || RSM?.viewOnceMessageV2?.message?.imageMessage || info.message?.viewOnceMessageV2?.message?.imageMessage || info.message?.viewOnceMessage?.message?.imageMessage || RSM?.viewOnceMessage?.message?.imageMessage;
                     var boij = RSM?.videoMessage || info.message?.videoMessage || RSM?.viewOnceMessageV2?.message?.videoMessage || info.message?.viewOnceMessageV2?.message?.videoMessage || info.message?.viewOnceMessage?.message?.videoMessage || RSM?.viewOnceMessage?.message?.videoMessage;
-                    if (!boij && !boij2) return reply(`Marque uma imagem ou um vídeo, com o comando: ${prefix + command} (mencionando a mídia)`);
+                    if (!boij && !boij2)
+                        return reply(`Marque uma imagem ou um vídeo, com o comando: ${prefix + command} (mencionando a mídia)`);
                     var isVideo2 = !!boij;
                     var buffer = await getFileBuffer(isVideo2 ? boij : boij2, isVideo2 ? 'video' : 'image');
                     fs.writeFileSync(__dirname + '/../midias/menu.' + (isVideo2 ? 'mp4' : 'jpg'), buffer);
@@ -4780,32 +4565,33 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     console.error(e);
                     reply("ocorreu um erro 💔");
                 }
-                break
-
+                break;
             case 'listagp':
             case 'listgp':
                 try {
-                    if (!isOwner) return reply('⛔ Desculpe, este comando é exclusivo para o meu dono!')
-                    const getGroups = await nazu.groupFetchAllParticipating()
-                    const groups = Object.entries(getGroups).slice(0).map(entry => entry[1])
-                    const sortedGroups = groups.sort((a, b) => a.subject.localeCompare(b.subject))
-                    let teks = `🌟 *Lista de Grupos e Comunidades* 🌟\n📊 *Total de Grupos:* ${sortedGroups.length}\n\n`
+                    if (!isOwner)
+                        return reply('⛔ Desculpe, este comando é exclusivo para o meu dono!');
+                    const getGroups = await nazu.groupFetchAllParticipating();
+                    const groups = Object.entries(getGroups).slice(0).map(entry => entry[1]);
+                    const sortedGroups = groups.sort((a, b) => a.subject.localeCompare(b.subject));
+                    let teks = `🌟 *Lista de Grupos e Comunidades* 🌟\n📊 *Total de Grupos:* ${sortedGroups.length}\n\n`;
                     for (let i = 0; i < sortedGroups.length; i++) {
-                        teks += `🔹 *${i + 1}. ${sortedGroups[i].subject}*\n` + `🆔 *ID:* ${sortedGroups[i].id}\n` + `👥 *Participantes:* ${sortedGroups[i].participants.length}\n\n`
+                        teks += `🔹 *${i + 1}. ${sortedGroups[i].subject}*\n` + `🆔 *ID:* ${sortedGroups[i].id}\n` + `👥 *Participantes:* ${sortedGroups[i].participants.length}\n\n`;
                     };
-                    await reply(teks)
+                    await reply(teks);
                 } catch (e) {
-                    console.log(e)
+                    console.log(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
-                break
-
+                break;
             case 'bangp':
             case 'unbangp':
             case 'desbangp':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono");
                     banGpIds[from] = !banGpIds[from];
                     if (banGpIds[from]) {
                         await reply('🚫 Grupo banido, apenas usuarios premium ou meu dono podem utilizar o bot aqui agora.');
@@ -4817,14 +4603,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'addpremium':
             case 'addvip':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono");
-                    if (!menc_os2) return reply("Marque alguém 🙄");
-                    if (!!premiumListaZinha[menc_os2]) return reply('O usuário ja esta na lista premium.');
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono");
+                    if (!menc_os2)
+                        return reply("Marque alguém 🙄");
+                    if (!!premiumListaZinha[menc_os2])
+                        return reply('O usuário ja esta na lista premium.');
                     premiumListaZinha[menc_os2] = true;
                     await nazu.sendMessage(from, {
                         text: `✅ @${menc_os2.split('@')[0]} foi adicionado(a) a lista premium.`,
@@ -4838,15 +4626,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'delpremium':
             case 'delvip':
             case 'rmpremium':
             case 'rmvip':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono");
-                    if (!menc_os2) return reply("Marque alguém 🙄");
-                    if (!premiumListaZinha[menc_os2]) return reply('O usuário não esta na lista premium.');
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono");
+                    if (!menc_os2)
+                        return reply("Marque alguém 🙄");
+                    if (!premiumListaZinha[menc_os2])
+                        return reply('O usuário não esta na lista premium.');
                     delete premiumListaZinha[menc_os2];
                     await nazu.sendMessage(from, {
                         text: `🫡 @${menc_os2.split('@')[0]} foi removido(a) da lista premium.`,
@@ -4860,13 +4650,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'addpremiumgp':
             case 'addvipgp':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono");
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!!premiumListaZinha[from]) return reply('O grupo ja esta na lista premium.');
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!!premiumListaZinha[from])
+                        return reply('O grupo ja esta na lista premium.');
                     premiumListaZinha[from] = true;
                     await nazu.sendMessage(from, {
                         text: `✅ O grupo foi adicionado a lista premium.`
@@ -4879,15 +4671,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'delpremiumgp':
             case 'delvipgp':
             case 'rmpremiumgp':
             case 'rmvipgp':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono");
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!premiumListaZinha[from]) return reply('O grupo não esta na lista premium.');
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!premiumListaZinha[from])
+                        return reply('O grupo não esta na lista premium.');
                     delete premiumListaZinha[from];
                     await nazu.sendMessage(from, {
                         text: `🫡 O grupo foi removido da lista premium.`
@@ -4900,64 +4694,56 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'listapremium':
             case 'listavip':
             case 'premiumlist':
             case 'listpremium':
                 try {
-                    if (!isOwner) return reply('⛔ Desculpe, este comando é exclusivo para o meu dono!')
-
-                    const premiumList = premiumListaZinha || {}
-
-                    const usersPremium = Object.keys(premiumList).filter(id => id.includes('@s.whatsapp.net'))
-                    const groupsPremium = Object.keys(premiumList).filter(id => id.includes('@g.us'))
-
-                    let teks = `✨ *Lista de Membros Premium* ✨\n\n`
-
-                    teks += `👤 *Usuários Premium* (${usersPremium.length})\n`
+                    if (!isOwner)
+                        return reply('⛔ Desculpe, este comando é exclusivo para o meu dono!');
+                    const premiumList = premiumListaZinha || {};
+                    const usersPremium = Object.keys(premiumList).filter(id => id.includes('@s.whatsapp.net'));
+                    const groupsPremium = Object.keys(premiumList).filter(id => id.includes('@g.us'));
+                    let teks = `✨ *Lista de Membros Premium* ✨\n\n`;
+                    teks += `👤 *Usuários Premium* (${usersPremium.length})\n`;
                     if (usersPremium.length > 0) {
                         usersPremium.forEach((user, i) => {
-                            const userNumber = user.split('@')[0]
-                            teks += `🔹 ${i + 1}. @${userNumber}\n`
-                        })
+                            const userNumber = user.split('@')[0];
+                            teks += `🔹 ${i + 1}. @${userNumber}\n`;
+                        });
                     } else {
-                        teks += `   Nenhum usuário premium encontrado.\n`
+                        teks += `   Nenhum usuário premium encontrado.\n`;
                     };
-
-                    teks += `\n👥 *Grupos Premium* (${groupsPremium.length})\n`
+                    teks += `\n👥 *Grupos Premium* (${groupsPremium.length})\n`;
                     if (groupsPremium.length > 0) {
                         for (let i = 0; i < groupsPremium.length; i++) {
                             try {
-                                const groupInfo = await nazu.groupMetadata(groupsPremium[i])
-                                teks += `🔹 ${i + 1}. ${groupInfo.subject}\n`
+                                const groupInfo = await nazu.groupMetadata(groupsPremium[i]);
+                                teks += `🔹 ${i + 1}. ${groupInfo.subject}\n`;
                             } catch {
-                                teks += `🔹 ${i + 1}. Grupo ID: ${groupsPremium[i]}\n`
+                                teks += `🔹 ${i + 1}. Grupo ID: ${groupsPremium[i]}\n`;
                             }
                         }
                     } else {
-                        teks += `   Nenhum grupo premium encontrado.\n`
+                        teks += `   Nenhum grupo premium encontrado.\n`;
                     };
-
                     await nazu.sendMessage(from, {
                         text: teks,
                         mentions: usersPremium
                     }, {
                         quoted: info
-                    })
-
+                    });
                 } catch (e) {
-                    console.error(e)
+                    console.error(e);
                     await reply('😔 Ops, algo deu errado. Tente novamente mais tarde!');
                 };
-                break
-
+                break;
                 //COMANDOS GERAIS
             case 'rvisu':
             case 'open':
             case 'revelar':
                 try {
-                    var RSMM = info.message?.extendedTextMessage?.contextInfo?.quotedMessage
+                    var RSMM = info.message?.extendedTextMessage?.contextInfo?.quotedMessage;
                     var boij22 = RSMM?.imageMessage || info.message?.imageMessage || RSMM?.viewOnceMessageV2?.message?.imageMessage || info.message?.viewOnceMessageV2?.message?.imageMessage || info.message?.viewOnceMessage?.message?.imageMessage || RSMM?.viewOnceMessage?.message?.imageMessage;
                     var boijj = RSMM?.videoMessage || info.message?.videoMessage || RSMM?.viewOnceMessageV2?.message?.videoMessage || info.message?.viewOnceMessageV2?.message?.videoMessage || info.message?.viewOnceMessage?.message?.videoMessage || RSMM?.viewOnceMessage?.message?.videoMessage;
                     var boij33 = RSMM?.audioMessage || info.message?.audioMessage || RSMM?.viewOnceMessageV2?.message?.audioMessage || info.message?.viewOnceMessageV2?.message?.audioMessage || info.message?.viewOnceMessage?.message?.audioMessage || RSMM?.viewOnceMessage?.message?.audioMessage;
@@ -4995,11 +4781,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'limpardb':
                 try {
-                    if (!isOwner) return reply("Apenas o dono pode limpar o banco de dados.");
+                    if (!isOwner)
+                        return reply("Apenas o dono pode limpar o banco de dados.");
                     const allGroups = await nazu.groupFetchAllParticipating();
                     const currentGroupIds = Object.keys(allGroups);
                     const groupFiles = fs.readdirSync(GRUPOS_DIR).filter(file => file.endsWith('.json'));
@@ -5019,11 +4805,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao limpar o DB 💔");
                 }
                 break;
-
             case 'limparrank':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem limpar o rank de atividade.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem limpar o rank de atividade.");
                     const currentMembers = AllgroupMembers;
                     const oldContador = groupData.contador || [];
                     let removedCount = 0;
@@ -5049,11 +4836,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao limpar o rank 💔");
                 }
                 break;
-
             case 'resetrank':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem resetar o rank de atividade.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem resetar o rank de atividade.");
                     const oldCount = (groupData.contador || []).length;
                     groupData.contador = [];
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
@@ -5063,10 +4851,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao resetar o rank 💔");
                 }
                 break;
-
             case 'limparrankg':
                 try {
-                    if (!isOwner) return reply("Apenas o dono pode limpar os ranks de todos os grupos.");
+                    if (!isOwner)
+                        return reply("Apenas o dono pode limpar os ranks de todos os grupos.");
                     const groupFiles = fs.readdirSync(GRUPOS_DIR).filter(file => file.endsWith('.json'));
                     let totalRemoved = 0;
                     let summary = [];
@@ -5075,7 +4863,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         const groupPath = pathz.join(GRUPOS_DIR, file);
                         let gData = JSON.parse(fs.readFileSync(groupPath));
                         const metadata = await nazu.groupMetadata(groupId).catch(() => null);
-                        if (!metadata) continue;
+                        if (!metadata)
+                            continue;
                         const currentMembers = metadata.participants?.map(p => p.jid || p.id) || [];
                         const oldContador = gData.contador || [];
                         let removedInGroup = 0;
@@ -5102,18 +4891,20 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao limpar ranks de todos os grupos 💔");
                 }
                 break;
-
             case 'rankativos':
             case 'rankativo':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
                     blue67 = groupData.contador.sort((a, b) => ((a.figu == undefined ? a.figu = 0 : a.figu + a.msg + a.cmd) < (b.figu == undefined ? b.figu = 0 : b.figu + b.cmd + b.msg)) ? 0 : -1);
                     menc = [];
                     blad = `*🏆 Rank dos ${blue67.length < 10 ? blue67.length : 10} mais ativos do grupo:*\n`;
                     for (i6 = 0; i6 < (blue67.length < 10 ? blue67.length : 10); i6++) {
                         if (blue67[i6].id) {
-                            if (i6 != null) blad += `\n*🏅 ${i6 + 1}º Lugar:* @${blue67[i6].id.split('@')[0]}\n- mensagens encaminhadas: *${blue67[i6].msg}*\n- comandos executados: *${blue67[i6].cmd}*\n- Figurinhas encaminhadas: *${blue67[i6].figu}*\n`;
-                            if (!groupData.mark) groupData.mark = {};
+                            if (i6 != null)
+                                blad += `\n*🏅 ${i6 + 1}º Lugar:* @${blue67[i6].id.split('@')[0]}\n- mensagens encaminhadas: *${blue67[i6].msg}*\n- comandos executados: *${blue67[i6].cmd}*\n- Figurinhas encaminhadas: *${blue67[i6].figu}*\n`;
+                            if (!groupData.mark)
+                                groupData.mark = {};
                             if (!['0', 'marca'].includes(groupData.mark[blue67[i6].id])) {
                                 menc.push(blue67[i6].id);
                             };
@@ -5130,11 +4921,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'rankinativos':
             case 'rankinativo':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
                     blue67 = groupData.contador.sort((a, b) => {
                         const totalA = (a.figu ?? 0) + a.msg + a.cmd;
                         const totalB = (b.figu ?? 0) + b.msg + b.cmd;
@@ -5143,8 +4934,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     menc = [];
                     blad = `*🗑️ Rank dos ${blue67.length < 10 ? blue67.length : 10} mais inativos do grupo:*\n`;
                     for (i6 = 0; i6 < (blue67.length < 10 ? blue67.length : 10); i6++) {
-                        if (i6 != null) blad += `\n*🏅 ${i6 + 1}º Lugar:* @${blue67[i6].id.split('@')[0]}\n- mensagens encaminhadas: *${blue67[i6].msg}*\n- comandos executados: *${blue67[i6].cmd}*\n- Figurinhas encaminhadas: *${blue67[i6].figu}*\n`;
-                        if (!groupData.mark) groupData.mark = {};
+                        if (i6 != null)
+                            blad += `\n*🏅 ${i6 + 1}º Lugar:* @${blue67[i6].id.split('@')[0]}\n- mensagens encaminhadas: *${blue67[i6].msg}*\n- comandos executados: *${blue67[i6].cmd}*\n- Figurinhas encaminhadas: *${blue67[i6].figu}*\n`;
+                        if (!groupData.mark)
+                            groupData.mark = {};
                         if (!['0', 'marca'].includes(groupData.mark[blue67[i6].id])) {
                             menc.push(blue67[i6].id);
                         };
@@ -5160,12 +4953,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 };
                 break;
-
             case 'totalcmd':
             case 'totalcomando':
                 try {
                     fs.readFile(__dirname + '/index.js', 'utf8', async (err, data) => {
-                        if (err) throw err;
+                        if (err)
+                            throw err;
                         const comandos = [...data.matchAll(/case [`'"](\w+)[`'"]/g)].map(m => m[1]);
                         await nazu.sendMessage(from, {
                             image: {
@@ -5181,7 +4974,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'meustatus':
                 try {
                     let groupMessages = 0;
@@ -5244,26 +5036,21 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'infoserver':
                 if (!isOwner) {
                     await reply('🚫 *Ops! Você não tem permissão!* 😅\n\n🌸 *Este comando é só para o dono*\nInformações do servidor são confidenciais! ✨');
                     break;
                 }
-
                 const serverUptime = process.uptime();
                 const serverUptimeFormatted = formatUptime(serverUptime, true);
-
                 const serverMemUsage = process.memoryUsage();
                 const serverMemUsed = (serverMemUsage.heapUsed / 1024 / 1024).toFixed(2);
                 const serverMemTotal = (serverMemUsage.heapTotal / 1024 / 1024).toFixed(2);
                 const serverMemRss = (serverMemUsage.rss / 1024 / 1024).toFixed(2);
                 const serverMemExternal = (serverMemUsage.external / 1024 / 1024).toFixed(2);
-
                 const serverCpuUsage = process.cpuUsage();
                 const serverCpuUser = (serverCpuUsage.user / 1000000).toFixed(2);
                 const serverCpuSystem = (serverCpuUsage.system / 1000000).toFixed(2);
-
                 const serverOsInfo = {
                     platform: os.platform(),
                     arch: os.arch(),
@@ -5272,16 +5059,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     type: os.type(),
                     endianness: os.endianness()
                 };
-
                 const serverFreeMemory = (os.freemem() / 1024 / 1024 / 1024).toFixed(2);
                 const serverTotalMemory = (os.totalmem() / 1024 / 1024 / 1024).toFixed(2);
                 const serverLoadAvg = os.loadavg();
                 const serverCpuCount = os.cpus().length;
                 const serverCpuModel = os.cpus()[0]?.model || 'Desconhecido';
-
                 const serverNetworkInterfaces = os.networkInterfaces();
                 const serverInterfaces = Object.keys(serverNetworkInterfaces).length;
-
                 const currentServerTime = new Date().toLocaleString('pt-BR', {
                     timeZone: 'America/Sao_Paulo',
                     day: '2-digit',
@@ -5291,7 +5075,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     minute: '2-digit',
                     second: '2-digit'
                 });
-
                 const nodeVersion = process.version;
                 const osUptime = (os.uptime() / 3600).toFixed(2);
                 let networkDetails = '';
@@ -5300,7 +5083,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         networkDetails += `├ ${name} (${iface.family}): ${iface.address}\n`;
                     });
                 }
-
                 let diskInfo = {
                     totalGb: 0,
                     freeGb: 0,
@@ -5316,16 +5098,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 const diskTotal = diskInfo.totalGb;
                 const diskUsed = diskInfo.usedGb;
                 const diskUsagePercent = diskInfo.percentUsed;
-
                 const startUsage = process.cpuUsage();
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 const endUsage = process.cpuUsage(startUsage);
                 const cpuPercent = ((endUsage.user + endUsage.system) / 10000).toFixed(1);
-
                 const startTime = Date.now();
                 const endTime = Date.now();
                 const latency = endTime - startTime;
-
                 let networkLatency = 'N/A';
                 try {
                     const startNetworkTest = Date.now();
@@ -5343,11 +5122,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     networkLatency = 'Erro ao testar';
                     console.error('Erro ao testar latência de rede:', error);
                 }
-
                 let infoServerMessage = `🌸 ═════════════════════ 🌸\n`;
                 infoServerMessage += `    *INFORMAÇÕES DO SERVIDOR*\n`;
                 infoServerMessage += `🌸 ═════════════════════ 🌸\n\n`;
-
                 infoServerMessage += `🖥️ *Sistema Operacional:* 🏠\n`;
                 infoServerMessage += `├ 🟢 Node.js: ${nodeVersion}\n`;
                 infoServerMessage += `├ 💻 Plataforma: ${serverOsInfo.platform}\n`;
@@ -5358,7 +5135,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 infoServerMessage += `├ 🔄 Endianness: ${serverOsInfo.endianness}\n`;
                 infoServerMessage += `├ ⏳ Sistema online há: ${osUptime} horas\n`;
                 infoServerMessage += `└ 📅 Hora atual: ${currentServerTime}\n\n`;
-
                 infoServerMessage += `⚡ *Processador (CPU):* 🧠\n`;
                 infoServerMessage += `├ 🔢 Núcleos: ${serverCpuCount}\n`;
                 infoServerMessage += `├ 🏷️ Modelo: ${serverCpuModel}\n`;
@@ -5368,7 +5144,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 infoServerMessage += `├ 📊 Load 1min: ${serverLoadAvg[0].toFixed(2)}\n`;
                 infoServerMessage += `├ 📈 Load 5min: ${serverLoadAvg[1].toFixed(2)}\n`;
                 infoServerMessage += `└ 📉 Load 15min: ${serverLoadAvg[2].toFixed(2)}\n\n`;
-
                 const memoryUsagePercent = (((serverTotalMemory - serverFreeMemory) / serverTotalMemory) * 100).toFixed(1);
                 const memoryEmoji = memoryUsagePercent > 80 ? '⚠️' : '✅';
                 const memoryBar = '█'.repeat(memoryUsagePercent / 10) + '-'.repeat(10 - memoryUsagePercent / 10);
@@ -5377,7 +5152,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 infoServerMessage += `├ 📊 RAM Total: ${serverTotalMemory} GB\n`;
                 infoServerMessage += `├ 📈 RAM Usada: ${(serverTotalMemory - serverFreeMemory).toFixed(2)} GB\n`;
                 infoServerMessage += `└ ${memoryEmoji} Uso: [${memoryBar}] ${memoryUsagePercent}%\n\n`;
-
                 const botMemoryUsagePercent = ((serverMemUsed / serverMemTotal) * 100).toFixed(1);
                 const botMemoryEmoji = botMemoryUsagePercent > 80 ? '⚠️' : '✅';
                 const botMemoryBar = '█'.repeat(botMemoryUsagePercent / 10) + '-'.repeat(10 - botMemoryUsagePercent / 10);
@@ -5387,14 +5161,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 infoServerMessage += `├ 🏠 RSS: ${serverMemRss} MB\n`;
                 infoServerMessage += `├ 🔗 Externo: ${serverMemExternal} MB\n`;
                 infoServerMessage += `└ ${botMemoryEmoji} Eficiência: [${botMemoryBar}] ${botMemoryUsagePercent}%\n\n`;
-
                 infoServerMessage += `🌐 *Rede e Conectividade:* 🔗\n`;
                 infoServerMessage += `├ 🔌 Interfaces: ${serverInterfaces}\n`;
                 infoServerMessage += networkDetails;
                 infoServerMessage += `├ 📡 Status: Online\n`;
                 infoServerMessage += `├ ⏱️ Latência de Rede: ${networkLatency}\n`;
                 infoServerMessage += `└ 🛡️ Firewall: Ativo\n\n`;
-
                 const diskEmoji = diskUsagePercent > 80 ? '⚠️' : '✅';
                 const diskBar = '█'.repeat(diskUsagePercent / 10) + '-'.repeat(10 - diskUsagePercent / 10);
                 infoServerMessage += `💽 *Armazenamento:* 💿\n`;
@@ -5402,14 +5174,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 infoServerMessage += `├ 📊 Total: ${diskTotal} GB\n`;
                 infoServerMessage += `├ 📈 Usado: ${diskUsed} GB\n`;
                 infoServerMessage += `└ ${diskEmoji} Uso: [${diskBar}] ${diskUsagePercent}%\n\n`;
-
                 infoServerMessage += `⏰ *Tempo e Latência:* 🕐\n`;
                 infoServerMessage += `├ ⏱️ Latência do Bot: ${latency}ms\n`;
                 infoServerMessage += `└ 🚀 Bot online há: ${serverUptimeFormatted}\n`;
-
                 await reply(infoServerMessage);
                 break;
-
             case 'statusbot':
             case 'infobot':
             case 'botinfo':
@@ -5418,19 +5187,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     const botMemUsage = process.memoryUsage();
                     const memUsed = (botMemUsage.heapUsed / 1024 / 1024).toFixed(2);
                     const memTotal = (botMemUsage.heapTotal / 1024 / 1024).toFixed(2);
-
                     const allGroups = await nazu.groupFetchAllParticipating();
                     const totalGroups = Object.keys(allGroups).length;
                     let totalUsers = 0;
                     Object.values(allGroups).forEach(group => {
                         totalUsers += group.participants.length;
                     });
-
                     const botStatus = botState.status === 'on' ? '✅ Online' : '❌ Offline';
                     const rentalMode = isRentalModeActive() ? '✅ Ativo' : '❌ Desativo';
                     const nodeVersion = process.version;
                     const platform = os.platform();
-
                     let totalCommands = 0;
                     try {
                         const indexContent = fs.readFileSync(__dirname + '/index.js', 'utf-8');
@@ -5439,16 +5205,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     } catch (e) {
                         totalCommands = 'N/A';
                     }
-
                     const premiumUsers = Object.keys(premiumListaZinha).filter(key => key.includes('@s.whatsapp.net')).length;
                     const premiumGroups = Object.keys(premiumListaZinha).filter(key => key.includes('@g.us')).length;
                     const blockedUsers = Object.keys(globalBlocks.users || {}).length;
                     const blockedCommands = Object.keys(globalBlocks.commands || {}).length;
-
                     const currentTime = new Date().toLocaleString('pt-BR', {
                         timeZone: 'America/Sao_Paulo'
                     });
-
                     const lines = [
                         "╭───🤖 STATUS DO BOT ───╮",
                         `┊ 🏷️ Nome: ${nomebot}`,
@@ -5477,14 +5240,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         `┊ • 🕐 Hora Atual: ${currentTime}`,
                         "╰───────────────╯"
                     ].join("\n");
-
                     await reply(lines);
                 } catch (e) {
                     console.error("Erro em statusbot:", e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'topcmd':
             case 'topcmds':
             case 'comandosmaisusados':
@@ -5509,58 +5270,45 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'cmdinfo':
             case 'comandoinfo':
                 try {
-                    if (!q) return reply(`Por favor, especifique um comando para ver suas estatísticas.\nExemplo: ${prefix}cmdinfo menu`);
-
+                    if (!q)
+                        return reply(`Por favor, especifique um comando para ver suas estatísticas.\nExemplo: ${prefix}cmdinfo menu`);
                     const cmdName = q.startsWith(prefix) ? q.slice(prefix.length) : q;
-
                     const stats = commandStats.getCommandStats(cmdName);
-
                     if (!stats) {
                         return reply(`❌ Comando *${cmdName}* não encontrado ou nunca foi usado.`);
                     }
-
                     const topUsersText = stats.topUsers.length > 0 ? stats.topUsers.map((user, index) => {
                         return `${index + 1}º @${user.userId.split('@')[0]} - ${user.count} usos`;
                     }).join('\n') : 'Nenhum usuário registrado';
-
                     const lastUsed = new Date(stats.lastUsed).toLocaleString('pt-BR');
-
                     const infoMessage = `📊 *Estatísticas do Comando: ${prefix}${stats.name}* 📊\n\n` + `📈 *Total de Usos*: ${stats.count}\n` + `👥 *Usuários Únicos*: ${stats.uniqueUsers}\n` + `🕒 *Último Uso*: ${lastUsed}\n\n` + `🏆 *Top Usuários*:\n${topUsersText}\n\n` + `✨ *Bot*: ${nomebot} by ${nomedono} ✨`;
-
                     await nazu.sendMessage(from, {
                         text: infoMessage,
                         mentions: stats.topUsers.map(u => u.userId)
                     }, {
                         quoted: info
                     });
-
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'statusgp':
             case 'dadosgp':
                 try {
                     if (!isGroup)
                         return reply("❌ Este comando só funciona em grupos!");
-
                     const meta = await nazu.groupMetadata(from);
                     const subject = meta.subject || "—";
                     const desc = meta.desc?.toString() || "Sem descrição";
                     const createdAt = meta.creation ? new Date(meta.creation * 1000).toLocaleString('pt-BR') : "Desconhecida";
-
                     const ownerJid = meta.owner || meta.participants.find(p => p.admin && p.isCreator)?.jid || meta.participants.find(p => p.admin && p.isCreator)?.id || "unknown@s.whatsapp.net";
                     const ownerTag = `@${ownerJid.split('@')[0]}`;
-
                     const totalMembers = meta.participants.length;
                     const totalAdmins = groupAdmins.length;
-
                     let totalMsgs = 0,
                         totalCmds = 0,
                         totalFigs = 0;
@@ -5569,12 +5317,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         totalCmds += u.cmd || 0;
                         totalFigs += u.figu || 0;
                     });
-
                     const rentGlob = isRentalModeActive();
                     const rentInfo = getGroupRentalStatus(from);
                     const rentStatus = rentGlob ? (rentInfo.active ? `✅ Ativo até ${rentInfo.permanent ? 'Permanente' : new Date(rentInfo.expiresAt).toLocaleDateString('pt-BR')}` : "❌ Expirado") : "❌ Desativado";
                     const isPremGp = !!premiumListaZinha[from] ? "✅" : "❌";
-
                     const toggles = [
                         ["Antiporn", isAntiPorn],
                         ["AntiLink", isAntiLinkGp],
@@ -5586,15 +5332,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         ["Modo Brincadeira", isModoBn],
                         ["Só Admins", groupData.soadm],
                         ["Modo Lite", isModoLite]
-                    ].filter(([_, v]) => typeof v === 'boolean').map(([k, v]) => `┊ ${v ? '✅':'❌'} ${k}`).join('\n');
-
+                    ].filter(([_, v]) => typeof v === 'boolean').map(([k, v]) => `┊ ${v ? '✅' : '❌'} ${k}`).join('\n');
                     const lines = [
                         "╭───📊 STATUS DO GRUPO ───╮",
                         `┊ 📝 Nome: ${subject}`,
                         `┊ 🆔 ID: ${from.split('@')[0]}`,
                         `┊ 👑 Dono: ${ownerTag}`,
                         `┊ 📅 Criado: ${createdAt}`,
-                        `┊ 📄 Desc: ${desc.slice(0,35)}${desc.length>35?'...':''}`,
+                        `┊ 📄 Desc: ${desc.slice(0, 35)}${desc.length > 35 ? '...' : ''}`,
                         `┊ 👥 Membros: ${totalMembers}`,
                         `┊ 👮 Admins: ${totalAdmins}`,
                         `┊ 💎 Premium: ${isPremGp}`,
@@ -5609,7 +5354,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         toggles,
                         "╰───────────────╯"
                     ].join("\n");
-
                     await reply(lines, {
                         mentions: [ownerJid]
                     });
@@ -5618,7 +5362,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'dono':
                 try {
                     const TextinDonoInfo = `╭⊰ 🌸 『 *INFORMAÇÕES DONO* 』\n┊\n┊👤 *Dono*: ${nomedono}\n┊📱 *Número Dono*: wa.me/${numerodono.replace(/\D/g, '')}\n┊👨‍💻 *Criador*: Hiudy\n┊\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`;
@@ -5628,7 +5371,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'ping':
                 try {
                     const timestamp = Date.now();
@@ -5655,7 +5397,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         statusEmoji = '🔴';
                         statusTexto = 'Ruim';
                     }
-
                     let mensagem = `
 ╭━━「 ${statusEmoji} *STATUS DO BOT* ${statusEmoji} 」
 ┊
@@ -5676,19 +5417,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
 ┊ ╰ 💾 RAM Usada: *${ramBotProcessoMb} MB*
 ┊
 ╰━━「 ${nomebot} 」`;
-
                     mensagem = mensagem.trim();
-
                     let ppimg = "";
-
                     try {
                         ppimg = await nazu.profilePictureUrl(botNumber, 'image');
                     } catch {
-                        ppimg = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1753966446765_oordgn.bin'
+                        ppimg = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1753966446765_oordgn.bin';
                     };
-
                     const pingImageUrl = await banner.Ping("", ppimg, nomebot, speedConverted.toFixed(3), uptimeBot, totalGrupos, totalUsers);
-
                     await nazu.sendMessage(from, {
                         image: {
                             url: pingImageUrl
@@ -5697,15 +5433,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     }, {
                         quoted: info
                     });
-
                 } catch (e) {
                     console.error("Erro no comando ping:", e);
                     await reply("❌ Ocorreu um erro ao processar o comando ping");
                 };
                 break;
-
             case 'toimg':
-                if (!isQuotedSticker) return reply('Por favor, *mencione um sticker* para executar o comando.');
+                if (!isQuotedSticker)
+                    return reply('Por favor, *mencione um sticker* para executar o comando.');
                 try {
                     buff = await getFileBuffer(info.message.extendedTextMessage.contextInfo.quotedMessage.stickerMessage, 'sticker');
                     await nazu.sendMessage(from, {
@@ -5716,16 +5451,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 } catch (error) {
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'qc':
                 try {
-                    if (!q) return reply('Falta o texto.');
+                    if (!q)
+                        return reply('Falta o texto.');
                     let ppimg = "";
                     try {
                         ppimg = await nazu.profilePictureUrl(sender, 'image');
                     } catch {
-                        ppimg = 'https://telegra.ph/file/b5427ea4b8701bc47e751.jpg'
+                        ppimg = 'https://telegra.ph/file/b5427ea4b8701bc47e751.jpg';
                     };
                     const json = {
                         "type": "quote",
@@ -5766,12 +5501,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'emojimix':
                 try {
                     emoji1 = q.split(`/`)[0];
                     emoji2 = q.split(`/`)[1];
-                    if (!q || !emoji1 || !emoji2) return reply(`Formato errado, utilize:\n${prefix}${command} emoji1/emoji2\nEx: ${prefix}${command} 🤓/🙄`);
+                    if (!q || !emoji1 || !emoji2)
+                        return reply(`Formato errado, utilize:\n${prefix}${command} emoji1/emoji2\nEx: ${prefix}${command} 🤓/🙄`);
                     datzc = await emojiMix(emoji1, emoji2);
                     await sendSticker(nazu, from, {
                         sticker: {
@@ -5788,10 +5523,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'ttp':
                 try {
-                    if (!q) return reply('Cadê o texto?');
+                    if (!q)
+                        return reply('Cadê o texto?');
                     cor = ["f702ff", "ff0202", "00ff2e", "efff00", "00ecff", "3100ff", "ffb400", "ff00b0", "00ff95", "efff00"];
                     fonte = ["Days%20One", "Domine", "Exo", "Fredoka%20One", "Gentium%20Basic", "Gloria%20Hallelujah", "Great%20Vibes", "Orbitron", "PT%20Serif", "Pacifico"];
                     cores = cor[Math.floor(Math.random() * (cor.length))];
@@ -5811,10 +5546,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'brat':
                 try {
-                    if (!q) return reply('falta o texto');
+                    if (!q)
+                        return reply('falta o texto');
                     await sendSticker(nazu, from, {
                         sticker: {
                             url: `https://api.cognima.com.br/api/image/brat?key=CognimaTeamFreeKey&texto=${encodeURIComponent(q)}`
@@ -5829,7 +5564,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     console.error(e);
                 };
                 break;
-
             case 'st':
             case 'stk':
             case 'sticker':
@@ -5838,10 +5572,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     var RSM = info.message?.extendedTextMessage?.contextInfo?.quotedMessage;
                     var boij2 = RSM?.imageMessage || info.message?.imageMessage || RSM?.viewOnceMessageV2?.message?.imageMessage || info.message?.viewOnceMessageV2?.message?.imageMessage || info.message?.viewOnceMessage?.message?.imageMessage || RSM?.viewOnceMessage?.message?.imageMessage;
                     var boij = RSM?.videoMessage || info.message?.videoMessage || RSM?.viewOnceMessageV2?.message?.videoMessage || info.message?.viewOnceMessageV2?.message?.videoMessage || info.message?.viewOnceMessage?.message?.videoMessage || RSM?.viewOnceMessage?.message?.videoMessage;
-                    if (!boij && !boij2) return reply(`Marque uma imagem ou um vídeo de até 9.9 segundos para fazer figurinha, com o comando: ${prefix + command} (mencionando a mídia)`);
+                    if (!boij && !boij2)
+                        return reply(`Marque uma imagem ou um vídeo de até 9.9 segundos para fazer figurinha, com o comando: ${prefix + command} (mencionando a mídia)`);
                     var isVideo2 = !!boij;
-                    if (isVideo2 && boij.seconds > 9.9) return reply(`O vídeo precisa ter no máximo 9.9 segundos para ser convertido em figurinha.`);
-                    var buffer = await getFileBuffer(isVideo2 ? boij : boij2, isVideo2 ? 'video' : 'image')
+                    if (isVideo2 && boij.seconds > 9.9)
+                        return reply(`O vídeo precisa ter no máximo 9.9 segundos para ser convertido em figurinha.`);
+                    var buffer = await getFileBuffer(isVideo2 ? boij : boij2, isVideo2 ? 'video' : 'image');
                     await sendSticker(nazu, from, {
                         sticker: buffer,
                         author: `『${pushname}』\n『${nomebot}』\n『${nomedono}』\n『cognima.com.br』`,
@@ -5854,8 +5590,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'st2':
             case 'stk2':
             case 'sticker2':
@@ -5864,10 +5599,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     var RSM = info.message?.extendedTextMessage?.contextInfo?.quotedMessage;
                     var boij2 = RSM?.imageMessage || info.message?.imageMessage || RSM?.viewOnceMessageV2?.message?.imageMessage || info.message?.viewOnceMessageV2?.message?.imageMessage || info.message?.viewOnceMessage?.message?.imageMessage || RSM?.viewOnceMessage?.message?.imageMessage;
                     var boij = RSM?.videoMessage || info.message?.videoMessage || RSM?.viewOnceMessageV2?.message?.videoMessage || info.message?.viewOnceMessageV2?.message?.videoMessage || info.message?.viewOnceMessage?.message?.videoMessage || RSM?.viewOnceMessage?.message?.videoMessage;
-                    if (!boij && !boij2) return reply(`Marque uma imagem ou um vídeo de até 9.9 segundos para fazer figurinha, com o comando: ${prefix + command} (mencionando a mídia)`);
+                    if (!boij && !boij2)
+                        return reply(`Marque uma imagem ou um vídeo de até 9.9 segundos para fazer figurinha, com o comando: ${prefix + command} (mencionando a mídia)`);
                     var isVideo2 = !!boij;
-                    if (isVideo2 && boij.seconds > 9.9) return reply(`O vídeo precisa ter no máximo 9.9 segundos para ser convertido em figurinha.`);
-                    var buffer = await getFileBuffer(isVideo2 ? boij : boij2, isVideo2 ? 'video' : 'image')
+                    if (isVideo2 && boij.seconds > 9.9)
+                        return reply(`O vídeo precisa ter no máximo 9.9 segundos para ser convertido em figurinha.`);
+                    var buffer = await getFileBuffer(isVideo2 ? boij : boij2, isVideo2 ? 'video' : 'image');
                     await sendSticker(nazu, from, {
                         sticker: buffer,
                         author: `『${pushname}』\n『${nomebot}』\n『${nomedono}』\n『cognima.com.br』`,
@@ -5881,8 +5618,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'figualeatoria':
             case 'randomsticker':
                 try {
@@ -5898,14 +5634,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'rename':
             case 'roubar':
                 try {
-                    if (!isQuotedSticker) return reply('Você usou de forma errada... Marque uma figurinha.')
+                    if (!isQuotedSticker)
+                        return reply('Você usou de forma errada... Marque uma figurinha.');
                     author = q.split(`/`)[0];
                     packname = q.split(`/`)[1];
-                    if (!q || !author || !packname) return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
+                    if (!q || !author || !packname)
+                        return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
                     encmediats = await getFileBuffer(info.message.extendedTextMessage.contextInfo.quotedMessage.stickerMessage, 'sticker');
                     await sendSticker(nazu, from, {
                         sticker: `data:image/jpeg;base64,${encmediats.toString('base64')}`,
@@ -5920,11 +5657,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'rgtake':
                 try {
                     const [author, pack] = q.split('/');
-                    if (!q || !author || !pack) return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
+                    if (!q || !author || !pack)
+                        return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
                     const filePath = __dirname + '/../database/users/take.json';
                     const dataTake = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf-8')) : {};
                     dataTake[sender] = {
@@ -5938,14 +5675,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'take':
                 try {
-                    if (!isQuotedSticker) return reply('Você usou de forma errada... Marque uma figurinha.');
+                    if (!isQuotedSticker)
+                        return reply('Você usou de forma errada... Marque uma figurinha.');
                     const filePath = __dirname + '/../database/users/take.json';
-                    if (!fs.existsSync(filePath)) return reply('Nenhum autor e pacote salvos. Use o comando *rgtake* primeiro.');
+                    if (!fs.existsSync(filePath))
+                        return reply('Nenhum autor e pacote salvos. Use o comando *rgtake* primeiro.');
                     const dataTake = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-                    if (!dataTake[sender]) return reply('Você não tem autor e pacote salvos. Use o comando *rgtake* primeiro.');
+                    if (!dataTake[sender])
+                        return reply('Você não tem autor e pacote salvos. Use o comando *rgtake* primeiro.');
                     const {
                         author,
                         pack
@@ -5964,11 +5703,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'mention':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!q) return reply(`📢 *Configuração de Marcações*\n\n🔧 Escolha como deseja ser mencionado:\n\n✅ *${prefix}mention all* → Marcado em tudo (marcações e jogos).\n📢 *${prefix}mention marca* → Apenas em marcações de administradores.\n🎮 *${prefix}mention games* → Somente em jogos do bot.\n🚫 *${prefix}mention 0* → Não será mencionado em nenhuma ocasião.`);
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!q)
+                        return reply(`📢 *Configuração de Marcações*\n\n🔧 Escolha como deseja ser mencionado:\n\n✅ *${prefix}mention all* → Marcado em tudo (marcações e jogos).\n📢 *${prefix}mention marca* → Apenas em marcações de administradores.\n🎮 *${prefix}mention games* → Somente em jogos do bot.\n🚫 *${prefix}mention 0* → Não será mencionado em nenhuma ocasião.`);
                     let options = {
                         all: '✨ Você agora será mencionado em todas as interações do bot, incluindo marcações de administradores e os jogos!',
                         marca: '📢 A partir de agora, você será mencionado apenas quando um administrador marcar.',
@@ -5976,25 +5716,26 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         0: '🔕 Silêncio ativado! Você não será mais mencionado pelo bot, nem em marcações nem em jogos.'
                     };
                     if (options[q.toLowerCase()] !== undefined) {
-                        if (!groupData.mark) groupData.mark = {};
+                        if (!groupData.mark)
+                            groupData.mark = {};
                         groupData.mark[sender] = q.toLowerCase();
                         fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
                         return reply(`*${options[q.toLowerCase()]}*`);
                     }
-
                     reply(`❌ Opção inválida! Use *${prefix}mention* para ver as opções.`);
                 } catch (e) {
                     console.error(e);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'deletar':
             case 'delete':
             case 'del':
             case 'd':
-                if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-                if (!menc_prt) return reply("Marque uma mensagem.");
+                if (!isGroupAdmin)
+                    return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
+                if (!menc_prt)
+                    return reply("Marque uma mensagem.");
                 let stanzaId, participant;
                 if (info.message.extendedTextMessage) {
                     stanzaId = info.message.extendedTextMessage.contextInfo.stanzaId;
@@ -6015,13 +5756,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 } catch (error) {
                     reply("ocorreu um erro 💔");
                 };
-                break
-
+                break;
             case 'blockuser':
-                if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                if (!isGroupAdmin) return reply("você precisa ser adm 💔");
+                if (!isGroup)
+                    return reply("isso so pode ser usado em grupo 💔");
+                if (!isGroupAdmin)
+                    return reply("você precisa ser adm 💔");
                 try {
-                    if (!menc_os2) return reply("Marque alguém 🙄");
+                    if (!menc_os2)
+                        return reply("Marque alguém 🙄");
                     reason = q ? q.includes('@') ? q.includes(' ') ? q.split(' ').slice(1).join(' ') : "Não informado" : q : 'Não informado';
                     menc_os3 = menc_os2.includes(' ') ? menc_os2.split(' ')[0] : menc_os2;
                     groupData.blockedUsers = groupData.blockedUsers || {};
@@ -6038,15 +5781,18 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'unblockuser':
-                if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                if (!isGroupAdmin) return reply("você precisa ser adm 💔");
+                if (!isGroup)
+                    return reply("isso so pode ser usado em grupo 💔");
+                if (!isGroupAdmin)
+                    return reply("você precisa ser adm 💔");
                 try {
-                    if (!menc_os2) return reply("Marque alguém 🙄");
-                    if (!groupData.blockedUsers || (!groupData.blockedUsers[menc_os2] && !groupData.blockedUsers[menc_os2.split('@')[0]])) return reply(`❌ O usuário @${menc_os2.split('@')[0]} não está bloqueado no grupo!`, {
-                        mentions: [menc_os2]
-                    });
+                    if (!menc_os2)
+                        return reply("Marque alguém 🙄");
+                    if (!groupData.blockedUsers || (!groupData.blockedUsers[menc_os2] && !groupData.blockedUsers[menc_os2.split('@')[0]]))
+                        return reply(`❌ O usuário @${menc_os2.split('@')[0]} não está bloqueado no grupo!`, {
+                            mentions: [menc_os2]
+                        });
                     if (!delete groupData.blockedUsers[menc_os2]) {
                         delete groupData.blockedUsers[menc_os2.split('@')[0]];
                     }
@@ -6059,11 +5805,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'listblocksgp':
             case 'blocklist':
-                if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                if (!isGroupAdmin) return reply("você precisa ser adm 💔");
+                if (!isGroup)
+                    return reply("isso so pode ser usado em grupo 💔");
+                if (!isGroupAdmin)
+                    return reply("você precisa ser adm 💔");
                 try {
                     const blockedUsers = groupData.blockedUsers ? Object.entries(groupData.blockedUsers).map(([user, data]) => `👤 *${user.split('@')[0]}* - Motivo: ${data.reason}`).join('\n') : 'Nenhum usuário bloqueado no grupo.';
                     const message = `🔒 *Usuários Bloqueados no Grupo - ${groupName}* 🔒\n\n${blockedUsers}`;
@@ -6073,46 +5820,55 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'banir':
             case 'ban':
             case 'b':
             case 'kick':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
-                    if (!menc_os2) return reply("Marque alguém 🙄");
-                    if (menc_os2 === nmrdn) return reply("❌ Não posso banir o dono do bot.");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
+                    if (!menc_os2)
+                        return reply("Marque alguém 🙄");
+                    if (menc_os2 === nmrdn)
+                        return reply("❌ Não posso banir o dono do bot.");
                     await nazu.groupParticipantsUpdate(from, [menc_os2], 'remove');
-                    reply(`✅ Usuário banido com sucesso!${(q && q.length > 0) ? '\n\nMotivo: '+q : ''}`);
+                    reply(`✅ Usuário banido com sucesso!${(q && q.length > 0) ? '\n\nMotivo: ' + q : ''}`);
                 } catch (e) {
                     console.error(e);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'linkgp':
             case 'linkgroup':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
-                    linkgc = await nazu.groupInviteCode(from)
-                    await reply('https://chat.whatsapp.com/' + linkgc)
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
+                    linkgc = await nazu.groupInviteCode(from);
+                    await reply('https://chat.whatsapp.com/' + linkgc);
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'promover':
             case 'promote':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
-                    if (!menc_os2) return reply("Marque alguém 🙄");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
+                    if (!menc_os2)
+                        return reply("Marque alguém 🙄");
                     await nazu.groupParticipantsUpdate(from, [menc_os2], 'promote');
                     reply(`✅ Usuário promovido a administrador!`);
                 } catch (e) {
@@ -6120,14 +5876,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'rebaixar':
             case 'demote':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
-                    if (!menc_os2) return reply("Marque alguém 🙄");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
+                    if (!menc_os2)
+                        return reply("Marque alguém 🙄");
                     await nazu.groupParticipantsUpdate(from, [menc_os2], 'demote');
                     reply(`✅ Usuário rebaixado com sucesso!`);
                 } catch (e) {
@@ -6135,14 +5894,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'setname':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
                     const newName = q.trim();
-                    if (!newName) return reply('❌ Digite um novo nome para o grupo.');
+                    if (!newName)
+                        return reply('❌ Digite um novo nome para o grupo.');
                     await nazu.groupUpdateSubject(from, newName);
                     reply(`✅ Nome do grupo alterado para: *${newName}*`);
                 } catch (e) {
@@ -6150,14 +5912,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'setdesc':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
                     const newDesc = q.trim();
-                    if (!newDesc) return reply('❌ Digite uma nova descrição para o grupo.');
+                    if (!newDesc)
+                        return reply('❌ Digite uma nova descrição para o grupo.');
                     await nazu.groupUpdateDescription(from, newDesc);
                     reply(`✅ Descrição do grupo alterada!`);
                 } catch (e) {
@@ -6165,20 +5930,24 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'marcar':
             case 'mark':
-                if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-                if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
+                if (!isGroup)
+                    return reply("isso so pode ser usado em grupo 💔");
+                if (!isGroupAdmin)
+                    return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
+                if (!isBotAdmin)
+                    return reply("Eu preciso ser adm 💔");
                 try {
                     let path = __dirname + '/../database/grupos/' + from + '.json';
                     let data = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path)) : {
                         mark: {}
                     };
-                    if (!data.mark) data.mark = {};
+                    if (!data.mark)
+                        data.mark = {};
                     let membros = AllgroupMembers.filter(m => !['0', 'games'].includes(data.mark[m]));
-                    if (!membros.length) return reply('❌ Nenhum membro para mencionar.');
+                    if (!membros.length)
+                        return reply('❌ Nenhum membro para mencionar.');
                     let msg = `📢 *Membros mencionados:* ${q ? `\n💬 *Mensagem:* ${q}` : ''}\n\n`;
                     await nazu.sendMessage(from, {
                         text: msg + membros.map(m => `➤ @${m.split('@')[0]}`).join('\n'),
@@ -6189,14 +5958,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'grupo':
             case 'gp':
             case 'group':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
                     if (q.toLowerCase() === 'a' || q.toLowerCase() === 'o' || q.toLowerCase() === 'open' || q.toLowerCase() === 'abrir') {
                         await nazu.groupSettingUpdate(from, 'not_announcement');
                         await reply('Grupo aberto.');
@@ -6208,14 +5979,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'chaveamento':
                 try {
-                    if (!isGroup) return reply("Este comando só pode ser usado em grupos 💔");
-
+                    if (!isGroup)
+                        return reply("Este comando só pode ser usado em grupos 💔");
                     let participantes = [];
-
                     if (q) {
                         participantes = q.split(',').map(n => n.trim()).filter(n => n);
                         if (participantes.length !== 16) {
@@ -6224,12 +5993,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     } else {
                         return reply(`❌ Forneça exatamente 16 nomes! Você forneceu 0. Exemplo: ${prefix}${command} nome1,nome2,...,nome16`);
                     };
-
                     participantes = participantes.sort(() => Math.random() - 0.5);
-
                     const grupo1 = participantes.slice(0, 8);
                     const grupo2 = participantes.slice(8, 16);
-
                     const confrontosGrupo1 = [
                         [grupo1[0], grupo1[1]],
                         [grupo1[2], grupo1[3]],
@@ -6242,9 +6008,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         [grupo2[4], grupo2[5]],
                         [grupo2[6], grupo2[7]]
                     ];
-
                     let mensagem = `🏆 *Chaveamento do Torneio* 🏆\n\n`;
-
                     mensagem += `📌 *Grupo 1*\n`;
                     grupo1.forEach((p, i) => {
                         mensagem += `  ${i + 1}. ${p.includes('@') ? `@${p.split('@')[0]}` : p}\n`;
@@ -6255,7 +6019,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         const p2 = confronto[1].includes('@') ? `@${confronto[1].split('@')[0]}` : confronto[1];
                         mensagem += `  🥊 Partida ${i + 1}: ${p1} vs ${p2}\n`;
                     });
-
                     mensagem += `\n📌 *Grupo 2*\n`;
                     grupo2.forEach((p, i) => {
                         mensagem += `  ${i + 1}. ${p.includes('@') ? `@${p.split('@')[0]}` : p}\n`;
@@ -6266,9 +6029,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         const p2 = confronto[1].includes('@') ? `@${confronto[1].split('@')[0]}` : confronto[1];
                         mensagem += `  🥊 Partida ${i + 1}: ${p1} vs ${p2}\n`;
                     });
-
                     const imageA = await banner.Chaveamento("", grupo1, grupo2);
-
                     await nazu.sendMessage(from, {
                         image: {
                             url: imageA
@@ -6280,13 +6041,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'sorteionum':
                 try {
-                    if (!q) return reply(`Por favor, forneça um intervalo de números. Exemplo: ${prefix}sorteionum 1-50`);
+                    if (!q)
+                        return reply(`Por favor, forneça um intervalo de números. Exemplo: ${prefix}sorteionum 1-50`);
                     const [min, max] = q.split('-').map(n => parseInt(n.trim()));
-                    if (isNaN(min) || isNaN(max) || min >= max) return reply('❌ Intervalo inválido! Use o formato: min-max (ex.: 1-50).');
-
+                    if (isNaN(min) || isNaN(max) || min >= max)
+                        return reply('❌ Intervalo inválido! Use o formato: min-max (ex.: 1-50).');
                     const numeroSorteado = Math.floor(Math.random() * (max - min + 1)) + min;
                     await reply(`🎲 *Sorteio de Número* 🎲\n\nNúmero sorteado: *${numeroSorteado}*`);
                 } catch (e) {
@@ -6294,15 +6055,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'sorteionome':
                 try {
-                    if (!q) return reply(`Por favor, forneça os nomes para o sorteio. Exemplo: ${prefix}sorteionome 4/nick1,nick2,nick3,... ou ${prefix}sorteionome nick1,nick2,nick3,...`);
-
+                    if (!q)
+                        return reply(`Por favor, forneça os nomes para o sorteio. Exemplo: ${prefix}sorteionome 4/nick1,nick2,nick3,... ou ${prefix}sorteionome nick1,nick2,nick3,...`);
                     let numVencedores = 1;
                     let numGrupos = 1;
                     let nomes = [];
-
                     if (q.includes('/')) {
                         const [config, listaNomes] = q.split('/').map(s => s.trim());
                         const [vencedores, grupos] = config.includes('-') ? config.split('-').map(n => parseInt(n.trim())) : [parseInt(config), 1];
@@ -6312,17 +6071,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     } else {
                         nomes = q.split(',').map(n => n.trim()).filter(n => n);
                     }
-
-                    if (nomes.length < numVencedores * numGrupos) return reply(`❌ Não há nomes suficientes! Você precisa de pelo menos ${numVencedores * numGrupos} nomes para sortear ${numVencedores} vencedor${numVencedores > 1 ? 'es' : ''}${numGrupos > 1 ? ` em ${numGrupos} grupos` : ''}.`);
-                    if (numVencedores < 1 || numGrupos < 1) return reply('❌ Quantidade de vencedores ou grupos inválida! Use números positivos.');
-
+                    if (nomes.length < numVencedores * numGrupos)
+                        return reply(`❌ Não há nomes suficientes! Você precisa de pelo menos ${numVencedores * numGrupos} nomes para sortear ${numVencedores} vencedor${numVencedores > 1 ? 'es' : ''}${numGrupos > 1 ? ` em ${numGrupos} grupos` : ''}.`);
+                    if (numVencedores < 1 || numGrupos < 1)
+                        return reply('❌ Quantidade de vencedores ou grupos inválida! Use números positivos.');
                     let resultado = `🎉 *Resultado do Sorteio de Nomes* 🎉\n\n`;
                     let nomesDisponiveis = [...nomes];
-
                     if (numGrupos === 1) {
                         let vencedores = [];
                         for (let i = 0; i < numVencedores; i++) {
-                            if (nomesDisponiveis.length === 0) break;
+                            if (nomesDisponiveis.length === 0)
+                                break;
                             const indice = Math.floor(Math.random() * nomesDisponiveis.length);
                             vencedores.push(nomesDisponiveis[indice]);
                             nomesDisponiveis.splice(indice, 1);
@@ -6333,7 +6092,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                             resultado += `📌 *Grupo ${g}*:\n`;
                             let vencedores = [];
                             for (let i = 0; i < numVencedores; i++) {
-                                if (nomesDisponiveis.length === 0) break;
+                                if (nomesDisponiveis.length === 0)
+                                    break;
                                 const indice = Math.floor(Math.random() * nomesDisponiveis.length);
                                 vencedores.push(nomesDisponiveis[indice]);
                                 nomesDisponiveis.splice(indice, 1);
@@ -6341,38 +6101,39 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                             resultado += vencedores.map((v, i) => `  🏆 *#${i + 1}* - ${v}`).join('\n') + '\n\n';
                         }
                     }
-
                     await reply(resultado);
                 } catch (e) {
                     console.error('Erro no comando sorteionome:', e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'sorteio':
                 try {
-                    if (!isGroup) return reply("Este comando só pode ser usado em grupos 💔");
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroup)
+                        return reply("Este comando só pode ser usado em grupos 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
                     let path = __dirname + '/../database/grupos/' + from + '.json';
                     let data = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path)) : {
                         mark: {}
                     };
                     let membros = AllgroupMembers.filter(m => !['0', 'marca'].includes(data.mark[m]));
-                    if (membros.length < 2) return reply('❌ Preciso de pelo menos 2 membros válidos no grupo para realizar o sorteio!');
-
+                    if (membros.length < 2)
+                        return reply('❌ Preciso de pelo menos 2 membros válidos no grupo para realizar o sorteio!');
                     let numVencedores = parseInt(q) || 1;
-                    if (numVencedores < 1) return reply('❌ O número de vencedores deve ser maior que 0!');
-                    if (numVencedores > membros.length) return reply(`❌ Não há membros suficientes! O grupo tem apenas ${membros.length} membros válidos.`);
-
+                    if (numVencedores < 1)
+                        return reply('❌ O número de vencedores deve ser maior que 0!');
+                    if (numVencedores > membros.length)
+                        return reply(`❌ Não há membros suficientes! O grupo tem apenas ${membros.length} membros válidos.`);
                     let vencedores = [];
                     let membrosDisponiveis = [...membros];
                     for (let i = 0; i < numVencedores; i++) {
-                        if (membrosDisponiveis.length === 0) break;
+                        if (membrosDisponiveis.length === 0)
+                            break;
                         const indice = Math.floor(Math.random() * membrosDisponiveis.length);
                         vencedores.push(membrosDisponiveis[indice]);
                         membrosDisponiveis.splice(indice, 1);
                     }
-
                     const vencedoresText = vencedores.map((v, i) => `🏆 *#${i + 1}* - @${v.split('@')[0]}`).join('\n');
                     await reply(`🎉 *Resultado do Sorteio* 🎉\n\n${vencedoresText}`, {
                         mentions: vencedores
@@ -6382,15 +6143,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'totag':
             case 'cita':
             case 'hidetag':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
-
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Comando restrito a Administradores ou Moderadores com permissão. 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
                     var DFC4 = "";
                     var rsm4 = info.message?.extendedTextMessage?.contextInfo?.quotedMessage;
                     var pink4 = isQuotedImage ? rsm4?.imageMessage : info.message?.imageMessage;
@@ -6405,9 +6167,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     let data = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path)) : {
                         mark: {}
                     };
-                    if (!data.mark) data.mark = {};
+                    if (!data.mark)
+                        data.mark = {};
                     var MRC_TD4 = AllgroupMembers.filter(m => !['0', 'games'].includes(data.mark[m]));
-
                     if (pink4 && !aud_d4 && !purple4) {
                         var DFC4 = pink4;
                         pink4.caption = q.length > 1 ? q : pink4.caption.replace(new RegExp(prefix + command, "gi"), ` `);
@@ -6465,12 +6227,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'antilinkhard':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm para isso 💔");
                     groupData.antilinkhard = !groupData.antilinkhard;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ Antilinkhard ${groupData.antilinkhard ? 'ativado' : 'desativado'}! Qualquer link enviado resultará em banimento.`);
@@ -6479,13 +6243,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antibotao':
             case 'antibtn':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm para isso 💔");
                     groupData.antibtn = !groupData.antibtn;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ Anti Botão ${groupData.antibtn ? 'ativado' : 'desativado'}!`);
@@ -6494,12 +6260,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antistatus':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm para isso 💔");
                     groupData.antistatus = !groupData.antistatus;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ Anti Status ${groupData.antistatus ? 'ativado' : 'desativado'}!`);
@@ -6508,12 +6276,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antidelete':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm para isso 💔");
                     groupData.antidel = !groupData.antidel;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ Antidelete ${groupData.antidel ? 'ativado' : 'desativado'}!`);
@@ -6522,11 +6292,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'autodl':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
                     groupData.autodl = !groupData.autodl;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ Autodl ${groupData.autodl ? 'ativado' : 'desativado'}! Links suportados serão baixados automaticamente.`);
@@ -6535,12 +6306,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'cmdlimit':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!q) return reply(`Digite o limite de comandos por dia ou "off" para desativar.\nExemplo: ` + prefix + `cmdlimit 10`);
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!q)
+                        return reply(`Digite o limite de comandos por dia ou "off" para desativar.\nExemplo: ` + prefix + `cmdlimit 10`);
                     cmdLimitData[from] = cmdLimitData[from] || {
                         users: {}
                     };
@@ -6549,7 +6322,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         delete cmdLimitData[from].limit;
                     } else {
                         const limit = parseInt(q);
-                        if (isNaN(limit) || limit < 1) return reply('Limite inválido! Use um número maior que 0 ou "off".');
+                        if (isNaN(limit) || limit < 1)
+                            return reply('Limite inválido! Use um número maior que 0 ou "off".');
                         cmdLimitData[from].enabled = true;
                         cmdLimitData[from].limit = limit;
                     }
@@ -6560,12 +6334,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antipt':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm para isso 💔");
                     groupData.antipt = !groupData.antipt;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ AntiPT ${groupData.antipt ? 'ativado' : 'desativado'}! Membros de Portugal serão banidos.`);
@@ -6574,12 +6350,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antifake':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm para isso 💔");
                     groupData.antifake = !groupData.antifake;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ Antifake ${groupData.antifake ? 'ativado' : 'desativado'}! Membros de fora do Brasil/Portugal serão banidos.`);
@@ -6588,12 +6366,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antidoc':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm para isso 💔");
                     groupData.antidoc = !groupData.antidoc;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ Antidoc ${groupData.antidoc ? 'ativado' : 'desativado'}! Documentos enviados resultarão em banimento.`);
@@ -6602,11 +6382,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'x9':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
                     groupData.x9 = !groupData.x9;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ Modo X9 ${groupData.x9 ? 'ativado' : 'desativado'}! Agora eu aviso sobre promoções e rebaixamentos.`);
@@ -6615,45 +6396,41 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'limitmessage':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos 💔");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem usar este comando 🚫");
-
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos 💔");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem usar este comando 🚫");
                     if (!q) {
                         return reply(`📝 Configure o limite de mensagens! Exemplo: ${prefix}limitmessage 5 1m ban\n` + `Formato: ${prefix}limitmessage <quantidade> <tempo> <ação>\n` + `Tempo: s (segundos), m (minutos), h (horas)\n` + `Ação: ban (banimento direto) ou adv (advertências)`);
                     }
-
                     const args = q.trim().split(' ');
                     if (args.length !== 3) {
                         return reply("� ❌ Formato inválido! Use: " + `${prefix}limitmessage <quantidade> <tempo> <ação>`);
                     }
-
                     const limit = parseInt(args[0]);
                     const timeInput = args[1].toLowerCase();
                     const action = args[2].toLowerCase();
-
                     if (!['ban', 'adv'].includes(action)) {
                         return reply("❌ Ação inválida! Use 'ban' para banimento direto ou 'adv' para advertências.");
                     }
-
                     let intervalSeconds;
                     const timeMatch = timeInput.match(/^(\d+)(s|m|h)$/);
                     if (!timeMatch) {
                         return reply("❌ Tempo inválido! Use formatos como 20s, 1m ou 2h.");
                     }
-
                     const timeValue = parseInt(timeMatch[1]);
                     const timeUnit = timeMatch[2];
-                    if (timeUnit === 's') intervalSeconds = timeValue;
-                    else if (timeUnit === 'm') intervalSeconds = timeValue * 60;
-                    else if (timeUnit === 'h') intervalSeconds = timeValue * 3600;
-
+                    if (timeUnit === 's')
+                        intervalSeconds = timeValue;
+                    else if (timeUnit === 'm')
+                        intervalSeconds = timeValue * 60;
+                    else if (timeUnit === 'h')
+                        intervalSeconds = timeValue * 3600;
                     if (isNaN(limit) || limit <= 0) {
                         return reply("❌ Quantidade de mensagens deve ser um número positivo!");
                     }
-
                     groupData.messageLimit = {
                         enabled: true,
                         limit: limit,
@@ -6670,16 +6447,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'dellimitmessage':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos 💔");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem usar este comando 🚫");
-
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos 💔");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem usar este comando 🚫");
                     if (!groupData.messageLimit?.enabled) {
                         return reply("📴 O limite de mensagens não está ativo neste grupo.");
                     }
-
                     delete groupData.messageLimit;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply("🗑️ Sistema de limite de mensagens desativado com sucesso!");
@@ -6688,22 +6464,21 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 }
                 break;
-
             case 'setprefix':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem alterar o prefixo.");
-                    if (!q) return reply(`Por favor, forneça o novo prefixo. Exemplo: ${groupPrefix}setprefix !`);
-
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem alterar o prefixo.");
+                    if (!q)
+                        return reply(`Por favor, forneça o novo prefixo. Exemplo: ${groupPrefix}setprefix !`);
                     const newPrefix = q.trim();
                     if (newPrefix.length > 1) {
                         return reply("🤔 O prefixo deve ter no máximo 1 digito.");
                     };
-
                     if (newPrefix.includes(' ')) {
                         return reply("🤔 O prefixo não pode conter espaços.");
                     };
-
                     groupData.customPrefix = newPrefix;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ Prefixo do bot alterado para "${newPrefix}" neste grupo!`);
@@ -6712,12 +6487,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao alterar o prefixo 💔");
                 }
                 break;
-
             case 'antiflood':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!q) return reply(`Digite o intervalo em segundos ou "off" para desativar.\nExemplo: ` + prefix + `antiflood 5`);
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!q)
+                        return reply(`Digite o intervalo em segundos ou "off" para desativar.\nExemplo: ` + prefix + `antiflood 5`);
                     antifloodData[from] = antifloodData[from] || {
                         users: {}
                     };
@@ -6726,7 +6503,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         delete antifloodData[from].interval;
                     } else {
                         const interval = parseInt(q);
-                        if (isNaN(interval) || interval < 1) return reply('Intervalo inválido! Use um número maior que 0 ou "off".');
+                        if (isNaN(interval) || interval < 1)
+                            return reply('Intervalo inválido! Use um número maior que 0 ou "off".');
                         antifloodData[from].enabled = true;
                         antifloodData[from].interval = interval;
                     }
@@ -6737,12 +6515,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antiloc':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm para isso 💔");
                     groupData.antiloc = !groupData.antiloc;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`✅ Antiloc ${groupData.antiloc ? 'ativado' : 'desativado'}! Localizações enviadas resultarão em banimento.`);
@@ -6751,14 +6531,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'modobrincadeira':
             case 'modobrincadeiras':
             case 'modobn':
             case 'gamemode':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     if (!groupData.modobrincadeira || groupData.modobrincadeira === undefined) {
                         groupData.modobrincadeira = true;
@@ -6776,14 +6557,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'bemvindo':
             case 'bv':
             case 'boasvindas':
             case 'welcome':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     if (!groupData.bemvindo || groupData.bemvindo === undefined) {
                         groupData.bemvindo = true;
@@ -6801,28 +6583,28 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'banghost':
                 try {
-                    if (!isGroup) return reply("❌ Só pode ser usado em grupos.");
-                    if (!isGroupAdmin) return reply("❌ Apenas administradores.");
-                    if (!isBotAdmin) return reply("❌ Preciso ser administrador.");
-
+                    if (!isGroup)
+                        return reply("❌ Só pode ser usado em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("❌ Apenas administradores.");
+                    if (!isBotAdmin)
+                        return reply("❌ Preciso ser administrador.");
                     const limite = parseInt(q);
-                    if (isNaN(limite) || limite < 0) return reply("⚠️ Use um número válido. Ex: " + prefix + "banghost 1");
-
+                    if (isNaN(limite) || limite < 0)
+                        return reply("⚠️ Use um número válido. Ex: " + prefix + "banghost 1");
                     const arquivoGrupo = `${GRUPOS_DIR}/${from}.json`;
-                    if (!fs.existsSync(arquivoGrupo)) return reply("📂 Sem dados de mensagens.");
-
+                    if (!fs.existsSync(arquivoGrupo))
+                        return reply("📂 Sem dados de mensagens.");
                     const dados = JSON.parse(fs.readFileSync(arquivoGrupo));
                     const contador = dados.contador;
-                    if (!Array.isArray(contador)) return reply("⚠️ Contador não disponível.");
-
+                    if (!Array.isArray(contador))
+                        return reply("⚠️ Contador não disponível.");
                     const admins = groupAdmins || [];
                     const fantasmas = contador.filter(u => (u.msg || 0) <= limite && !admins.includes(u.id) && u.id !== botNumber && u.id !== sender && u.id !== nmrdn).map(u => u.id);
-
-                    if (!fantasmas.length) return reply(`🎉 Nenhum fantasma com até ${limite} msg.`);
-
+                    if (!fantasmas.length)
+                        return reply(`🎉 Nenhum fantasma com até ${limite} msg.`);
                     const antes = (await nazu.groupMetadata(from)).participants.map(p => p.jid || p.id);
                     try {
                         await nazu.groupParticipantsUpdate(from, fantasmas, 'remove');
@@ -6831,33 +6613,35 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     }
                     const depois = (await nazu.groupMetadata(from)).participants.map(p => p.jid || p.id);
                     const removidos = fantasmas.filter(jid => antes.includes(jid) && !depois.includes(jid)).length;
-
                     reply(removidos === 0 ? `⚠️ Nenhum fantasma pôde ser removido com até ${limite} msg.` : `✅ ${removidos} fantasma(s) removido(s).`);
-
                 } catch (e) {
                     console.error("Erro no banghost:", e);
                     reply("💥 Erro ao tentar remover fantasmas.");
                 }
                 break;
-
             case 'fotobv':
             case 'welcomeimg': {
-                if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                if (!isGroupAdmin) return reply("você precisa ser adm 💔");
-                if ((!isQuotedImage && !isImage) && (!q || q.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') !== 'banner')) return reply(`❌ Marque uma imagem ou envie uma imagem com o comando ou digite \`${prefix}${command} banner\``);
-
+                if (!isGroup)
+                    return reply("isso so pode ser usado em grupo 💔");
+                if (!isGroupAdmin)
+                    return reply("você precisa ser adm 💔");
+                if ((!isQuotedImage && !isImage) && (!q || q.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') !== 'banner'))
+                    return reply(`❌ Marque uma imagem ou envie uma imagem com o comando ou digite \`${prefix}${command} banner\``);
                 try {
                     if (isQuotedImage || isImage) {
                         const imgMessage = isQuotedImage ? info.message.extendedTextMessage.contextInfo.quotedMessage.imageMessage : info.message.imageMessage;
                         const media = await getFileBuffer(imgMessage, 'image');
                         const uploadResult = await upload(media);
-                        if (!uploadResult) throw new Error('Falha ao fazer upload da imagem');
-                        if (!groupData.welcome) groupData.welcome = {};
+                        if (!uploadResult)
+                            throw new Error('Falha ao fazer upload da imagem');
+                        if (!groupData.welcome)
+                            groupData.welcome = {};
                         groupData.welcome.image = uploadResult;
                         fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
                         await reply('✅ Foto de boas-vindas configurada com sucesso!');
                     } else if (q.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'banner') {
-                        if (!groupData.welcome) groupData.welcome = {};
+                        if (!groupData.welcome)
+                            groupData.welcome = {};
                         groupData.welcome.image = 'banner';
                         fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
                         await reply('✅ Foto de boas-vindas configurada com sucesso!');
@@ -6870,22 +6654,23 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 }
             }
             break;
-
             case 'fotosaida':
             case 'fotosaiu':
             case 'imgsaiu':
             case 'exitimg': {
-                if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                if (!isGroupAdmin) return reply("você precisa ser adm 💔");
-                if (!isQuotedImage && !isImage) return reply('❌ Marque uma imagem ou envie uma imagem com o comando!');
+                if (!isGroup)
+                    return reply("isso so pode ser usado em grupo 💔");
+                if (!isGroupAdmin)
+                    return reply("você precisa ser adm 💔");
+                if (!isQuotedImage && !isImage)
+                    return reply('❌ Marque uma imagem ou envie uma imagem com o comando!');
                 try {
-                    const media = await getFileBuffer(
-                        isQuotedImage ? info.message.extendedTextMessage.contextInfo.quotedMessage.imageMessage : info.message.imageMessage,
-                        'image'
-                    );
+                    const media = await getFileBuffer(isQuotedImage ? info.message.extendedTextMessage.contextInfo.quotedMessage.imageMessage : info.message.imageMessage, 'image');
                     const uploadResult = await upload(media);
-                    if (!uploadResult) throw new Error('Falha ao fazer upload da imagem');
-                    if (!groupData.exit) groupData.exit = {};
+                    if (!uploadResult)
+                        throw new Error('Falha ao fazer upload da imagem');
+                    if (!groupData.exit)
+                        groupData.exit = {};
                     groupData.exit.image = uploadResult;
                     fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
                     await reply('✅ Foto de saída configurada com sucesso!');
@@ -6895,13 +6680,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 };
             };
             break;
-
             case 'limpar':
             case 'clean':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm para isso 💔");
                     const linhasEmBranco = Array(500).fill('‎ ').join('\n');
                     const mensagem = `${linhasEmBranco}\n🧹 Limpeza concluída!`;
                     await reply(mensagem);
@@ -6910,19 +6697,21 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao limpar o chat 💔");
                 }
                 break;
-
             case 'removerfotobv':
             case 'rmfotobv':
             case 'delfotobv':
             case 'rmwelcomeimg':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         welcome: {}
                     };
-                    if (!groupData.welcome?.image) return reply("❌ Não há imagem de boas-vindas configurada.");
+                    if (!groupData.welcome?.image)
+                        return reply("❌ Não há imagem de boas-vindas configurada.");
                     delete groupData.welcome.image;
                     fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
                     reply("✅ A imagem de boas-vindas foi removida com sucesso!");
@@ -6931,19 +6720,21 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'removerfotosaiu':
             case 'rmfotosaiu':
             case 'delfotosaiu':
             case 'rmexitimg':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         exit: {}
                     };
-                    if (!groupData.exit?.image) return reply("❌ Não há imagem de saída configurada.");
+                    if (!groupData.exit?.image)
+                        return reply("❌ Não há imagem de saída configurada.");
                     delete groupData.exit.image;
                     fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
                     reply("✅ A imagem de saída foi removida com sucesso!");
@@ -6952,16 +6743,19 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'configsaida':
             case 'textsaiu':
             case 'legendasaiu':
             case 'exitmsg': {
-                if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                if (!isGroupAdmin) return reply("você precisa ser adm 💔");
-                if (!q) return reply(`📝 Para configurar a mensagem de saída, use:\n${prefix}${command} <mensagem>\n\nVocê pode usar:\n#numerodele# - Menciona quem saiu\n#nomedogp# - Nome do grupo\n#membros# - Total de membros\n#desc# - Descrição do grupo`);
+                if (!isGroup)
+                    return reply("isso so pode ser usado em grupo 💔");
+                if (!isGroupAdmin)
+                    return reply("você precisa ser adm 💔");
+                if (!q)
+                    return reply(`📝 Para configurar a mensagem de saída, use:\n${prefix}${command} <mensagem>\n\nVocê pode usar:\n#numerodele# - Menciona quem saiu\n#nomedogp# - Nome do grupo\n#membros# - Total de membros\n#desc# - Descrição do grupo`);
                 try {
-                    if (!groupData.exit) groupData.exit = {};
+                    if (!groupData.exit)
+                        groupData.exit = {};
                     groupData.exit.enabled = true;
                     groupData.exit.text = q;
                     fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
@@ -6972,13 +6766,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 }
             }
             break;
-
             case 'saida':
             case 'exit': {
-                if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                if (!isGroupAdmin) return reply("você precisa ser adm 💔");
+                if (!isGroup)
+                    return reply("isso so pode ser usado em grupo 💔");
+                if (!isGroupAdmin)
+                    return reply("você precisa ser adm 💔");
                 try {
-                    if (!groupData.exit) groupData.exit = {};
+                    if (!groupData.exit)
+                        groupData.exit = {};
                     groupData.exit.enabled = !groupData.exit.enabled;
                     fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
                     await reply(groupData.exit.enabled ? '✅ Mensagens de saída ativadas!' : '❌ Mensagens de saída desativadas!');
@@ -6988,12 +6784,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 };
             };
             break;
-
             case 'parcerias':
             case 'partnerships':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem usar este comando.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem usar este comando.");
                     if (!parceriasData.active) {
                         return reply("O sistema de parcerias não está ativo neste grupo.");
                     }
@@ -7012,13 +6809,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao listar as parcerias 💔");
                 }
                 break;
-
             case 'addparceria':
             case 'addpartnership':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem usar este comando.");
-                    if (!q) return reply(`Uso: ${prefix}addparceria @usuário limite ou marcando uma mensagem com ${prefix}addparceria limite`);
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem usar este comando.");
+                    if (!q)
+                        return reply(`Uso: ${prefix}addparceria @usuário limite ou marcando uma mensagem com ${prefix}addparceria limite`);
                     let userId, limit;
                     if (menc_os2) {
                         userId = menc_os2;
@@ -7050,12 +6849,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao adicionar a parceria 💔");
                 }
                 break;
-
             case 'delparceria':
             case 'delpartnership':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem usar este comando.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem usar este comando.");
                     let userId;
                     if (menc_os2) {
                         userId = menc_os2;
@@ -7079,11 +6879,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao remover a parceria 💔");
                 }
                 break;
-
             case 'modoparceria':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem usar este comando.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem usar este comando.");
                     parceriasData.active = !parceriasData.active;
                     saveParceriasData(from, parceriasData);
                     await reply(`✅ Sistema de parcerias ${parceriasData.active ? 'ativado' : 'desativado'} com sucesso!`);
@@ -7092,11 +6893,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao alterar o modo de parcerias 💔");
                 }
                 break;
-
             case 'antifig':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem gerenciar o antifig.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem gerenciar o antifig.");
                     groupData.antifig = groupData.antifig || {};
                     groupData.antifig.enabled = !groupData.antifig.enabled;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
@@ -7107,20 +6909,23 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro ao gerenciar o antifig 💔");
                 }
                 break;
-
             case 'addblacklist':
             case 'blacklist':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
-                    if (!menc_os2) return reply("Marque um usuário 🙄");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
+                    if (!menc_os2)
+                        return reply("Marque um usuário 🙄");
                     const reason = q.includes(' ') ? q.split(' ').slice(1).join(' ') : "Motivo não informado";
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         blacklist: {}
                     };
                     groupData.blacklist = groupData.blacklist || {};
-                    if (groupData.blacklist[menc_os2]) return reply("❌ Este usuário já está na blacklist.");
+                    if (groupData.blacklist[menc_os2])
+                        return reply("❌ Este usuário já está na blacklist.");
                     groupData.blacklist[menc_os2] = {
                         reason,
                         timestamp: Date.now()
@@ -7134,19 +6939,22 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'delblacklist':
             case 'unblacklist':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
-                    if (!menc_os2) return reply("Marque um usuário 🙄");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
+                    if (!menc_os2)
+                        return reply("Marque um usuário 🙄");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         blacklist: {}
                     };
                     groupData.blacklist = groupData.blacklist || {};
-                    if (!groupData.blacklist[menc_os2]) return reply("❌ Este usuário não está na blacklist.");
+                    if (!groupData.blacklist[menc_os2])
+                        return reply("❌ Este usuário não está na blacklist.");
                     delete groupData.blacklist[menc_os2];
                     fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
                     reply(`✅ @${menc_os2.split('@')[0]} foi removido da blacklist.`, {
@@ -7157,17 +6965,19 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'listblacklist':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         blacklist: {}
                     };
                     groupData.blacklist = groupData.blacklist || {};
-                    if (Object.keys(groupData.blacklist).length === 0) return reply("📋 A blacklist está vazia.");
+                    if (Object.keys(groupData.blacklist).length === 0)
+                        return reply("📋 A blacklist está vazia.");
                     let text = "📋 *Lista de Usuários na Blacklist*\n\n";
                     for (const [user, data] of Object.entries(groupData.blacklist)) {
                         text += `👤 @${user.split('@')[0]}\n📝 Motivo: ${data.reason}\n🕒 Adicionado em: ${new Date(data.timestamp).toLocaleString()}\n\n`;
@@ -7180,15 +6990,18 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'adv':
             case 'advertir':
             case 'warning':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
-                    if (!menc_os2) return reply("Marque um usuário 🙄");
-                    if (menc_os2 === botNumber) return reply("❌ Não posso advertir a mim mesma!");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
+                    if (!menc_os2)
+                        return reply("Marque um usuário 🙄");
+                    if (menc_os2 === botNumber)
+                        return reply("❌ Não posso advertir a mim mesma!");
                     const reason = q.includes(' ') ? q.split(' ').slice(1).join(' ') : "Motivo não informado";
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
@@ -7220,22 +7033,26 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'removeradv':
             case 'rmadv':
             case 'unwarning':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
-                    if (!menc_os2) return reply("Marque um usuário 🙄");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
+                    if (!menc_os2)
+                        return reply("Marque um usuário 🙄");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         warnings: {}
                     };
                     groupData.warnings = groupData.warnings || {};
-                    if (!groupData.warnings[menc_os2] || groupData.warnings[menc_os2].length === 0) return reply("❌ Este usuário não tem advertências.");
+                    if (!groupData.warnings[menc_os2] || groupData.warnings[menc_os2].length === 0)
+                        return reply("❌ Este usuário não tem advertências.");
                     groupData.warnings[menc_os2].pop();
-                    if (groupData.warnings[menc_os2].length === 0) delete groupData.warnings[menc_os2];
+                    if (groupData.warnings[menc_os2].length === 0)
+                        delete groupData.warnings[menc_os2];
                     fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
                     reply(`✅ Uma advertência foi removida de @${menc_os2.split('@')[0]}. Advertências restantes: ${groupData.warnings[menc_os2]?.length || 0}/3`, {
                         mentions: [menc_os2]
@@ -7245,18 +7062,20 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'listadv':
             case 'warninglist':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         warnings: {}
                     };
                     groupData.warnings = groupData.warnings || {};
-                    if (Object.keys(groupData.warnings).length === 0) return reply("📋 Não há advertências ativas no grupo.");
+                    if (Object.keys(groupData.warnings).length === 0)
+                        return reply("📋 Não há advertências ativas no grupo.");
                     let text = "📋 *Lista de Advertências*\n\n";
                     for (const [user, warnings] of Object.entries(groupData.warnings)) {
                         try {
@@ -7274,9 +7093,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply(text, {
                         mentions: [
                             ...Object.keys(groupData.warnings),
-                            ...Object.values(groupData.warnings).flatMap(w =>
-                                Array.isArray(w) ? w.map(warn => warn.issuer) : []
-                            )
+                            ...Object.values(groupData.warnings).flatMap(w => Array.isArray(w) ? w.map(warn => warn.issuer) : [])
                         ]
                     });
                 } catch (e) {
@@ -7284,13 +7101,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'soadm':
             case 'onlyadm':
             case 'soadmin':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     if (!groupData.soadm || groupData.soadm === undefined) {
                         groupData.soadm = true;
@@ -7308,15 +7126,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 };
                 break;
-
             case 'modolite':
             case 'litemode':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
-
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
-
                     if (!groupData.modolite) {
                         groupData.modolite = true;
                         if (groupData.hasOwnProperty('modoliteOff')) {
@@ -7330,9 +7147,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                             delete groupData.modoliteOff;
                         }
                     }
-
                     fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
-
                     if (groupData.modolite) {
                         await reply('👶 *Modo Lite ativado!* O conteúdo inapropriado para crianças será filtrado neste grupo.');
                     } else {
@@ -7343,23 +7158,18 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'modoliteglobal':
                 try {
-                    if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
-
+                    if (!isOwner)
+                        return reply("Este comando é apenas para o meu dono 💔");
                     const modoLiteFile = __dirname + '/../database/modolite.json';
-
                     modoLiteGlobal.status = !modoLiteGlobal.status;
-
                     if (!modoLiteGlobal.status) {
                         modoLiteGlobal.forceOff = true;
                     } else if (modoLiteGlobal.hasOwnProperty('forceOff')) {
                         delete modoLiteGlobal.forceOff;
                     }
-
                     fs.writeFileSync(modoLiteFile, JSON.stringify(modoLiteGlobal, null, 2));
-
                     if (modoLiteGlobal.status) {
                         await reply('👶 *Modo Lite ativado globalmente!* O conteúdo inapropriado para crianças será filtrado em todos os grupos (a menos que seja explicitamente desativado em algum grupo).');
                     } else {
@@ -7370,12 +7180,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antilinkgp':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         antilinkgp: false
@@ -7389,12 +7201,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'antiporn':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         antiporn: false
@@ -7408,11 +7222,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'autosticker':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {};
                     groupData.autoSticker = !groupData.autoSticker;
@@ -7423,12 +7238,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'autorepo':
             case 'autoresposta':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {};
                     groupData.autorepo = !groupData.autorepo;
@@ -7439,7 +7255,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'assistente':
             case 'assistent':
                 try {
@@ -7449,8 +7264,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         });
                         return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
                     }
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("Você precisa ser administrador 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {};
                     groupData.assistente = !groupData.assistente;
@@ -7461,12 +7278,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'antigore':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         antigore: false
@@ -7480,15 +7299,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'legendabv':
             case 'textbv':
             case 'welcomemsg':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
-                    if (!q) return reply(`📝 *Configuração da Mensagem de Boas-Vindas*\n\nPara definir uma mensagem personalizada, digite o comando seguido do texto desejado. Você pode usar as seguintes variáveis:\n\n- *#numerodele#* → Marca o novo membro.\n- *#nomedogp#* → Nome do grupo.\n- *#desc#* → Descrição do grupo.\n- *#membros#* → Número total de membros no grupo.\n\n📌 *Exemplo:*\n${prefixo}legendabv Bem-vindo(a) #numerodele# ao grupo *#nomedogp#*! Agora somos #membros# membros. Leia a descrição: #desc#`);
+                    if (!q)
+                        return reply(`📝 *Configuração da Mensagem de Boas-Vindas*\n\nPara definir uma mensagem personalizada, digite o comando seguido do texto desejado. Você pode usar as seguintes variáveis:\n\n- *#numerodele#* → Marca o novo membro.\n- *#nomedogp#* → Nome do grupo.\n- *#desc#* → Descrição do grupo.\n- *#membros#* → Número total de membros no grupo.\n\n📌 *Exemplo:*\n${prefixo}legendabv Bem-vindo(a) #numerodele# ao grupo *#nomedogp#*! Agora somos #membros# membros. Leia a descrição: #desc#`);
                     groupData.textbv = q;
                     fs.writeFileSync(groupFilePath, JSON.stringify(groupData));
                     reply(`✅ *Mensagem de boas-vindas configurada com sucesso!*\n\n📌 Nova mensagem:\n"${groupData.textbv}"`);
@@ -7497,14 +7318,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'mute':
             case 'mutar':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
-                    if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
-                    if (!menc_os2) return reply("Marque alguém 🙄");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
+                    if (!isBotAdmin)
+                        return reply("Eu preciso ser adm 💔");
+                    if (!menc_os2)
+                        return reply("Marque alguém 🙄");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         mutedUsers: {}
@@ -7523,14 +7347,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'desmute':
             case 'desmutar':
             case 'unmute':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
-                    if (!menc_os2) return reply("Marque alguém 🙄");
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
+                    if (!menc_os2)
+                        return reply("Marque alguém 🙄");
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         mutedUsers: {}
@@ -7553,12 +7379,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'blockcmd':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
-                    if (!q) return reply(`❌ Digite o comando que deseja bloquear. Exemplo: ${prefix}blockcmd sticker`);
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
+                    if (!q)
+                        return reply(`❌ Digite o comando que deseja bloquear. Exemplo: ${prefix}blockcmd sticker`);
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         blockedCommands: {}
@@ -7572,12 +7400,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'unblockcmd':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isGroupAdmin) return reply("você precisa ser adm 💔");
-                    if (!q) return reply(`❌ Digite o comando que deseja desbloquear. Exemplo: ${prefix}unblockcmd sticker`);
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isGroupAdmin)
+                        return reply("você precisa ser adm 💔");
+                    if (!q)
+                        return reply(`❌ Digite o comando que deseja desbloquear. Exemplo: ${prefix}unblockcmd sticker`);
                     const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
                     let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
                         blockedCommands: {}
@@ -7595,11 +7425,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'ttt':
             case 'jogodavelha': {
-                if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                if (!menc_os2) return reply("Marque alguém 🙄");
+                if (!isGroup)
+                    return reply("isso so pode ser usado em grupo 💔");
+                if (!menc_os2)
+                    return reply("Marque alguém 🙄");
                 const result = await tictactoe.invitePlayer(from, sender, menc_os2);
                 await nazu.sendMessage(from, {
                     text: result.message,
@@ -7607,12 +7438,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 });
                 break;
             };
-
             case 'chance':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
-                    if (!q) return reply(`Digite algo para eu calcular a chance! Exemplo: ${prefix}chance chover hoje`);
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não está ativo nesse grupo.');
+                    if (!q)
+                        return reply(`Digite algo para eu calcular a chance! Exemplo: ${prefix}chance chover hoje`);
                     const chance = Math.floor(Math.random() * 101);
                     await reply(`📊 A chance de "${q}" acontecer é: *${chance}%*!`);
                 } catch (e) {
@@ -7620,12 +7453,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'quando':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
-                    if (!q) return reply('Digite algo para eu prever quando vai acontecer! Exemplo: ' + prefix + 'quando vou ficar rico');
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não está ativo nesse grupo.');
+                    if (!q)
+                        return reply('Digite algo para eu prever quando vai acontecer! Exemplo: ' + prefix + 'quando vou ficar rico');
                     const tempos = ['hoje', 'amanhã', 'na próxima semana', 'no próximo mês', 'no próximo ano', 'nunca'];
                     const tempo = tempos[Math.floor(Math.random() * tempos.length)];
                     await reply(`🕒 "${q}" vai acontecer: *${tempo}*!`);
@@ -7634,12 +7469,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'casal':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
-                    if (AllgroupMembers.length < 2) return reply('❌ Preciso de pelo menos 2 membros no grupo!');
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não está ativo nesse grupo.');
+                    if (AllgroupMembers.length < 2)
+                        return reply('❌ Preciso de pelo menos 2 membros no grupo!');
                     let path = __dirname + '/../database/grupos/' + from + '.json';
                     let data = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path)) : {
                         mark: {}
@@ -7660,13 +7497,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'shipo':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
-                    if (!menc_os2) return reply('Marque alguém para eu encontrar um par! Exemplo: ' + prefix + 'shipo @fulano');
-                    if (AllgroupMembers.length < 2) return reply('❌ Preciso de pelo menos 2 membros no grupo!');
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não está ativo nesse grupo.');
+                    if (!menc_os2)
+                        return reply('Marque alguém para eu encontrar um par! Exemplo: ' + prefix + 'shipo @fulano');
+                    if (AllgroupMembers.length < 2)
+                        return reply('❌ Preciso de pelo menos 2 membros no grupo!');
                     let path = __dirname + '/../database/grupos/' + from + '.json';
                     let data = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path)) : {
                         mark: {}
@@ -7686,12 +7526,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'sn':
                 try {
-                    if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
-                    if (!q) return reply('Faça uma pergunta! Exemplo: ' + prefix + 'sn Vou ganhar na loteria?');
+                    if (!isGroup)
+                        return reply("Isso só pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não está ativo nesse grupo.');
+                    if (!q)
+                        return reply('Faça uma pergunta! Exemplo: ' + prefix + 'sn Vou ganhar na loteria?');
                     const resposta = Math.random() > 0.5 ? 'Sim' : 'Não';
                     await reply(`🎯 ${resposta}!`);
                 } catch (e) {
@@ -7699,12 +7541,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'admins':
             case 'admin':
             case 'adm':
             case 'adms':
-                if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
+                if (!isGroup)
+                    return reply("isso so pode ser usado em grupo 💔");
                 try {
                     let membros = groupAdmins;
                     let msg = `📢 *Mencionando os admins do grupo:* ${q ? `\n💬 *Mensagem:* ${q}` : ''}\n\n`;
@@ -7717,16 +7559,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     reply("ocorreu um erro 💔");
                 }
                 break;
-
             case 'invite':
             case 'indicacao':
             case 'bonus':
                 try {
                     const linkConvite = `https://wa.me/553399285117?text=Olá! Tenho interesse em alugar a bot ou ter a minha própria. Você poderia me passar mais informações? Fui indicado(a) por: ${sender.split('@')[0]}`;
                     const anu = await axios.get(`https://tinyurl.com/api-create.php?url=${linkConvite}`);
-
-                    await reply(
-                        `💸 *Quer ganhar dinheiro apenas compartilhando um link?*\n\n` +
+                    await reply(`💸 *Quer ganhar dinheiro apenas compartilhando um link?*\n\n` +
                         `Com o *Sistema de Indicações da Nazuna*, você pode transformar seus contatos em renda extra!\n\n` +
                         `🔹 Ganhe indicando usuários que desejam alugar uma bot, ter a própria ou adquirir qualquer outro serviço.\n\n` +
                         `💰 *Quais são seus ganhos?*\n` +
@@ -7735,21 +7574,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         `📨 *Seu link de indicação personalizado está aqui:*\n${anu.data}\n\n` +
                         `*Importante:*\n` +
                         `> Este sistema pertence ao criador da bot (*Hiudy*). O dono da bot que você está utilizando *não tem responsabilidade* sobre o sistema de indicações, exceto se estiver diretamente envolvido com o criador.\n` +
-                        `> As indicações são válidas apenas se realizadas através do *seu link exclusivo* de convite.`
-                    );
+                        `> As indicações são válidas apenas se realizadas através do *seu link exclusivo* de convite.`);
                 } catch (e) {
                     console.error(e);
                     await reply("⚠️ Ocorreu um erro ao gerar seu link. Tente novamente mais tarde.");
                 }
                 break;
-
             case 'perfil':
                 try {
                     const target = sender;
-
                     const targetId = target.split('@')[0];
                     const targetName = `@${targetId}`;
-
                     const levels = {
                         puta: Math.floor(Math.random() * 101),
                         gado: Math.floor(Math.random() * 101),
@@ -7760,19 +7595,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         gostosa: Math.floor(Math.random() * 101),
                         feio: Math.floor(Math.random() * 101)
                     };
-
                     const pacoteValue = `R$ ${(Math.random() * 10000 + 1).toFixed(2).replace('.', ',')}`;
-
                     const humors = ['😎 Tranquilão', '🔥 No fogo', '😴 Sonolento', '🤓 Nerd mode', '😜 Loucura total', '🧘 Zen'];
                     const randomHumor = humors[Math.floor(Math.random() * humors.length)];
-
                     let profilePic = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1747053564257_bzswae.bin';
                     try {
                         profilePic = await nazu.profilePictureUrl(target, 'image');
                     } catch (error) {
                         console.warn(`Falha ao obter foto do perfil de ${targetName}:`, error.message);
                     }
-
                     let bio = 'Sem bio disponível';
                     let bioSetAt = '';
                     try {
@@ -7788,13 +7619,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     } catch (error) {
                         console.warn(`Falha ao obter status/bio de ${targetName}:`, error.message);
                     };
-
                     const perfilText = `📋 Perfil de ${targetName} 📋\n\n👤 *Nome*: ${pushname || 'Desconhecido'}\n📱 *Número*: ${targetId}\n📜 *Bio*: ${bio}${bioSetAt ? `\n🕒 *Bio atualizada em*: ${bioSetAt}` : ''}\n💰 *Valor do Pacote*: ${pacoteValue} 🫦\n😸 *Humor*: ${randomHumor}\n\n🎭 *Níveis*:\n  • Puta: ${levels.puta}%\n  • Gado: ${levels.gado}%\n  • Corno: ${levels.corno}%\n  • Sortudo: ${levels.sortudo}%\n  • Carisma: ${levels.carisma}%\n  • Rico: ${levels.rico}%\n  • Gostosa: ${levels.gostosa}%\n  • Feio: ${levels.feio}%`.trim();
-
                     const userStatus = isOwner ? 'Meu dono' : isPremium ? 'Usuario premium' : isGroupAdmin ? 'Admin do grupo' : 'Membro comum';
-
                     const PosAtivo = groupData.contador.sort((a, b) => ((a.figu == undefined ? a.figu = 0 : a.figu + a.msg + a.cmd) < (b.figu == undefined ? b.figu = 0 : b.figu + b.cmd + b.msg)) ? 0 : -1).findIndex(item => item.id === sender) + 1;
-
                     await nazu.sendMessage(from, {
                         image: {
                             url: profilePic
@@ -7809,22 +7636,21 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply('Ocorreu um erro ao gerar o perfil 💔');
                 }
                 break;
-
             case 'ppt':
                 try {
-                    if (!q) return reply('Escolha: pedra, papel ou tesoura! Exemplo: ' + prefix + 'ppt pedra');
+                    if (!q)
+                        return reply('Escolha: pedra, papel ou tesoura! Exemplo: ' + prefix + 'ppt pedra');
                     const escolhas = ['pedra', 'papel', 'tesoura'];
-                    if (!escolhas.includes(q.toLowerCase())) return reply('Escolha inválida! Use: pedra, papel ou tesoura.');
+                    if (!escolhas.includes(q.toLowerCase()))
+                        return reply('Escolha inválida! Use: pedra, papel ou tesoura.');
                     const botEscolha = escolhas[Math.floor(Math.random() * 3)];
                     const usuarioEscolha = q.toLowerCase();
                     let resultado;
                     if (usuarioEscolha === botEscolha) {
                         resultado = 'Empate! 🤝';
-                    } else if (
-                        (usuarioEscolha === 'pedra' && botEscolha === 'tesoura') ||
+                    } else if ((usuarioEscolha === 'pedra' && botEscolha === 'tesoura') ||
                         (usuarioEscolha === 'papel' && botEscolha === 'pedra') ||
-                        (usuarioEscolha === 'tesoura' && botEscolha === 'papel')
-                    ) {
+                        (usuarioEscolha === 'tesoura' && botEscolha === 'papel')) {
                         resultado = 'Você ganhou! 🎉';
                     } else {
                         resultado = 'Eu ganhei! 😎';
@@ -7835,11 +7661,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("Ocorreu um erro 💔");
                 }
                 break;
-
             case 'eununca':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não esta ativo nesse grupo');
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não esta ativo nesse grupo');
                     await nazu.sendMessage(from, {
                         poll: {
                             name: toolsJson().iNever[Math.floor(Math.random() * toolsJson().iNever.length)],
@@ -7854,17 +7681,18 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         options: {
                             userJid: nazu?.user?.id
                         }
-                    })
+                    });
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'vab':
                 try {
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não esta ativo nesse grupo');
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não esta ativo nesse grupo');
                     const vabs = vabJson()[Math.floor(Math.random() * vabJson().length)];
                     await nazu.sendMessage(from, {
                         poll: {
@@ -7880,33 +7708,37 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         options: {
                             userJid: nazu?.user?.id
                         }
-                    })
+                    });
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
-                break
-
+                break;
             case 'surubao':
             case 'suruba':
                 try {
-                    if (isModoLite) return nazu.react('❌', {
-                        key: info.key
-                    });
-                    if (!isGroup) return reply(`Apenas em grupos`);
-                    if (!isModoBn) return reply('O modo brincadeira nao esta ativo no grupo')
-                    if (!q) return reply(`Eita, coloque o número de pessoas após o comando.`)
-                    if (Number(q) > 15) return reply("Coloque um número menor, ou seja, abaixo de *15*.")
+                    if (isModoLite)
+                        return nazu.react('❌', {
+                            key: info.key
+                        });
+                    if (!isGroup)
+                        return reply(`Apenas em grupos`);
+                    if (!isModoBn)
+                        return reply('O modo brincadeira nao esta ativo no grupo');
+                    if (!q)
+                        return reply(`Eita, coloque o número de pessoas após o comando.`);
+                    if (Number(q) > 15)
+                        return reply("Coloque um número menor, ou seja, abaixo de *15*.");
                     emojiskk = ["🥵", "😈", "🫣", "😏"];
                     emojis2 = emojiskk[Math.floor(Math.random() * emojiskk.length)];
-                    frasekk = [`tá querendo relações sexuais a ${q}, topa?`, `quer que *${q}* pessoas venham de *chicote, algema e corda de alpinista*.`, `quer que ${q} pessoas der tapa na cara, lhe chame de cachorra e fud3r bem gostosinho...`]
+                    frasekk = [`tá querendo relações sexuais a ${q}, topa?`, `quer que *${q}* pessoas venham de *chicote, algema e corda de alpinista*.`, `quer que ${q} pessoas der tapa na cara, lhe chame de cachorra e fud3r bem gostosinho...`];
                     let path = __dirname + '/../database/grupos/' + from + '.json';
                     let data = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path)) : {
                         mark: {}
                     };
                     let membros = AllgroupMembers.filter(m => !['0', 'marca'].includes(data.mark[m]));
-                    context = frasekk[Math.floor(Math.random() * frasekk.length)]
-                    ABC = `${emojis2} @${sender.split('@')[0]} ${context}\n\n`
+                    context = frasekk[Math.floor(Math.random() * frasekk.length)];
+                    ABC = `${emojis2} @${sender.split('@')[0]} ${context}\n\n`;
                     mencts = [sender];
                     for (var i = 0; i < q; i++) {
                         menb = membros[Math.floor(Math.random() * membros.length)];
@@ -7925,22 +7757,20 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'suicidio':
                 try {
-                    await reply(`*É uma pena que tenha tomado essa decisão ${pushname}, vamos sentir saudades... 😕*`)
+                    await reply(`*É uma pena que tenha tomado essa decisão ${pushname}, vamos sentir saudades... 😕*`);
                     setTimeout(async () => {
-                        await nazu.groupParticipantsUpdate(from, [sender], "remove")
-                    }, 2000)
+                        await nazu.groupParticipantsUpdate(from, [sender], "remove");
+                    }, 2000);
                     setTimeout(async () => {
-                        await reply(`*Ainda bem que morreu, não aguentava mais essa praga kkkkkk*`)
-                    }, 3000)
+                        await reply(`*Ainda bem que morreu, não aguentava mais essa praga kkkkkk*`);
+                    }, 3000);
                 } catch (e) {
                     console.error(e);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'gay':
             case 'burro':
             case 'inteligente':
@@ -8022,11 +7852,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             case 'vencedor':
             case 'senhor':
                 try {
-                    if (isModoLite && ['pirocudo', 'pirokudo', 'gostoso', 'nazista', 'machista', 'homofobico', 'racista'].includes(command)) return nazu.react('❌', {
-                        key: info.key
-                    });
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não esta ativo nesse grupo');
+                    if (isModoLite && ['pirocudo', 'pirokudo', 'gostoso', 'nazista', 'machista', 'homofobico', 'racista'].includes(command))
+                        return nazu.react('❌', {
+                            key: info.key
+                        });
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não esta ativo nesse grupo');
                     let gamesData = fs.existsSync(__dirname + '/funcs/json/games.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/games.json')) : {
                         games: {}
                     };
@@ -8035,7 +7868,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     const level = Math.floor(Math.random() * 101);
                     let responses = fs.existsSync(__dirname + '/funcs/json/gamestext.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/gamestext.json')) : {};
                     const responseText = responses[command].replaceAll('#nome#', targetName).replaceAll('#level#', level) || `📊 ${targetName} tem *${level}%* de ${command}! 🔥`;
-                    const media = gamesData.games[command]
+                    const media = gamesData.games[command];
                     if (media?.image) {
                         await nazu.sendMessage(from, {
                             image: media.image,
@@ -8060,7 +7893,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'lesbica':
             case 'burra':
             case 'inteligente':
@@ -8140,11 +7972,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             case 'vencedora':
             case 'senhora':
                 try {
-                    if (isModoLite && ['bucetuda', 'cachorra', 'vagabunda', 'racista', 'nazista', 'gostosa', 'machista', 'homofobica'].includes(command)) return nazu.react('❌', {
-                        key: info.key
-                    });
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não esta ativo nesse grupo');
+                    if (isModoLite && ['bucetuda', 'cachorra', 'vagabunda', 'racista', 'nazista', 'gostosa', 'machista', 'homofobica'].includes(command))
+                        return nazu.react('❌', {
+                            key: info.key
+                        });
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não esta ativo nesse grupo');
                     let gamesData = fs.existsSync(__dirname + '/funcs/json/games.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/games.json')) : {
                         games: {}
                     };
@@ -8153,7 +7988,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     const level = Math.floor(Math.random() * 101);
                     let responses = fs.existsSync(__dirname + '/funcs/json/gamestext2.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/gamestext2.json')) : {};
                     const responseText = responses[command].replaceAll('#nome#', targetName).replaceAll('#level#', level) || `📊 ${targetName} tem *${level}%* de ${command}! 🔥`;
-                    const media = gamesData.games[command]
+                    const media = gamesData.games[command];
                     if (media?.image) {
                         await nazu.sendMessage(from, {
                             image: media.image,
@@ -8178,7 +8013,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'rankgay':
             case 'rankburro':
             case 'rankinteligente':
@@ -8228,11 +8062,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             case 'rankpoderosos':
             case 'rankvencedores':
                 try {
-                    if (isModoLite && ['rankgostoso', 'rankgostosos', 'ranknazista'].includes(command)) return nazu.react('❌', {
-                        key: info.key
-                    });
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
+                    if (isModoLite && ['rankgostoso', 'rankgostosos', 'ranknazista'].includes(command))
+                        return nazu.react('❌', {
+                            key: info.key
+                        });
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não está ativo nesse grupo.');
                     let path = __dirname + '/../database/grupos/' + from + '.json';
                     let gamesData = fs.existsSync(__dirname + '/funcs/json/games.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/games.json')) : {
                         ranks: {}
@@ -8241,7 +8078,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         mark: {}
                     };
                     let membros = AllgroupMembers.filter(m => !['0', 'marca'].includes(data.mark[m]));
-                    if (membros.length < 5) return reply('❌ Membros insuficientes para formar um ranking.');
+                    if (membros.length < 5)
+                        return reply('❌ Membros insuficientes para formar um ranking.');
                     let top5 = membros.sort(() => Math.random() - 0.5).slice(0, 5);
                     let cleanedCommand = command.endsWith('s') ? command.slice(0, -1) : command;
                     let ranksData = fs.existsSync(__dirname + '/funcs/json/ranks.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/ranks.json')) : {
@@ -8276,7 +8114,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'ranklesbica':
             case 'rankburra':
             case 'rankinteligente':
@@ -8324,11 +8161,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             case 'rankpoderosas':
             case 'rankvencedoras':
                 try {
-                    if (isModoLite && ['rankgostosa', 'rankgostosas', 'ranknazista'].includes(command)) return nazu.react('❌', {
-                        key: info.key
-                    });
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
+                    if (isModoLite && ['rankgostosa', 'rankgostosas', 'ranknazista'].includes(command))
+                        return nazu.react('❌', {
+                            key: info.key
+                        });
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não está ativo nesse grupo.');
                     let path = __dirname + '/../database/grupos/' + from + '.json';
                     let gamesData = fs.existsSync(__dirname + '/funcs/json/games.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/games.json')) : {
                         ranks: {}
@@ -8337,7 +8177,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                         mark: {}
                     };
                     let membros = AllgroupMembers.filter(m => !['0', 'marca'].includes(data.mark[m]));
-                    if (membros.length < 5) return reply('❌ Membros insuficientes para formar um ranking.');
+                    if (membros.length < 5)
+                        return reply('❌ Membros insuficientes para formar um ranking.');
                     let top5 = membros.sort(() => Math.random() - 0.5).slice(0, 5);
                     let cleanedCommand = command.endsWith('s') ? command.slice(0, -1) : command;
                     let ranksData = fs.existsSync(__dirname + '/funcs/json/ranks.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/ranks.json')) : {
@@ -8372,7 +8213,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'chute':
             case 'chutar':
             case 'tapa':
@@ -8400,13 +8240,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             case 'sexo':
                 try {
                     const comandosImpróprios = ['sexo', 'surubao', 'goza', 'gozar', 'mamar', 'mamada', 'beijob', 'beijarb', 'tapar'];
-                    if (isModoLite && comandosImpróprios.includes(command)) return nazu.react('❌', {
-                        key: info.key
-                    });
-
-                    if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
-                    if (!isModoBn) return reply('❌ O modo brincadeira não está ativo nesse grupo.');
-                    if (!menc_os2) return reply('Marque um usuário.');
+                    if (isModoLite && comandosImpróprios.includes(command))
+                        return nazu.react('❌', {
+                            key: info.key
+                        });
+                    if (!isGroup)
+                        return reply("isso so pode ser usado em grupo 💔");
+                    if (!isModoBn)
+                        return reply('❌ O modo brincadeira não está ativo nesse grupo.');
+                    if (!menc_os2)
+                        return reply('Marque um usuário.');
                     let gamesData = fs.existsSync(__dirname + '/funcs/json/games.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/games.json')) : {
                         games2: {}
                     };
@@ -8439,10 +8282,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
                 };
                 break;
-
             case 'afk':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
                     const reason = q.trim();
                     groupData.afkUsers = groupData.afkUsers || {};
                     groupData.afkUsers[sender] = {
@@ -8451,7 +8294,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                     };
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     let afkSetMessage = `😴 Você está AFK.`;
-                    if (reason) afkSetMessage += `
+                    if (reason)
+                        afkSetMessage += `
 Motivo: ${reason}`;
                     await reply(afkSetMessage);
                 } catch (e) {
@@ -8459,10 +8303,10 @@ Motivo: ${reason}`;
                     await reply("Ocorreu um erro ao definir AFK 💔");
                 }
                 break;
-
             case 'voltei':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
                     if (groupData.afkUsers && groupData.afkUsers[sender]) {
                         delete groupData.afkUsers[sender];
                         fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
@@ -8475,10 +8319,10 @@ Motivo: ${reason}`;
                     await reply("Ocorreu um erro ao remover AFK 💔");
                 }
                 break;
-
             case 'regras':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
                     if (!groupData.rules || groupData.rules.length === 0) {
                         return reply("📜 Nenhuma regra definida para este grupo ainda.");
                     }
@@ -8495,13 +8339,15 @@ Motivo: ${reason}`;
                     await reply("Ocorreu um erro ao buscar as regras 💔");
                 }
                 break;
-
             case 'addregra':
             case 'addrule':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem adicionar regras.");
-                    if (!q) return reply(`📝 Por favor, forneça o texto da regra. Ex: ${prefix}addregra Proibido spam.`);
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem adicionar regras.");
+                    if (!q)
+                        return reply(`📝 Por favor, forneça o texto da regra. Ex: ${prefix}addregra Proibido spam.`);
                     groupData.rules = groupData.rules || [];
                     groupData.rules.push(q);
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
@@ -8512,14 +8358,15 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao adicionar a regra 💔");
                 }
                 break;
-
             case 'delregra':
             case 'delrule':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem remover regras.");
-                    if (!q || isNaN(parseInt(q))) return reply(`🔢 Por favor, forneça o número da regra a ser removida. Ex: ${prefix}delregra 3`);
-
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem remover regras.");
+                    if (!q || isNaN(parseInt(q)))
+                        return reply(`🔢 Por favor, forneça o número da regra a ser removida. Ex: ${prefix}delregra 3`);
                     groupData.rules = groupData.rules || [];
                     const ruleNumber = parseInt(q);
                     if (ruleNumber < 1 || ruleNumber > groupData.rules.length) {
@@ -8533,12 +8380,14 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao remover a regra 💔");
                 }
                 break;
-
             case 'addmod':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem adicionar moderadores.");
-                    if (!menc_os2) return reply(`Marque o usuário que deseja promover a moderador. Ex: ${prefix}addmod @usuario`);
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem adicionar moderadores.");
+                    if (!menc_os2)
+                        return reply(`Marque o usuário que deseja promover a moderador. Ex: ${prefix}addmod @usuario`);
                     const modToAdd = menc_os2;
                     if (groupData.moderators.includes(modToAdd)) {
                         return reply(`@${modToAdd.split('@')[0]} já é um moderador.`, {
@@ -8555,12 +8404,14 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao adicionar moderador 💔");
                 }
                 break;
-
             case 'delmod':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem remover moderadores.");
-                    if (!menc_os2) return reply(`Marque o usuário que deseja remover de moderador. Ex: ${prefix}delmod @usuario`);
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem remover moderadores.");
+                    if (!menc_os2)
+                        return reply(`Marque o usuário que deseja remover de moderador. Ex: ${prefix}delmod @usuario`);
                     const modToRemove = menc_os2;
                     const modIndex = groupData.moderators.indexOf(modToRemove);
                     if (modIndex === -1) {
@@ -8578,11 +8429,11 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao remover moderador 💔");
                 }
                 break;
-
             case 'listmods':
             case 'modlist':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
                     if (groupData.moderators.length === 0) {
                         return reply("🛡️ Não há moderadores definidos para este grupo.");
                     }
@@ -8600,13 +8451,15 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao listar moderadores 💔");
                 }
                 break;
-
             case 'grantmodcmd':
             case 'addmodcmd':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem gerenciar permissões de moderador.");
-                    if (!q) return reply(`Por favor, especifique o comando para permitir aos moderadores. Ex: ${prefix}grantmodcmd ban`);
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem gerenciar permissões de moderador.");
+                    if (!q)
+                        return reply(`Por favor, especifique o comando para permitir aos moderadores. Ex: ${prefix}grantmodcmd ban`);
                     const cmdToAllow = q.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replaceAll(prefix, "");
                     if (groupData.allowedModCommands.includes(cmdToAllow)) {
                         return reply(`Comando "${cmdToAllow}" já está permitido para moderadores.`);
@@ -8619,13 +8472,15 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao permitir comando para moderadores 💔");
                 }
                 break;
-
             case 'revokemodcmd':
             case 'delmodcmd':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem gerenciar permissões de moderador.");
-                    if (!q) return reply(`Por favor, especifique o comando para proibir aos moderadores. Ex: ${prefix}revokemodcmd ban`);
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem gerenciar permissões de moderador.");
+                    if (!q)
+                        return reply(`Por favor, especifique o comando para proibir aos moderadores. Ex: ${prefix}revokemodcmd ban`);
                     const cmdToDeny = q.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replaceAll(prefix, "");
                     const cmdIndex = groupData.allowedModCommands.indexOf(cmdToDeny);
                     if (cmdIndex === -1) {
@@ -8639,10 +8494,10 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao proibir comando para moderadores 💔");
                 }
                 break;
-
             case 'listmodcmds':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
                     if (groupData.allowedModCommands.length === 0) {
                         return reply("🔧 Nenhum comando específico permitido para moderadores neste grupo.");
                     }
@@ -8656,12 +8511,13 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao listar comandos de moderadores 💔");
                 }
                 break;
-
             case 'antiarqv':
             case 'antinuke':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem ativar/desativar o anti-arquivamento.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem ativar/desativar o anti-arquivamento.");
                     groupData.antiarqv = !groupData.antiarqv;
                     fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
                     await reply(`🛡️ Anti-arquivamento ${groupData.antiarqv ? 'ativado' : 'desativado'} com sucesso! Agora, apenas donos do grupo podem promover/rebaixar membros.`);
@@ -8670,12 +8526,14 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao alternar o anti-arquivamento 💔");
                 }
                 break;
-
             case 'donogp':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem adicionar donos do grupo.");
-                    if (!menc_os2) return reply(`Marque o usuário que deseja adicionar como dono do grupo. Ex: ${prefix}donogp @usuario`);
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem adicionar donos do grupo.");
+                    if (!menc_os2)
+                        return reply(`Marque o usuário que deseja adicionar como dono do grupo. Ex: ${prefix}donogp @usuario`);
                     const ownerToAdd = menc_os2;
                     groupData.groupOwners = groupData.groupOwners || [];
                     if (groupData.groupOwners.includes(ownerToAdd)) {
@@ -8698,13 +8556,15 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao adicionar dono do grupo 💔");
                 }
                 break;
-
             case 'rmdonogp':
             case 'deldonogp':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
-                    if (!isGroupAdmin) return reply("Apenas administradores podem remover donos do grupo.");
-                    if (!menc_os2) return reply(`Marque o usuário que deseja remover como dono do grupo. Ex: ${prefix}rmdonogp @usuario`);
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
+                    if (!isGroupAdmin)
+                        return reply("Apenas administradores podem remover donos do grupo.");
+                    if (!menc_os2)
+                        return reply(`Marque o usuário que deseja remover como dono do grupo. Ex: ${prefix}rmdonogp @usuario`);
                     const ownerToRemove = menc_os2;
                     groupData.groupOwners = groupData.groupOwners || [];
                     const ownerIndex = groupData.groupOwners.indexOf(ownerToRemove);
@@ -8723,11 +8583,11 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao remover dono do grupo 💔");
                 }
                 break;
-
             case 'donosgp':
             case 'listdonosgp':
                 try {
-                    if (!isGroup) return reply("Este comando só funciona em grupos.");
+                    if (!isGroup)
+                        return reply("Este comando só funciona em grupos.");
                     groupData.groupOwners = groupData.groupOwners || [];
                     if (groupData.groupOwners.length === 0) {
                         return reply("🛡️ Não há donos do grupo definidos.");
@@ -8746,11 +8606,11 @@ ${groupData.rules.length}. ${q}`);
                     await reply("Ocorreu um erro ao listar donos do grupo 💔");
                 }
                 break;
-
             default:
-                if (isCmd) await nazu.react('❌', {
-                    key: info.key
-                });
+                if (isCmd)
+                    await nazu.react('❌', {
+                        key: info.key
+                    });
                 if (!isCmd && isAutoRepo) {
                     const autoResponses = loadCustomAutoResponses();
                     const normalizedBody = normalizar(body);
@@ -8768,7 +8628,6 @@ ${groupData.rules.length}. ${q}`);
     };
 };
 
-
 function getDiskSpaceInfo() {
     try {
         const platform = os.platform();
@@ -8780,7 +8639,6 @@ function getDiskSpaceInfo() {
             usedGb: 'N/A',
             percentUsed: 'N/A'
         };
-
         if (platform === 'win32') {
             try {
                 const scriptPath = __dirname;
@@ -8788,12 +8646,12 @@ function getDiskSpaceInfo() {
                 const command = `fsutil volume diskfree ${driveLetter}:`;
                 const output = execSync(command).toString();
                 const lines = output.split('\n');
-
                 const freeLine = lines.find(line => line.includes('Total # of free bytes'));
                 const totalLine = lines.find(line => line.includes('Total # of bytes'));
-
-                if (freeLine) freeBytes = parseFloat(freeLine.split(':')[1].trim().replace(/\./g, ''));
-                if (totalLine) totalBytes = parseFloat(totalLine.split(':')[1].trim().replace(/\./g, ''));
+                if (freeLine)
+                    freeBytes = parseFloat(freeLine.split(':')[1].trim().replace(/\./g, ''));
+                if (totalLine)
+                    totalBytes = parseFloat(totalLine.split(':')[1].trim().replace(/\./g, ''));
             } catch (winError) {
                 console.error("Erro ao obter espaço em disco no Windows:", winError);
                 return defaultResult;
@@ -8803,7 +8661,6 @@ function getDiskSpaceInfo() {
                 const command = 'df -k .';
                 const output = execSync(command).toString();
                 const lines = output.split('\n');
-
                 if (lines.length > 1) {
                     const parts = lines[1].split(/\s+/);
                     totalBytes = parseInt(parts[1]) * 1024;
@@ -8817,14 +8674,12 @@ function getDiskSpaceInfo() {
             console.warn(`Plataforma ${platform} não suportada para informações de disco`);
             return defaultResult;
         };
- 
         if (totalBytes > 0 && freeBytes >= 0) {
             const usedBytes = totalBytes - freeBytes;
             const totalGb = (totalBytes / 1024 / 1024 / 1024).toFixed(2);
             const freeGb = (freeBytes / 1024 / 1024 / 1024).toFixed(2);
             const usedGb = (usedBytes / 1024 / 1024 / 1024).toFixed(2);
             const percentUsed = ((usedBytes / totalBytes) * 100).toFixed(1) + '%';
-
             return {
                 totalGb,
                 freeGb,
@@ -8848,5 +8703,4 @@ function getDiskSpaceInfo() {
         };
     };
 };
-
-module.exports = NazuninhaBotExec;
+export default NazuninhaBotExec;

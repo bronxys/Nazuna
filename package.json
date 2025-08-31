@@ -3,8 +3,10 @@
     "version": "4.0",
     "description": "Bot de whatsapp criado por hiudy",
     "main": "dados/src/connect.js",
+    "type": "module",
     "scripts": {
         "start": "node dados/src/.scripts/start.js",
+        "dev": "nodemon dados/src/.scripts/start.js",
         "config": "node dados/src/.scripts/config.js",
         "config:install": "node dados/src/.scripts/config.js --install",
         "update": "node dados/src/.scripts/update.js"
@@ -17,13 +19,19 @@
     "author": "Hiudy",
     "license": "ISC",
     "dependencies": {
-        "@cacheable/node-cache": "latest",
+        "@cacheable/node-cache": "^5.1.0",
         "@cognima/walib": "npm:baileys@latest",
-        "fluent-ffmpeg": "latest",
-        "linkedom": "latest",
-        "node-webpmux": "latest",
-        "qrcode-terminal": "latest",
-        "yt-search": "latest"
+        "@hapi/boom": "^10.0.1",
+        "axios": "^1.7.2",
+        "fluent-ffmpeg": "^2.1.3",
+        "linkedom": "^0.18.2",
+        "node-webpmux": "^3.2.0",
+        "pino": "^9.2.0",
+        "qrcode-terminal": "^0.12.0",
+        "yt-search": "^2.11.0"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.4"
     },
     "engines": {
         "node": ">=20.0.0",

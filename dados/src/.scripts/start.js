@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 
-const fs = require('fs').promises;
-const fsSync = require('fs');
-const path = require('path');
-const {
-  spawn,
-  execSync
-} = require('child_process');
-const readline = require('readline');
-const os = require('os');
+import fs from 'fs/promises';
+import fsSync from 'fs';
+import path from 'path';
+import { spawn, execSync } from 'child_process';
+import readline from 'readline/promises';
+import os from 'os';
 
 const CONFIG_PATH = path.join(process.cwd(), 'dados', 'src', 'config.json');
 const NODE_MODULES_PATH = path.join(process.cwd(), 'node_modules');
@@ -50,19 +47,28 @@ async function setupTermuxAutostart() {
     return;
   }
 
-  info('📱 Detectado ambiente Termux. Configurando inicialização automática...');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const answer = await rl.question(`${colors.yellow}📱 Detectado ambiente Termux. Deseja configurar inicialização automática? (s/n): ${colors.reset}`);
+  rl.close();
+
+  if (answer.trim().toLowerCase() !== 's') {
+    info('📱 Configuração de autostart ignorada pelo usuário.');
+    return;
+  }
+
+  info('📱 Configurando inicialização automática no Termux...');
 
   try {
     const termuxProperties = path.join(process.env.HOME, '.termux', 'termux.properties');
-    await fs.mkdir(path.dirname(termuxProperties), {
-      recursive: true
-    });
+    await fs.mkdir(path.dirname(termuxProperties), { recursive: true });
     if (!fsSync.existsSync(termuxProperties)) {
       await fs.writeFile(termuxProperties, '');
     }
-    await execSync(`sed '/^# *allow-external-apps *= *true/s/^# *//' ${termuxProperties} -i && termux-reload-settings`, {
-      stdio: 'inherit'
-    });
+    execSync(`sed '/^# *allow-external-apps *= *true/s/^# *//' ${termuxProperties} -i && termux-reload-settings`, { stdio: 'inherit' });
     mensagem('📝 Configuração de termux.properties concluída.');
 
     const bashrcPath = path.join(process.env.HOME, '.bashrc');
@@ -73,16 +79,17 @@ am startservice --user 0 \\
   --es com.termux.RUN_COMMAND_PATH '/data/data/com.termux/files/usr/bin/npm' \\
   --esa com.termux.RUN_COMMAND_ARGUMENTS 'start' \\
   --es com.termux.RUN_COMMAND_SESSION_NAME 'Nazuna Bot' \\
-  --es com.termux.RUN_COMMAND_WORKDIR '${path.join(__dirname, '..', '..', '..')}' \\
+  --es com.termux.RUN_COMMAND_WORKDIR '${path.join(process.cwd())}' \\
   --ez com.termux.RUN_COMMAND_BACKGROUND 'false' \\
   --es com.termux.RUN_COMMAND_SESSION_ACTION '0'
-`;
+`.trim();
+
     let bashrcContent = '';
     if (fsSync.existsSync(bashrcPath)) {
       bashrcContent = await fs.readFile(bashrcPath, 'utf8');
     }
 
-    if (!bashrcContent.includes(termuxServiceCommand.trim())) {
+    if (!bashrcContent.includes(termuxServiceCommand)) {
       await fs.appendFile(bashrcPath, `\n${termuxServiceCommand}\n`);
       mensagem('📝 Comando am startservice adicionado ao ~/.bashrc');
     } else {
@@ -109,10 +116,11 @@ function setupGracefulShutdown() {
   process.on('SIGTERM', shutdown);
 
   if (isWindows) {
-    readline.createInterface({
+    const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-    }).on('SIGINT', shutdown);
+    });
+    rl.on('SIGINT', shutdown);
   }
 }
 
@@ -136,11 +144,7 @@ async function checkPrerequisites() {
     aviso('⚠️ Arquivo de configuração (config.json) não encontrado! Iniciando configuração automática...');
     try {
       await new Promise((resolve, reject) => {
-        const configProcess = spawn('npm', ['run', 'config'], {
-          stdio: 'inherit',
-          shell: isWindows,
-        });
-
+        const configProcess = spawn('npm', ['run', 'config'], { stdio: 'inherit', shell: isWindows });
         configProcess.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`Configuração falhou com código ${code}`))));
         configProcess.on('error', reject);
       });
@@ -156,11 +160,7 @@ async function checkPrerequisites() {
     aviso('⚠️ Módulos do Node.js não encontrados! Iniciando instalação automática...');
     try {
       await new Promise((resolve, reject) => {
-        const installProcess = spawn('npm', ['run', 'config:install'], {
-          stdio: 'inherit',
-          shell: isWindows,
-        });
-
+        const installProcess = spawn('npm', ['run', 'config:install'], { stdio: 'inherit', shell: isWindows });
         installProcess.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`Instalação falhou com código ${code}`))));
         installProcess.on('error', reject);
       });
@@ -187,10 +187,7 @@ function startBot(codeMode = false) {
 
   botProcess = spawn('node', args, {
     stdio: 'inherit',
-    env: {
-      ...process.env,
-      FORCE_COLOR: '1'
-    },
+    env: { ...process.env, FORCE_COLOR: '1' },
   });
 
   botProcess.on('error', (error) => {
@@ -219,9 +216,7 @@ function restartBot(codeMode) {
 async function checkAutoConnect() {
   try {
     if (!fsSync.existsSync(QR_CODE_DIR)) {
-      await fs.mkdir(QR_CODE_DIR, {
-        recursive: true
-      });
+      await fs.mkdir(QR_CODE_DIR, { recursive: true });
       return false;
     }
     const files = await fs.readdir(QR_CODE_DIR);
@@ -233,46 +228,34 @@ async function checkAutoConnect() {
 }
 
 async function promptConnectionMethod() {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    console.log(`${colors.yellow}🔧 Escolha o método de conexão:${colors.reset}`);
-    console.log(`${colors.yellow}1. 📷 Conectar via QR Code${colors.reset}`);
-    console.log(`${colors.yellow}2. 🔑 Conectar via código de pareamento${colors.reset}`);
-    console.log(`${colors.yellow}3. 🚪 Sair${colors.reset}`);
-
-    rl.question('➡️ Digite o número da opção desejada: ', (answer) => {
-      console.log();
-      rl.close();
-
-      switch (answer.trim()) {
-        case '1':
-          mensagem('📷 Iniciando conexão via QR Code...');
-          resolve({
-            method: 'qr'
-          });
-          break;
-        case '2':
-          mensagem('🔑 Iniciando conexão via código de pareamento...');
-          resolve({
-            method: 'code'
-          });
-          break;
-        case '3':
-          mensagem('👋 Encerrando... Até mais!');
-          process.exit(0);
-          break;
-        default:
-          aviso('⚠️ Opção inválida! Usando conexão via QR Code como padrão.');
-          resolve({
-            method: 'qr'
-          });
-      }
-    });
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
   });
+
+  console.log(`${colors.yellow}🔧 Escolha o método de conexão:${colors.reset}`);
+  console.log(`${colors.yellow}1. 📷 Conectar via QR Code${colors.reset}`);
+  console.log(`${colors.yellow}2. 🔑 Conectar via código de pareamento${colors.reset}`);
+  console.log(`${colors.yellow}3. 🚪 Sair${colors.reset}`);
+
+  const answer = await rl.question('➡️ Digite o número da opção desejada: ');
+  console.log();
+  rl.close();
+
+  switch (answer.trim()) {
+    case '1':
+      mensagem('📷 Iniciando conexão via QR Code...');
+      return { method: 'qr' };
+    case '2':
+      mensagem('🔑 Iniciando conexão via código de pareamento...');
+      return { method: 'code' };
+    case '3':
+      mensagem('👋 Encerrando... Até mais!');
+      process.exit(0);
+    default:
+      aviso('⚠️ Opção inválida! Usando conexão via QR Code como padrão.');
+      return { method: 'qr' };
+  }
 }
 
 async function main() {
@@ -287,9 +270,7 @@ async function main() {
       mensagem('📷 Sessão de QR Code detectada. Conectando automaticamente...');
       startBot(false);
     } else {
-      const {
-        method
-      } = await promptConnectionMethod();
+      const { method } = await promptConnectionMethod();
       startBot(method === 'code');
     }
   } catch (error) {
@@ -298,7 +279,4 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  aviso(`❌ Erro fatal: ${error.message}`);
-  process.exit(1);
-});
+await main();

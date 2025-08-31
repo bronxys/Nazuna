@@ -1,321 +1,211 @@
+// --- CONFIGURAÇÃO ---
 const CONFIG = {
-  INVITATION_TIMEOUT: 15 * 60 * 1000,
-  GAME_TIMEOUT: 30 * 60 * 1000,
-  MAX_GAMES_PER_GROUP: 1,
-  BOARD_SIZE: 9,
-  SYMBOLS: {
-    X: '❌',
-    O: '⭕'
-  }
+    INVITATION_TIMEOUT_MS: 15 * 60 * 1000,
+    GAME_TIMEOUT_MS: 30 * 60 * 1000,
+    MOVE_TIMEOUT_MS: 5 * 60 * 1000,
+    CLEANUP_INTERVAL_MS: 5 * 60 * 1000,
+    BOARD_SIZE: 9,
+    SYMBOLS: { X: '❌', O: '⭕' },
+    EMPTY_CELLS: ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'],
 };
 
-
-const GameState = {
-  activeGames: new Map(),
-  pendingInvitations: new Map(),
-
-  cleanup() {
-    const now = Date.now();
-
-    for (const [groupId, game] of this.activeGames) {
-      if (now - game.startTime > CONFIG.GAME_TIMEOUT) {
-        this.activeGames.delete(groupId);
-      };
-    };
-
-    for (const [groupId, invitation] of this.pendingInvitations) {
-      if (now - invitation.timestamp > CONFIG.INVITATION_TIMEOUT) {
-        this.pendingInvitations.delete(groupId);
-      }
-    }
-  }
-};
-
-
-setInterval(() => GameState.cleanup(), 5 * 60 * 1000);
-
-
+// --- LÓGICA DO JOGO (MOTOR) ---
 class TicTacToe {
-  constructor(player1, player2) {
-    this.board = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
-    this.players = {
-      X: player1,
-      O: player2
-    };
-    this.currentTurn = 'X';
-    this.moves = 0;
-    this.startTime = Date.now();
-    this.lastMoveTime = Date.now();
-  }
-
-  makeMove(player, position) {
-    if (!this.isValidGame()) {
-      return this.createResponse(false, '❌ Erro: Jogadores inválidos');
+    constructor(player1, player2) {
+        this.board = [...CONFIG.EMPTY_CELLS];
+        this.players = { X: player1, O: player2 };
+        this.currentTurn = 'X';
+        this.moves = 0;
+        this.startTime = Date.now();
+        this.lastMoveTime = Date.now();
+        this.winner = null;
     }
 
-    if (!this.isPlayerTurn(player)) {
-      return this.createResponse(false, '❌ Não é sua vez!');
+    makeMove(player, position) {
+        if (player !== this.players[this.currentTurn]) {
+            return { success: false, reason: 'not_your_turn' };
+        }
+        const index = parseInt(position) - 1;
+        if (isNaN(index) || index < 0 || index >= CONFIG.BOARD_SIZE) {
+            return { success: false, reason: 'invalid_position' };
+        }
+        if (!CONFIG.EMPTY_CELLS.includes(this.board[index])) {
+            return { success: false, reason: 'position_taken' };
+        }
+
+        this.board[index] = CONFIG.SYMBOLS[this.currentTurn];
+        this.moves++;
+        this.lastMoveTime = Date.now();
+
+        if (this._checkWin()) {
+            this.winner = this.players[this.currentTurn];
+            return { success: true, status: 'win', winner: this.winner };
+        }
+        if (this.moves === CONFIG.BOARD_SIZE) {
+            return { success: true, status: 'draw' };
+        }
+
+        this.currentTurn = this.currentTurn === 'X' ? 'O' : 'X';
+        return { success: true, status: 'continue', nextPlayer: this.players[this.currentTurn] };
     }
 
-    const index = this.validatePosition(position);
-    if (index === -1) {
-      return this.createResponse(false, '❌ Posição inválida! Use 1-9.');
+    renderBoard() {
+        return `${this.board[0]}  ${this.board[1]}  ${this.board[2]}\n` +
+               `${this.board[3]}  ${this.board[4]}  ${this.board[5]}\n` +
+               `${this.board[6]}  ${this.board[7]}  ${this.board[8]}`;
     }
 
-    if (this.board[index] === CONFIG.SYMBOLS.X || this.board[index] === CONFIG.SYMBOLS.O) {
-      return this.createResponse(false, '❌ Posição já ocupada!');
+    _checkWin() {
+        const patterns = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
+        ];
+        const symbol = CONFIG.SYMBOLS[this.currentTurn];
+        return patterns.some(p => p.every(i => this.board[i] === symbol));
     }
-
-    this.board[index] = CONFIG.SYMBOLS[this.currentTurn];
-    this.moves++;
-    this.lastMoveTime = Date.now();
-
-    if (this.checkWin()) {
-      return this.createWinResponse();
-    }
-
-    if (this.moves === CONFIG.BOARD_SIZE) {
-      return this.createDrawResponse();
-    }
-
-    this.currentTurn = this.currentTurn === 'X' ? 'O' : 'X';
-    return this.createTurnResponse();
-  }
-
-  renderBoard() {
-    const display = pos => this.board[pos] || (pos + 1);
-    return `${display(0)}  ${display(1)}  ${display(2)}\n${display(3)}  ${display(4)}  ${display(5)}\n${display(6)}  ${display(7)}  ${display(8)}`
-  }
-
-  checkWin() {
-    const patterns = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6]
-    ];
-
-    return patterns.some(([a, b, c]) =>
-      this.board[a] && this.board[a] === this.board[b] && this.board[a] === this.board[c]
-    );
-  }
-
-  isValidGame() {
-    return this.players.X && this.players.O;
-  }
-
-  isPlayerTurn(player) {
-    return player === this.players[this.currentTurn];
-  }
-
-  validatePosition(position) {
-    if (typeof position !== 'string' && typeof position !== 'number') {
-      return -1;
-    }
-    const pos = parseInt(position);
-    return (!isNaN(pos) && pos >= 1 && pos <= 9) ? pos - 1 : -1;
-  }
-
-  createResponse(success, message, extras = {}) {
-    return {
-      success,
-      message,
-      ...extras
-    };
-  }
-
-  createWinResponse() {
-    const winner = this.players[this.currentTurn];
-    return this.createResponse(true,
-      `🎮 *JOGO DA VELHA - FIM*\n\n🎉 @${winner.split('@')[0]} venceu! 🏆\n\n${this.renderBoard()}`, {
-        finished: true,
-        winner,
-        board: this.renderBoard(),
-        mentions: [winner]
-      }
-    );
-  }
-
-  createDrawResponse() {
-    return this.createResponse(true,
-      `🎮 *JOGO DA VELHA - FIM*\n\n🤝 Empate!\n\n${this.renderBoard()}`, {
-        finished: true,
-        draw: true,
-        board: this.renderBoard(),
-        mentions: Object.values(this.players)
-      }
-    );
-  }
-
-  createTurnResponse() {
-    const nextPlayer = this.players[this.currentTurn];
-    return this.createResponse(true,
-      `🎮 *JOGO DA VELHA*\n\n👉 Vez de @${nextPlayer.split('@')[0]}\n\n${this.renderBoard()}\n\n💡 Digite um número de 1 a 9.`, {
-        finished: false,
-        board: this.renderBoard(),
-        mentions: [nextPlayer]
-      }
-    );
-  }
 }
 
 
-async function invitePlayer(groupId, inviter, invitee) {
-  if (!groupId || !inviter || !invitee || inviter === invitee) {
-    return {
-      success: false,
-      message: '❌ Dados inválidos para o convite'
-    };
-  }
+// --- GERENCIADOR DE JOGOS (CONTROLADOR) ---
+class GameManager {
+    constructor() {
+        this.activeGames = new Map();
+        this.pendingInvitations = new Map();
+        setInterval(() => this._cleanup(), CONFIG.CLEANUP_INTERVAL_MS);
+    }
 
-  if (GameState.activeGames.has(groupId)) {
-    return {
-      success: false,
-      message: '❌ Já existe um jogo em andamento!'
-    };
-  }
+    invitePlayer(groupId, inviter, invitee) {
+        if (!groupId || !inviter || !invitee || inviter === invitee) {
+            return this._formatResponse(false, '❌ Dados inválidos para o convite');
+        }
+        if (this.activeGames.has(groupId) || this.pendingInvitations.has(groupId)) {
+            return this._formatResponse(false, '❌ Já existe um jogo ou convite em andamento!');
+        }
+        
+        this.pendingInvitations.set(groupId, { inviter, invitee, timestamp: Date.now() });
+        const message = `🎮 *CONVITE JOGO DA VELHA*\n\n` +
+                        `@${inviter.split('@')[0]} convidou @${invitee.split('@')[0]}!\n\n` +
+                        `✅ Aceitar: "sim", "s"\n` +
+                        `❌ Recusar: "não", "n"\n\n` +
+                        `⏳ Expira em 15 minutos.`;
+        return this._formatResponse(true, message, { mentions: [inviter, invitee] });
+    }
 
-  if (GameState.pendingInvitations.has(groupId)) {
-    return {
-      success: false,
-      message: '❌ Já existe um convite pendente!'
-    };
-  }
+    processInvitationResponse(groupId, invitee, response) {
+        const invitation = this.pendingInvitations.get(groupId);
+        if (!invitation || invitation.invitee !== invitee) {
+            return this._formatResponse(false, '❌ Nenhum convite pendente para você.');
+        }
 
-  GameState.pendingInvitations.set(groupId, {
-    inviter,
-    invitee,
-    timestamp: Date.now()
-  });
+        const normalizedResponse = response.toLowerCase().trim();
+        const isAccepted = ['s', 'sim', 'y', 'yes'].includes(normalizedResponse);
+        const isRejected = ['n', 'não', 'nao', 'no'].includes(normalizedResponse);
+        
+        if (!isAccepted && !isRejected) {
+            return this._formatResponse(false, '❌ Resposta inválida. Use "sim" ou "não".');
+        }
 
-  return {
-    success: true,
-    message: `🎮 *CONVITE JOGO DA VELHA*\n\n@${inviter.split('@')[0]} convidou @${invitee.split('@')[0]}!\n\n✅ Aceitar: "sim", "s", "yes", "y"\n❌ Recusar: "não", "n", "no"\n\n⏳ Expira em 15 minutos.`,
-    mentions: [inviter, invitee]
-  };
-};
+        this.pendingInvitations.delete(groupId);
 
+        if (isRejected) {
+            return this._formatResponse(true, '❌ Convite recusado. Jogo cancelado.', { mentions: [invitation.inviter, invitee] });
+        }
 
-function processInvitationResponse(groupId, invitee, response) {
-  const invitation = GameState.pendingInvitations.get(groupId);
+        const game = new TicTacToe(invitation.inviter, invitation.invitee);
+        this.activeGames.set(groupId, game);
+        
+        const message = `🎮 *JOGO DA VELHA - INICIADO!*\n\n` +
+                        `👥 Jogadores:\n` +
+                        `➤ ${CONFIG.SYMBOLS.X}: @${invitation.inviter.split('@')[0]}\n` +
+                        `➤ ${CONFIG.SYMBOLS.O}: @${invitation.invitee.split('@')[0]}\n\n` +
+                        `${game.renderBoard()}\n\n` +
+                        `💡 Vez de @${invitation.inviter.split('@')[0]} (1-9).`;
+        return this._formatResponse(true, message, { mentions: [invitation.inviter, invitee] });
+    }
 
-  if (!invitation || invitation.invitee !== invitee) {
-    return {
-      success: false,
-      message: '❌ Nenhum convite pendente para você'
-    };
-  }
+    makeMove(groupId, player, position) {
+        const game = this.activeGames.get(groupId);
+        if (!game) {
+            return this._formatResponse(false, '❌ Nenhum jogo em andamento!');
+        }
 
-  const acceptResponses = ['s', 'sim', 'y', 'yes'];
-  const rejectResponses = ['n', 'não', 'nao', 'no'];
-  const normalizedResponse = response.toLowerCase().trim();
+        // Verificação de timeout de inatividade
+        if (Date.now() - game.lastMoveTime > CONFIG.MOVE_TIMEOUT_MS) {
+            this.activeGames.delete(groupId);
+            return this._formatResponse(false, '❌ Jogo encerrado por inatividade (5 minutos sem jogada).', { mentions: Object.values(game.players) });
+        }
+        
+        const result = game.makeMove(player, position);
 
-  GameState.pendingInvitations.delete(groupId);
+        if (!result.success) {
+            const errorMessages = {
+                'not_your_turn': '❌ Não é sua vez!',
+                'invalid_position': '❌ Posição inválida! Use 1-9.',
+                'position_taken': '❌ Posição já ocupada!'
+            };
+            return this._formatResponse(false, errorMessages[result.reason] || '❌ Erro desconhecido.');
+        }
 
-  if (!acceptResponses.includes(normalizedResponse) && !rejectResponses.includes(normalizedResponse)) {
-    return {
-      success: false,
-      message: '❌ Resposta inválida. Use "sim" ou "não"'
-    };
-  }
+        if (result.status === 'win') {
+            this.activeGames.delete(groupId);
+            const message = `🎮 *JOGO DA VELHA - FIM*\n\n` +
+                            `🎉 @${result.winner.split('@')[0]} venceu! 🏆\n\n` +
+                            `${game.renderBoard()}`;
+            return this._formatResponse(true, message, { finished: true, winner: result.winner, mentions: [result.winner] });
+        }
 
-  if (rejectResponses.includes(normalizedResponse)) {
-    return {
-      success: true,
-      accepted: false,
-      message: '❌ Convite recusado. Jogo cancelado.',
-      mentions: [invitation.inviter, invitee]
-    };
-  }
+        if (result.status === 'draw') {
+            this.activeGames.delete(groupId);
+            const message = `🎮 *JOGO DA VELHA - FIM*\n\n` +
+                            `🤝 Empate!\n\n` +
+                            `${game.renderBoard()}`;
+            return this._formatResponse(true, message, { finished: true, draw: true, mentions: Object.values(game.players) });
+        }
 
-  const game = new TicTacToe(invitation.inviter, invitation.invitee);
-  GameState.activeGames.set(groupId, game);
+        if (result.status === 'continue') {
+            const message = `🎮 *JOGO DA VELHA*\n\n` +
+                            `👉 Vez de @${result.nextPlayer.split('@')[0]}\n\n` +
+                            `${game.renderBoard()}\n\n` +
+                            `💡 Digite um número de 1 a 9.`;
+            return this._formatResponse(true, message, { finished: false, mentions: [result.nextPlayer] });
+        }
+    }
 
-  return {
-    success: true,
-    accepted: true,
-    message: `🎮 *JOGO DA VELHA*\n\n🎯 Iniciado!\n\n👥 Jogadores:\n➤ ❌: @${invitation.inviter.split('@')[0]}\n➤ ⭕: @${invitation.invitee.split('@')[0]}\n\n${game.renderBoard()}\n\n💡 Vez de @${invitation.inviter.split('@')[0]} (1-9).`,
-    mentions: [invitation.inviter, invitation.invitee]
-  };
-};
+    endGame(groupId) {
+        if (!this.activeGames.has(groupId)) {
+            return this._formatResponse(false, '❌ Nenhum jogo em andamento!');
+        }
+        const players = Object.values(this.activeGames.get(groupId).players);
+        this.activeGames.delete(groupId);
+        return this._formatResponse(true, '🎮 Jogo encerrado manualmente!', { mentions: players });
+    }
+    
+    hasActiveGame = (groupId) => this.activeGames.has(groupId);
+    hasPendingInvitation = (groupId) => this.pendingInvitations.has(groupId);
+    
+    _formatResponse(success, message, extras = {}) {
+        return { success, message, ...extras };
+    }
 
-
-function makeMove(groupId, player, position) {
-  const game = GameState.activeGames.get(groupId);
-
-  if (!game) {
-    return {
-      success: false,
-      message: '❌ Nenhum jogo em andamento!'
-    };
-  }
-
-  if (Date.now() - game.startTime > CONFIG.GAME_TIMEOUT) {
-    GameState.activeGames.delete(groupId);
-    return {
-      success: false,
-      message: '❌ Jogo encerrado por inatividade (30 minutos)'
-    };
-  }
-
-  if (Date.now() - game.lastMoveTime > 5 * 60 * 1000) {
-    GameState.activeGames.delete(groupId);
-    return {
-      success: false,
-      message: '❌ Jogo encerrado por inatividade (5 minutos sem jogada)'
-    };
-  }
-
-  const result = game.makeMove(player, position);
-
-  if (result.finished) {
-    GameState.activeGames.delete(groupId);
-  }
-
-  return result;
+    _cleanup() {
+        const now = Date.now();
+        for (const [groupId, game] of this.activeGames.entries()) {
+            if (now - game.startTime > CONFIG.GAME_TIMEOUT_MS) {
+                this.activeGames.delete(groupId);
+                console.log(`[TTT Cleanup] Jogo expirado removido do grupo ${groupId}`);
+            }
+        }
+        for (const [groupId, invitation] of this.pendingInvitations.entries()) {
+            if (now - invitation.timestamp > CONFIG.INVITATION_TIMEOUT_MS) {
+                this.pendingInvitations.delete(groupId);
+                console.log(`[TTT Cleanup] Convite expirado removido do grupo ${groupId}`);
+            }
+        }
+    }
 }
 
-
-function endGame(groupId) {
-  const game = GameState.activeGames.get(groupId);
-
-  if (!game) {
-    return {
-      success: false,
-      message: '❌ Nenhum jogo em andamento!'
-    };
-  }
-
-  const players = Object.values(game.players);
-  GameState.activeGames.delete(groupId);
-
-  return {
-    success: true,
-    message: '🎮 Jogo encerrado manualmente!',
-    mentions: players
-  };
-};
-
-
-function hasActiveGame(groupId) {
-  return GameState.activeGames.has(groupId);
-};
-
-
-function hasPendingInvitation(groupId) {
-  return GameState.pendingInvitations.has(groupId);
-};
-
-
-module.exports = {
-  invitePlayer,
-  processInvitationResponse,
-  makeMove,
-  endGame,
-  hasActiveGame,
-  hasPendingInvitation
-};
+// --- EXPORTAÇÃO (SINGLETON) ---
+// Cria e exporta uma única instância do gerenciador
+const tictactoeManager = new GameManager();
+export default tictactoeManager;

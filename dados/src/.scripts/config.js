@@ -1,411 +1,223 @@
 #!/usr/bin/env node
 
-const fs = require('fs').promises;
-const fsSync = require('fs');
-const path = require('path');
-const {
-  execSync,
-  exec
-} = require('child_process');
-const readline = require('readline');
-const os = require('os');
-const {
-  promisify
-} = require('util');
-const execAsync = promisify(exec);
-const CONFIG_FILE = path.join(process.cwd(), 'dados', 'src', 'config.json');
-const isWindows = os.platform() === 'win32';
+import fs from 'fs/promises';
+import fsSync from 'fs';
+import path from 'path';
+import { exec } from 'child_process';
+import readline from 'readline';
+import os from 'os';
+import { promisify } from 'util';
 
+const execAsync = promisify(exec);
+
+const CONFIG_FILE = path.join(process.cwd(), 'dados', 'src', 'config.json');
 let version = 'Desconhecida';
 try {
-  const packageJson = JSON.parse(fsSync.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
-  version = packageJson.version;
-} catch (error) {}
+    const pkg = JSON.parse(fsSync.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
+    version = pkg.version;
+} catch { }
 
 const colors = {
-  reset: '\x1b[0m',
-  green: '\x1b[1;32m',
-  red: '\x1b[1;31m',
-  blue: '\x1b[1;34m',
-  yellow: '\x1b[1;33m',
-  cyan: '\x1b[1;36m',
-  magenta: '\x1b[1;35m',
-  dim: '\x1b[2m',
-  bold: '\x1b[1m',
-  underline: '\x1b[4m',
+  reset: '\x1b[0m', green: '\x1b[1;32m', red: '\x1b[1;31m',
+  blue: '\x1b[1;34m', yellow: '\x1b[1;33m', cyan: '\x1b[1;36m',
+  dim: '\x1b[2m', bold: '\x1b[1m', underline: '\x1b[4m',
 };
 
-function printMessage(text) {
-  console.log(`${colors.green}${text}${colors.reset}`);
-}
+const print = {
+    message: (text) => console.log(`${colors.green}${text}${colors.reset}`),
+    warning: (text) => console.log(`${colors.red}${text}${colors.reset}`),
+    info: (text) => console.log(`${colors.cyan}${text}${colors.reset}`),
+    detail: (text) => console.log(`${colors.dim}${text}${colors.reset}`),
+    separator: () => console.log(`${colors.blue}=================================================${colors.reset}`),
+    header: () => {
+        print.separator();
+        console.log(`${colors.bold}🚀 Configurador Gênesis Nazuna - Versão ${version}${colors.reset}`);
+        console.log(`${colors.bold}👨‍💻 Criado por Hiudy${colors.reset}`);
+        print.separator(); console.log();
+    }
+};
 
-function printWarning(text) {
-  console.log(`${colors.red}${text}${colors.reset}`);
-}
+const SystemInfo = {
+    os: os.platform(),
+    isWindows: os.platform() === 'win32',
+    isTermux: false,
+    packageManager: null,
 
-function printInfo(text) {
-  console.log(`${colors.cyan}${text}${colors.reset}`);
-}
-
-function printDetail(text) {
-  console.log(`${colors.dim}${text}${colors.reset}`);
-}
-
-function printSeparator() {
-  console.log(`${colors.blue}============================================${colors.reset}`);
-}
-
-function validateInput(input, field) {
-  switch (field) {
-    case 'prefixo':
-      if (input.length !== 1) {
-        printWarning('⚠️ O prefixo deve ter exatamente 1 caractere.');
-        return false;
-      }
-      return true;
-
-    case 'numero':
-      if (!/^[0-9]{10,15}$/.test(input)) {
-        printWarning('⚠️ Número inválido! Deve conter apenas dígitos (10 a 15).');
-        printDetail('📝 Exemplo: 5511999999999');
-        return false;
-      }
-      return true;
-
-    default:
-      return true;
-  }
-}
-
-function setupGracefulShutdown() {
-  const shutdown = () => {
-    console.log('\n');
-    printWarning('🛑 Configuração cancelada pelo usuário.');
-    process.exit(0);
-  };
-
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
-}
-
-async function isTermux() {
-  try {
-    return !!process.env.TERMUX_VERSION || (await execAsync('command -v pkg')).stdout.includes('termux');
-  } catch {
-    return false;
-  }
-}
-
-async function installFFmpeg() {
-  printSeparator();
-  printMessage('📦 Instalando FFmpeg e ffprobe...');
-
-  try {
-    const platform = os.platform();
-    let command;
-
-    if (await isTermux()) {
-      try {
-        await execAsync('command -v pkg');
-        command = 'pkg install ffmpeg -y';
-      } catch {
-        printWarning('⚠️ Termux detectado, mas pkg não encontrado.');
-        printInfo('📝 Instale o FFmpeg e ffprobe manualmente no Termux: pkg install ffmpeg');
-        return;
-      }
-    } else if (platform === 'linux') {
-      try {
-        await execAsync('command -v apt-get');
-        command = 'sudo apt-get update && sudo apt-get install -y ffmpeg';
-      } catch {
-        try {
-          await execAsync('command -v yum');
-          command = 'sudo yum install -y ffmpeg';
-        } catch {
-          try {
-            await execAsync('command -v dnf');
-            command = 'sudo dnf install -y ffmpeg';
-          } catch {
-            printWarning('⚠️ Nenhum gerenciador de pacotes compatível (apt/yum/dnf) encontrado.');
-            printInfo('📝 Instale o FFmpeg e ffprobe manualmente: https://ffmpeg.org/download.html');
-            return;
-          }
+    async detect() {
+        this.isTermux = 'TERMUX_VERSION' in process.env;
+        if (this.isTermux) {
+            this.packageManager = 'pkg';
+        } else if (this.os === 'linux') {
+            if (await commandExists('apt')) this.packageManager = 'apt';
+            else if (await commandExists('dnf')) this.packageManager = 'dnf';
+            else if (await commandExists('pacman')) this.packageManager = 'pacman';
+        } else if (this.os === 'darwin') {
+            if (await commandExists('brew')) this.packageManager = 'brew';
+        } else if (this.isWindows) {
+            if (await commandExists('winget')) this.packageManager = 'winget';
+            else if (await commandExists('choco')) this.packageManager = 'choco';
         }
-      }
-    } else if (platform === 'darwin') {
-      try {
-        await execAsync('command -v brew');
-        command = 'brew install ffmpeg';
-      } catch {
-        printWarning('⚠️ Homebrew não encontrado. Instale o Homebrew primeiro: https://brew.sh');
-        printInfo('📝 Após instalar o Homebrew, execute: brew install ffmpeg');
-        return;
-      }
-    } else if (platform === 'win32') {
-      try {
-        await execAsync('winget --version');
-        command = 'winget install --id Gyan.FFmpeg -e';
-      } catch {
-        printWarning('⚠️ winget não encontrado ou FFmpeg/ffprobe não instalado.');
-        printInfo('📝 Baixe e instale o FFmpeg (inclui ffprobe) manualmente: https://ffmpeg.org/download.html');
-        printDetail('📌 Adicione o FFmpeg ao PATH do sistema após a instalação.');
-        return;
-      }
-    } else {
-      printWarning('⚠️ Sistema operacional não suportado para instalação automática do FFmpeg/ffprobe.');
-      printInfo('📝 Instale o FFmpeg e ffprobe manualmente: https://ffmpeg.org/download.html');
-      return;
     }
+};
 
-    await new Promise((resolve, reject) => {
-      const ffmpegProcess = exec(command, {
-          shell: isWindows
-        }, (error) =>
-        error ? reject(error) : resolve()
-      );
+const DEPENDENCIES_CONFIG = [
+    { name: 'Git', check: 'git --version', termux: 'pkg install git -y', win: 'winget install --id Git.Git -e', linux: 'apt install -y git || dnf install -y git || pacman -S --noconfirm git', mac: 'brew install git' },
+    { name: 'Yarn', check: 'yarn --version', termux: 'npm i -g yarn', win: 'npm i -g yarn', linux: 'sudo npm i -g yarn', mac: 'npm i -g yarn' },
+    { name: 'FFmpeg', check: 'ffmpeg -version', termux: 'pkg install ffmpeg -y', win: 'winget install --id Gyan.FFmpeg -e || choco install ffmpeg', linux: 'apt install -y ffmpeg || dnf install -y ffmpeg || pacman -S --noconfirm ffmpeg', mac: 'brew install ffmpeg' }
+];
 
-      const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-      let i = 0;
-      const interval = setInterval(() => {
-        process.stdout.write(`\r${spinner[i]} Instalando FFmpeg e ffprobe...`);
+async function runCommandWithSpinner(command, message) {
+    const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    let i = 0;
+    const interval = setInterval(() => {
+        process.stdout.write(`\r${colors.yellow}${spinner[i]}${colors.reset} ${message}`);
         i = (i + 1) % spinner.length;
-      }, 100);
-
-      ffmpegProcess.on('close', () => {
+    }, 100);
+    try {
+        await execAsync(command, { shell: SystemInfo.isWindows });
+    } finally {
         clearInterval(interval);
-        process.stdout.write('\r                                \r');
-      });
-    });
-
-    try {
-      await execAsync('ffmpeg -version');
-      printMessage('✅ FFmpeg instalado com sucesso.');
-    } catch {
-      printWarning('⚠️ FFmpeg instalado, mas não encontrado no PATH.');
-      printInfo('📝 Certifique-se de que o FFmpeg está no PATH do sistema ou no ambiente Termux.');
+        process.stdout.write('\r' + ' '.repeat(message.length + 5) + '\r');
     }
-
-    try {
-      await execAsync('ffprobe -version');
-      printMessage('✅ ffprobe instalado com sucesso.');
-    } catch {
-      printWarning('⚠️ ffprobe instalado, mas não encontrado no PATH.');
-      printInfo('📝 Certifique-se de que o ffprobe está no PATH do sistema ou no ambiente Termux.');
-      printDetail('📌 ffprobe geralmente vem com o FFmpeg. Verifique a instalação do FFmpeg.');
-    }
-  } catch (error) {
-    printWarning(`❌ Erro ao instalar FFmpeg/ffprobe: ${error.message}`);
-    printInfo('📝 Instale o FFmpeg e ffprobe manualmente: https://ffmpeg.org/download.html');
-  }
 }
 
-async function installDependencies() {
-  printSeparator();
-  printMessage('📦 Instalando dependências do Node.js...');
-
-  try {
-    await new Promise((resolve, reject) => {
-      const npmProcess = exec('npm install --no-optional --force --no-bin-links', {
-          shell: isWindows
-        }, (error) =>
-        error ? reject(error) : resolve()
-      );
-
-      const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-      let i = 0;
-      const interval = setInterval(() => {
-        process.stdout.write(`\r${spinner[i]} Instalando dependências...`);
-        i = (i + 1) % spinner.length;
-      }, 100);
-
-      npmProcess.on('close', () => {
-        clearInterval(interval);
-        process.stdout.write('\r                                \r');
-      });
-    });
-
-    printMessage('✅ Dependências do Node.js instaladas com sucesso.');
-  } catch (error) {
-    printWarning(`❌ Erro ao instalar dependências do Node.js: ${error.message}`);
-    printInfo('📝 Tente executar manualmente: npm run config:install');
-    process.exit(1);
-  }
-
-  await installFFmpeg();
-}
-
-async function checkSystemRequirements() {
-  printSeparator();
-  printMessage('🔍 Verificando requisitos do sistema...');
-
-  try {
-    const nodeVersion = await execAsync('node --version');
-    printDetail(`✅ Node.js encontrado: ${nodeVersion.stdout.trim()}`);
-  } catch {
-    printWarning('⚠️ Node.js não encontrado. Instale o Node.js: https://nodejs.org ou no Termux: pkg install nodejs');
-    process.exit(1);
-  }
-
-  try {
-    const npmVersion = await execAsync('npm --version');
-    printDetail(`✅ npm encontrado: ${npmVersion.stdout.trim()}`);
-  } catch {
-    printWarning('⚠️ npm não encontrado. Instale o Node.js com npm: https://nodejs.org ou no Termux: pkg install nodejs');
-    process.exit(1);
-  }
-
-  if (await isTermux()) {
-    printDetail('✅ Ambiente Termux detectado.');
-  }
-
-  printMessage('✅ Todos os requisitos do sistema verificados.');
-}
-
-async function displayHeader() {
-  const header = [
-    `${colors.bold}🚀 Configurador do Nazuna - Versão ${version}${colors.reset}`,
-    `${colors.bold}👨‍💻 Criado por Hiudy${colors.reset}`,
-  ];
-
-  printSeparator();
-  for (const line of header) {
-    await new Promise((resolve) => {
-      process.stdout.write(line + '\n');
-      setTimeout(resolve, 100);
-    });
-  }
-  printSeparator();
-  console.log();
-}
-
-async function main() {
-  try {
-    setupGracefulShutdown();
-
-    if (process.argv.includes('--install')) {
-      await checkSystemRequirements();
-      await installDependencies();
-      process.exit(0);
+async function promptInput(rl, prompt, defaultValue, validator = () => true) {
+    let value; let isValid = false;
+    while (!isValid) {
+        const displayPrompt = `${prompt} ${colors.dim}(atual: ${defaultValue})${colors.reset}:`;
+        console.log(displayPrompt);
+        value = await new Promise(resolve => rl.question("--> ", resolve));
+        value = value.trim() || defaultValue;
+        isValid = validator(value);
+        if (!isValid) print.warning('   ➡️ Entrada inválida. Por favor, tente novamente.');
     }
-
-    await displayHeader();
-    await checkSystemRequirements();
-
-    const defaultConfig = {
-      nomedono: '',
-      numerodono: '',
-      nomebot: '',
-      prefixo: '!',
-      aviso: false,
-      debug: false,
-      enablePanel: false,
-    };
-
-    let config = {
-      ...defaultConfig
-    };
-
-    try {
-      if (fsSync.existsSync(CONFIG_FILE)) {
-        const existingConfig = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf8'));
-        config = {
-          ...config,
-          ...existingConfig
-        };
-        printInfo('📂 Configuração existente carregada.');
-      }
-    } catch (error) {
-      printWarning(`⚠️ Erro ao ler config.json: ${error.message}`);
-      printInfo('📝 Usando valores padrão.');
-    }
-
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    printInfo(`${colors.bold}${colors.underline}🔧 Configurações Básicas${colors.reset}`);
-    config.nomedono = await promptInput(rl, '👤 Nome do dono do bot', config.nomedono);
-    config.numerodono = await promptInput(rl, '📱 Número do dono (com DDD, apenas dígitos)', config.numerodono, 'numero');
-    config.nomebot = await promptInput(rl, '🤖 Nome do bot', config.nomebot);
-    config.prefixo = await promptInput(rl, '🔣 Prefixo do bot (1 caractere)', config.prefixo, 'prefixo');
-
-    config.aviso = false;
-    config.debug = false;
-    config.enablePanel = false;
-
-    try {
-      const configDir = path.dirname(CONFIG_FILE);
-      if (!fsSync.existsSync(configDir)) {
-        await fs.mkdir(configDir, {
-          recursive: true
-        });
-      }
-
-      await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
-
-      console.log();
-      printInfo('📋 Resumo da Configuração');
-      printDetail(`👤 Nome do dono: ${config.nomedono}`);
-      printDetail(`📱 Número do dono: ${config.numerodono}`);
-      printDetail(`🤖 Nome do bot: ${config.nomebot}`);
-      printDetail(`🔣 Prefixo: ${config.prefixo}`);
-
-      printSeparator();
-      printMessage('✅ Configuração salva com sucesso em config.json!');
-      printSeparator();
-
-      const installNow = await confirm(rl, '📦 Deseja instalar as dependências, FFmpeg e ffprobe agora?', 's');
-
-      if (installNow) {
-        rl.close();
-        await installDependencies();
-      } else {
-        printMessage('📝 Você pode instalar as dependências, FFmpeg e ffprobe depois com: npm run config:install');
-      }
-
-      printSeparator();
-      printMessage(`🎉 Nazuna configurado e pronto para uso! Versão: ${version}`);
-      printSeparator();
-    } catch (error) {
-      printWarning(`❌ Erro ao salvar configuração: ${error.message}`);
-    }
-
-    rl.close();
-  } catch (error) {
-    printWarning(`❌ Erro inesperado: ${error.message}`);
-    process.exit(1);
-  }
-}
-
-async function promptInput(rl, prompt, defaultValue, field = null) {
-  return new Promise((resolve) => {
-    const displayPrompt = `${prompt} ${colors.dim}(atual: ${defaultValue})${colors.reset}: `;
-    console.log(displayPrompt);
-    rl.question("-->", async (input) => {
-      const value = input.trim() || defaultValue;
-
-      if (field && !validateInput(value, field)) {
-        return resolve(await promptInput(rl, prompt, defaultValue, field));
-      }
-
-      resolve(value);
-    });
-  });
+    return value;
 }
 
 async function confirm(rl, prompt, defaultValue = 'n') {
-  return new Promise((resolve) => {
     const defaultText = defaultValue.toLowerCase() === 's' ? 'S/n' : 's/N';
     console.log(`${prompt} (${defaultText}): `);
-    rl.question("-->", (input) => {
-      const response = (input.trim() || defaultValue).toLowerCase();
-      resolve(response === 's' || response === 'sim' || response === 'y' || response === 'yes');
-    });
-  });
+    const response = await new Promise(resolve => rl.question("--> ", resolve));
+    const normalized = (response.trim() || defaultValue).toLowerCase();
+    return ['s', 'sim', 'y', 'yes'].includes(normalized);
+}
+
+async function commandExists(command) {
+    const checkCmd = SystemInfo.isWindows ? `where ${command}` : `command -v ${command}`;
+    try { await execAsync(checkCmd); return true; } catch { return false; }
+}
+
+async function installSystemDependencies() {
+    print.separator();
+    print.message('🔧 Verificando e instalando dependências do sistema...');
+    const report = [];
+
+    if (SystemInfo.isTermux) {
+        print.info('ℹ️ Atualizando pacotes do Termux...');
+        await runCommandWithSpinner('pkg update -y && pkg upgrade -y', 'Atualizando Termux...');
+    }
+    
+    for (const dep of DEPENDENCIES_CONFIG) {
+        let status = `${colors.green}✅ Já instalado${colors.reset}`;
+        try {
+            await execAsync(dep.check);
+        } catch {
+            status = `${colors.yellow}⚠️ Não encontrado${colors.reset}`;
+            const osKey = SystemInfo.isTermux ? 'termux' : (SystemInfo.os === 'darwin' ? 'mac' : SystemInfo.os);
+            let installCommand = dep[osKey];
+            
+            if (installCommand) {
+                try {
+                    await runCommandWithSpinner(installCommand, `Instalando ${dep.name}...`);
+                    status = `${colors.green}✅ Instalado com sucesso${colors.reset}`;
+                } catch (error) {
+                    status = `${colors.red}❌ Falha na instalação${colors.reset}`;
+                }
+            } else {
+                status = `${colors.dim}⚪️ Instalação manual necessária${colors.reset}`;
+            }
+        }
+        report.push({ name: dep.name, status });
+    }
+    return report;
+}
+
+async function installNodeDependencies() {
+    print.separator();
+    print.message('📦 Instalando dependências do projeto (Node.js)...');
+    try {
+        await runCommandWithSpinner('npm install --no-optional --force --no-bin-links', 'Executando npm install...');
+        print.message('✅ Dependências instaladas com sucesso via NPM.');
+        return { name: 'Node Dependencies (npm)', status: `${colors.green}✅ Instalado com sucesso${colors.reset}` };
+    } catch (npmError) {
+        print.warning(`❌ Falha no NPM: ${npmError.message}`);
+        print.info('ℹ️ Tentando fallback para YARN...');
+        try {
+            await runCommandWithSpinner('yarn install', 'Executando yarn install...');
+            print.message('✅ Dependências instaladas com sucesso via YARN.');
+            return { name: 'Node Dependencies (yarn)', status: `${colors.green}✅ Instalado com sucesso${colors.reset}` };
+        } catch (yarnError) {
+            print.warning(`❌ Falha no YARN: ${yarnError.message}`);
+            return { name: 'Node Dependencies', status: `${colors.red}❌ Falha na instalação${colors.reset}` };
+        }
+    }
+}
+
+async function main() {
+    process.on('SIGINT', () => { print.warning('\n🛑 Configuração cancelada.'); process.exit(0); });
+
+    await SystemInfo.detect();
+
+    if (process.argv.includes('--install')) {
+        const nodeReport = await installNodeDependencies();
+        const systemReport = await installSystemDependencies();
+        print.separator();
+        print.info("📋 Relatório Final de Instalação:");
+        [...systemReport, nodeReport].forEach(r => console.log(`- ${r.name}: ${r.status}`));
+        print.separator();
+        process.exit(0);
+    }
+
+    print.header();
+    
+    let config = { nomedono: '', numerodono: '', nomebot: '', prefixo: '!' };
+    try {
+        const existingConfig = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf8'));
+        config = { ...config, ...existingConfig };
+        print.info('📂 Configuração existente carregada.');
+    } catch {  }
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    
+    print.info(`${colors.bold}${colors.underline}🔧 Configurações Básicas${colors.reset}`);
+    config.nomedono = await promptInput(rl, '👤 Nome do dono do bot', config.nomedono);
+    config.numerodono = await promptInput(rl, '📱 Número do dono (apenas dígitos)', config.numerodono, (v) => /^\d{10,15}$/.test(v));
+    config.nomebot = await promptInput(rl, '🤖 Nome do bot', config.nomebot);
+    config.prefixo = await promptInput(rl, '🔣 Prefixo do bot (1 caractere)', config.prefixo, (v) => v.length === 1);
+
+    await fs.mkdir(path.dirname(CONFIG_FILE), { recursive: true });
+    await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
+
+    print.separator();
+    print.message('✅ Configuração salva com sucesso!');
+    
+    if (await confirm(rl, '⚙️ Deseja verificar e instalar todas as dependências agora?', 's')) {
+        rl.close();
+        const nodeReport = await installNodeDependencies();
+        const systemReport = await installSystemDependencies();
+        print.separator();
+        print.info("📋 Relatório Final de Instalação:");
+        [...systemReport, nodeReport].forEach(r => console.log(`- ${r.name}: ${r.status}`));
+        print.separator();
+    } else {
+        rl.close();
+        print.info('📝 Lembre-se de instalar com: npm run config:install');
+    }
+
+    print.message(`🎉 Nazuna configurado e pronto para uso! Versão: ${version}`);
 }
 
 main().catch((error) => {
-  printWarning(`❌ Erro fatal: ${error.message}`);
-  process.exit(1);
+    print.warning(`❌ Erro fatal: ${error.message}`);
+    process.exit(1);
 });
