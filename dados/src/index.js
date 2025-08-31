@@ -2,14 +2,15 @@
 ═════════════════════════════
   Nazuna - Index principal
   Autor: Hiudy
-  Revisão: 19/08/2025
+  Revisão: 31/08/2025
 ═════════════════════════════
 */
 import {
     downloadContentFromMessage,
     generateWAMessageFromContent,
     generateWAMessage,
-    isJidNewsletter
+    isJidNewsletter,
+    getContentType
 } from '@cognima/walib';
 import {
     exec,
@@ -897,7 +898,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         const isSubOwner = isSubdono(sender);
         const isOwner = (nmrdn === sender) || info.key.fromMe || isSubOwner;
         const isOwnerOrSub = isOwner || isSubOwner;
-        const type = WaLib.getContentType(info.message);
+        const type = getContentType(info.message);
         const isMedia = ["imageMessage", "videoMessage", "audioMessage"].includes(type);
         const isImage = type === 'imageMessage';
         const isVideo = type === 'videoMessage';
