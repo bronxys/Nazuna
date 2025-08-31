@@ -25,6 +25,8 @@ import indexModule from './index.js';
 const logger = pino({
     level: 'silent'
 });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const AUTH_DIR = path.join(__dirname, '..', 'database', 'qr-code');
 const DATABASE_DIR = path.join(__dirname, '..', 'database', 'grupos');
 const GLOBAL_BLACKLIST_PATH = path.join(__dirname, '..', 'database', 'dono', 'globalBlacklist.json');
@@ -36,8 +38,6 @@ const groupCache = new NodeCache({
     stdTTL: 5 * 60,
     useClones: false
 });
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const {
     prefixo,
     nomebot,
