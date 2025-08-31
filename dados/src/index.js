@@ -285,7 +285,6 @@ const removeSubdono = userId => {
   }
   ;
   const initialLength = currentSubdonos.length;
-  var currentSubdonos;
   currentSubdonos = currentSubdonos.filter(id => id !== userId);
   if (currentSubdonos.length === initialLength) {
     return {
@@ -341,7 +340,6 @@ const isRentalModeActive = () => {
 };
 const setRentalMode = isActive => {
   let rentalData = loadRentalData();
-  var rentalData.globalMode;
   rentalData.globalMode = !!isActive;
   return saveRentalData(rentalData);
 };
@@ -395,16 +393,12 @@ const setGroupRental = (groupId, durationDays) => {
   let expiresAt = null;
   let message = '';
   if (durationDays === 'permanent') {
-    var expiresAt;
     expiresAt = 'permanent';
-    var message;
     message = `✅ Aluguel permanente ativado!`;
   } else if (typeof durationDays === 'number' && durationDays > 0) {
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + durationDays);
-    var expiresAt;
     expiresAt = expirationDate.toISOString();
-    var message;
     message = `✅ Aluguel ativado por ${durationDays} dias! Expira em: ${expirationDate.toLocaleDateString('pt-BR')}.`;
   } else {
     return {
@@ -412,7 +406,6 @@ const setGroupRental = (groupId, durationDays) => {
       message: '🤔 Duração inválida! Use um número de dias (ex: 30) ou a palavra "permanente".'
     };
   }
-  var rentalData.groups[groupId];
   rentalData.groups[groupId] = {
     expiresAt
   };
@@ -447,7 +440,6 @@ const generateActivationCode = (durationDays, targetGroupId = null) => {
   let code = '';
   let codesData = loadActivationCodes();
   do {
-    var code;
     code = crypto.randomBytes(4).toString('hex').toUpperCase();
   } while (codesData.codes[code]);
   if (durationDays !== 'permanent' && (typeof durationDays !== 'number' || durationDays <= 0)) {
@@ -457,10 +449,9 @@ const generateActivationCode = (durationDays, targetGroupId = null) => {
     };
   }
   if (targetGroupId && (typeof targetGroupId !== 'string' || !targetGroupId.endsWith('@g.us'))) {
-    var targetGroupId;
+    
     targetGroupId = null;
   }
-  var codesData.codes[code];
   codesData.codes[code] = {
     duration: durationDays,
     targetGroup: targetGroupId,
@@ -472,17 +463,16 @@ const generateActivationCode = (durationDays, targetGroupId = null) => {
   if (saveActivationCodes(codesData)) {
     let message = `🔑 Código de ativação gerado:\n\n*${code}*\n\n`;
     if (durationDays === 'permanent') {
-      var message;
       message += `Duração: Permanente ✨\n`;
     } else {
-      var message;
+      
       message += `Duração: ${durationDays} dias ⏳\n`;
     }
     if (targetGroupId) {
-      var message;
+      
       message += `Grupo Alvo: ${targetGroupId} 🎯\n`;
     }
-    var message;
+    
     message += `\nEnvie este código no grupo para ativar o aluguel.`;
     return {
       success: true,
@@ -542,13 +532,9 @@ const useActivationCode = (code, groupId, userId) => {
     };
   }
   let codesData = loadActivationCodes();
-  var codesData.codes[code].used;
   codesData.codes[code].used = true;
-  var codesData.codes[code].usedBy;
   codesData.codes[code].usedBy = userId;
-  var codesData.codes[code].usedAt;
   codesData.codes[code].usedAt = new Date().toISOString();
-  var codesData.codes[code].activatedGroup;
   codesData.codes[code].activatedGroup = groupId;
   if (saveActivationCodes(codesData)) {
     return {
@@ -596,14 +582,11 @@ const extendGroupRental = (groupId, extraDays) => {
   if (currentExpires < now) {
     const newExpiration = new Date();
     newExpiration.setDate(newExpiration.getDate() + extraDays);
-    var newExpiresAt;
     newExpiresAt = newExpiration.toISOString();
   } else {
     currentExpires.setDate(currentExpires.getDate() + extraDays);
-    var newExpiresAt;
     newExpiresAt = currentExpires.toISOString();
   }
-  var rentalData.groups[groupId].expiresAt;
   rentalData.groups[groupId].expiresAt = newExpiresAt;
   if (saveRentalData(rentalData)) {
     return {
@@ -658,9 +641,7 @@ function checkLevelUp(userId, userData, levelingData, nazu, from) {
   const nextLevelXp = calculateNextLevelXp(userData.level);
   if (userData.xp >= nextLevelXp) {
     userData.level++;
-    var userData.xp;
     userData.xp -= nextLevelXp;
-    var userData.patent;
     userData.patent = getPatent(userData.level, levelingData.patents);
     fs.writeFileSync(LEVELING_FILE, JSON.stringify(levelingData, null, 2));
     nazu.sendMessage(from, {
@@ -673,15 +654,11 @@ function checkLevelDown(userId, userData, levelingData) {
   while (userData.xp < 0 && userData.level > 1) {
     userData.level--;
     const prevLevelXp = calculateNextLevelXp(userData.level - 1);
-    var userData.xp;
     userData.xp += prevLevelXp;
   }
   if (userData.xp < 0) {
-    var userData.xp;
-    var userData.xp;
     userData.xp = 0;
   }
-  var userData.patent;
   userData.patent = getPatent(userData.level, levelingData.patents);
 }
 const loadCustomAutoResponses = () => {
@@ -765,7 +742,6 @@ const addGlobalBlacklist = (userId, reason, addedBy) => {
       message: `✨ Usuário @${userId.split('@')[0]} já está na blacklist global!`
     };
   }
-  var blacklistData.users[userId];
   blacklistData.users[userId] = {
     reason: reason || 'Não especificado',
     addedBy: addedBy || 'Desconhecido',
@@ -882,9 +858,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
   });
   if (!fs.existsSync(modoLiteFile)) {
     fs.writeFileSync(modoLiteFile, JSON.stringify(modoLiteGlobal, null, 2));
-  }
-  ;
-  var global.autoStickerMode;
+  };
+  
   global.autoStickerMode = global.autoStickerMode || 'default';
   try {
     var r;
@@ -934,38 +909,26 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       }
       ;
       try {
-        var groupData;
         groupData = JSON.parse(fs.readFileSync(groupFile));
       } catch (error) {
         console.error(`Erro ao carregar dados do grupo ${from}:`, error);
-        var groupData;
         groupData = {
           mark: {}
         };
-      }
-      ;
-      var groupData.moderators;
+      };
       groupData.moderators = groupData.moderators || [];
-      var groupData.allowedModCommands;
       groupData.allowedModCommands = groupData.allowedModCommands || [];
-      var groupData.mutedUsers;
       groupData.mutedUsers = groupData.mutedUsers || {};
-      var groupData.levelingEnabled;
       groupData.levelingEnabled = groupData.levelingEnabled || false;
       if (groupName && groupData.groupName !== groupName) {
-        var groupData.groupName;
         groupData.groupName = groupName;
         fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-      }
-      ;
-    }
-    ;
+      };
+    };
     let parceriasData = {};
     if (isGroup) {
-      var parceriasData;
       parceriasData = loadParceriasData(from);
-    }
-    ;
+    };
     const groupPrefix = groupData.customPrefix || prefixo;
     var isCmd = body.trim().startsWith(groupPrefix);
     const aliases = loadCommandAliases();
@@ -975,30 +938,24 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     if (!isGroup) {
       if (antipvData.mode === 'antipv' && !isOwner && !isPremium) {
         return;
-      }
-      ;
+      };
       if (antipvData.mode === 'antipv2' && isCmd && !isOwner && !isPremium) {
         await reply(antipvData.message || '🚫 Este comando só funciona em grupos!');
         return;
-      }
-      ;
+      };
       if (antipvData.mode === 'antipv3' && isCmd && !isOwner && !isPremium) {
         await nazu.updateBlockStatus(sender, 'block');
         await reply('🚫 Você foi bloqueado por usar comandos no privado!');
         return;
-      }
-      ;
+      };
       if (antipvData.mode === 'antipv4' && !isOwner && !isPremium) {
         await reply(antipvData.message || '🚫 Este comando só funciona em grupos!');
         return;
-      }
-      ;
-    }
-    ;
+      };
+    };
     if (isGroup && banGpIds[from] && !isOwner && !isPremium) {
       return;
-    }
-    ;
+    };
     const AllgroupMembers = !isGroup ? [] : groupMetadata.participants?.map(p => p.jid || p.id) || [];
     const groupAdmins = !isGroup ? [] : groupMetadata.participants?.filter(p => p.admin).map(p => p.jid || p.id) || [];
     const botNumber = nazu.user.id.split(':')[0] + '@s.whatsapp.net';
@@ -1006,7 +963,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     let isGroupAdmin = false;
     if (isGroup) {
       const isModeratorActionAllowed = groupData.moderators?.includes(sender) && groupData.allowedModCommands?.includes(command);
-      var isGroupAdmin;
       isGroupAdmin = groupAdmins.includes(sender) || isOwner || isModeratorActionAllowed;
     }
     ;
@@ -1066,13 +1022,11 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       for (const key in clone) {
         const media = clone[key];
         if (media && typeof media === 'object' && media.url) {
-          var clone[key];
           clone[key] = {
             url: media.url
           };
           for (const subkey in media) {
             if (subkey !== 'url') {
-              var clone[subkey];
               clone[subkey] = media[subkey];
             }
           }
@@ -1135,9 +1089,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     let rentalStatusChecked = false;
     if (isGroup && rentalModeOn) {
       const rentalStatus = getGroupRentalStatus(from);
-      var groupHasActiveRental;
       groupHasActiveRental = rentalStatus.active;
-      var rentalStatusChecked;
       rentalStatusChecked = true;
       const allowedCommandsBypass = ['modoaluguel', 'addaluguel', 'gerarcodigo', 'addsubdono', 'remsubdono', 'listasubdonos'];
       if (!groupHasActiveRental && isCmd && !isOwnerOrSub && !allowedCommandsBypass.includes(command)) {
@@ -1168,28 +1120,22 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     ;
     if (isGroup) {
       try {
-        var groupData.contador;
         groupData.contador = groupData.contador || [];
         const userIndex = groupData.contador.findIndex(user => user.id === sender);
         if (userIndex !== -1) {
           const userData = groupData.contador[userIndex];
           if (isCmd) {
-            var userData.cmd;
             userData.cmd = (userData.cmd || 0) + 1;
           } else if (type === "stickerMessage") {
-            var userData.figu;
             userData.figu = (userData.figu || 0) + 1;
           } else {
-            var userData.msg;
             userData.msg = (userData.msg || 0) + 1;
           }
           ;
           if (pushname && userData.pushname !== pushname) {
-            var userData.pushname;
             userData.pushname = pushname;
           }
           ;
-          var userData.lastActivity;
           userData.lastActivity = new Date().toISOString();
         } else {
           groupData.contador.push({
@@ -1212,7 +1158,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     ;
     if (isGroup && groupData.levelingEnabled) {
       const levelingData = loadJsonFile(LEVELING_FILE);
-      var levelingData.users[sender];
       levelingData.users[sender] = levelingData.users[sender] || {
         level: 1,
         xp: 0,
@@ -1224,10 +1169,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       userData.messages++;
       if (isCmd) {
         userData.commands++;
-        var userData.xp;
         userData.xp += 10;
       } else {
-        var userData.xp;
         userData.xp += 5;
       }
       checkLevelUp(sender, userData, levelingData, nazu, from);
@@ -1247,16 +1190,13 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           mentions: mentions
         };
         if (buttons) {
-          var messageContent.buttons;
           messageContent.buttons = buttons;
-          var messageContent.headerType;
           messageContent.headerType = 1;
         }
         const sendOptions = {
           sendEphemeral: true
         };
         if (!noForward) {
-          var sendOptions.contextInfo;
           sendOptions.contextInfo = {
             forwardingScore: 50,
             isForwarded: true,
@@ -1266,7 +1206,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           };
         }
         if (!noQuote) {
-          var sendOptions.quoted;
           sendOptions.quoted = info;
         }
         const result = await nazu.sendMessage(from, messageContent, sendOptions);
@@ -1276,7 +1215,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         return null;
       }
     }
-    var nazu.reply;
     nazu.reply = reply;
     const reagir = async (emj, options = {}) => {
       try {
@@ -1322,7 +1260,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         return false;
       }
     };
-    var nazu.react;
     nazu.react = reagir;
     const getFileBuffer = async (mediakey, mediaType, options = {}) => {
       try {
@@ -1334,9 +1271,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         const MAX_BUFFER_SIZE = 50 * 1024 * 1024;
         let totalSize = 0;
         for await (const chunk of stream) {
-          var buffer;
           buffer = Buffer.concat([buffer, chunk]);
-          var totalSize;
           totalSize += chunk.length;
           if (totalSize > MAX_BUFFER_SIZE) {
             throw new Error(`Tamanho máximo de buffer excedido (${MAX_BUFFER_SIZE / (1024 * 1024)}MB)`);
@@ -1406,7 +1341,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             });
             let afkMsg = `😴 @${jid.split('@')[0]} está AFK desde ${afkSince}.`;
             if (afkData.reason) {
-              var afkMsg;
               afkMsg += `\nMotivo: ${afkData.reason}`;
             }
             await reply(afkMsg, {
@@ -1429,11 +1363,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
               Hentai: 0
             };
             if (Array.isArray(apiResponse.data)) {
-              var scores;
               scores = apiResponse.data.reduce((acc, item) => {
                 if (item && typeof item.className === 'string' && typeof item.probability === 'number') {
                   if (item.className === 'Porn' || item.className === 'Hentai') {
-                    var acc[item.className];
                     acc[item.className] = Math.max(acc[item.className] || 0, item.probability);
                   }
                 }
@@ -1502,7 +1434,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     }
     ;
     if (isGroup && antifloodData[from]?.enabled && isCmd && !isGroupAdmin) {
-      var antifloodData[from].users;
       antifloodData[from].users = antifloodData[from].users || {};
       const now = Date.now();
       const lastCmd = antifloodData[from].users[sender]?.lastCmd || 0;
@@ -1511,7 +1442,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         return reply(`⏳ Calma aí, apressadinho(a)! 😊 Espere ${Math.ceil((interval - (now - lastCmd)) / 1000)} segundos para usar outro comando, por favor! ✨`);
       }
       ;
-      var antifloodData[from].users[sender];
       antifloodData[from].users[sender] = {
         lastCmd: now
       };
@@ -1534,16 +1464,13 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     }
     ;
     if (isGroup && cmdLimitData[from]?.enabled && isCmd && !isGroupAdmin) {
-      var cmdLimitData[from].users;
       cmdLimitData[from].users = cmdLimitData[from].users || {};
       const today = new Date().toISOString().split('T')[0];
-      var cmdLimitData[from].users[sender];
       cmdLimitData[from].users[sender] = cmdLimitData[from].users[sender] || {
         date: today,
         count: 0
       };
       if (cmdLimitData[from].users[sender].date !== today) {
-        var cmdLimitData[from].users[sender];
         cmdLimitData[from].users[sender] = {
           date: today,
           count: 0
@@ -1658,7 +1585,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     ;
     let quotedMessageContent = null;
     if (type === 'extendedTextMessage' && info.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
-      var quotedMessageContent;
       quotedMessageContent = info.message.extendedTextMessage.contextInfo.quotedMessage;
     }
     const isQuotedMsg = !!quotedMessageContent?.conversation;
@@ -1701,13 +1627,13 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             const codeLines = body.slice(2).trim().split('\n');
             if (codeLines.length > 1) {
               if (!codeLines[codeLines.length - 1].includes('return')) {
-                var codeLines[codeLines.length - 1];
+                
                 codeLines[codeLines.length - 1] = 'return ' + codeLines[codeLines.length - 1];
               }
               ;
             } else {
               if (!codeLines[0].includes('return')) {
-                var codeLines[0];
+                
                 codeLines[0] = 'return ' + codeLines[0];
               }
               ;
@@ -1716,13 +1642,13 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             const result = await eval(`(async () => { ${codeLines.join('\n')} })()`);
             let output;
             if (typeof result === 'object' && result !== null) {
-              var output;
+              
               output = JSON.stringify(result, null, 2);
             } else if (typeof result === 'function') {
-              var output;
+              
               output = result.toString();
             } else {
-              var output;
+              
               output = String(result);
             }
             ;
@@ -1895,13 +1821,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           texto: quotedMessage?.conversation || quotedMessage?.extendedTextMessage?.text || quotedMessage?.imageMessage?.caption || quotedMessage?.videoMessage?.caption || quotedMessage?.documentMessage?.caption || ""
         };
         if (jsonO && jsonO.participant && jsonO.texto && jsonO.texto.length > 0) {
-          var jSoNzIn.marcou_mensagem;
           jSoNzIn.marcou_mensagem = true;
-          var jSoNzIn.mensagem_marcada;
           jSoNzIn.mensagem_marcada = jsonO.texto;
-          var jSoNzIn.id_enviou_marcada;
           jSoNzIn.id_enviou_marcada = jsonO.participant;
-          var jSoNzIn.marcou_sua_mensagem;
           jSoNzIn.marcou_sua_mensagem = jsonO.participant == nazu.user.id.split(':')[0] + '@s.whatsapp.net';
         }
         ;
@@ -1938,9 +1860,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     //ANTI FLOOD DE MENSAGENS
     if (isGroup && groupData.messageLimit?.enabled && !isGroupAdmin && !isOwnerOrSub && !info.key.fromMe) {
       try {
-        var groupData.messageLimit.warnings;
         groupData.messageLimit.warnings = groupData.messageLimit.warnings || {};
-        var groupData.messageLimit.users;
         groupData.messageLimit.users = groupData.messageLimit.users || {};
         const now = Date.now();
         const userData = groupData.messageLimit.users[sender] || {
@@ -1948,14 +1868,11 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           lastReset: now
         };
         if (now - userData.lastReset >= groupData.messageLimit.interval * 1000) {
-          var userData.count;
           userData.count = 0;
-          var userData.lastReset;
           userData.lastReset = now;
         }
         ;
         userData.count++;
-        var groupData.messageLimit.users[sender];
         groupData.messageLimit.users[sender] = userData;
         if (userData.count > groupData.messageLimit.limit) {
           if (groupData.messageLimit.action === 'ban' && isBotAdmin) {
@@ -1965,7 +1882,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             });
             delete groupData.messageLimit.users[sender];
           } else if (groupData.messageLimit.action === 'adv') {
-            var groupData.messageLimit.warnings[sender];
             groupData.messageLimit.warnings[sender] = (groupData.messageLimit.warnings[sender] || 0) + 1;
             const warnings = groupData.messageLimit.warnings[sender];
             if (warnings >= 3 && isBotAdmin) {
@@ -2024,22 +1940,17 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             participant: sender
           }
         });
-        var groupData.warnings;
         groupData.warnings = groupData.warnings || {};
-        var groupData.warnings[sender];
         groupData.warnings[sender] = groupData.warnings[sender] || {
           count: 0,
           lastWarned: null
         };
-        var groupData.warnings[sender].count;
         groupData.warnings[sender].count += 1;
-        var groupData.warnings[sender].lastWarned;
         groupData.warnings[sender].lastWarned = new Date().toISOString();
         const warnCount = groupData.warnings[sender].count;
         const warnLimit = groupData.antifig.warnLimit || 3;
         let warnMessage = `🚫 @${sender.split('@')[0]}, figurinhas não são permitidas neste grupo! Advertência ${warnCount}/${warnLimit}.`;
         if (warnCount >= warnLimit && isBotAdmin) {
-          var warnMessage;
           warnMessage += `\n⚠️ Você atingiu o limite de advertências e será removido.`;
           await nazu.groupParticipantsUpdate(from, [sender], 'remove');
           delete groupData.warnings[sender];
@@ -2229,21 +2140,21 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             const ran = __dirname + `/../database/tmp/${Math.random()}${outputExt}`;
             let ffmpegCmd;
             if (command === 'tomp3') {
-              var ffmpegCmd;
+              
               ffmpegCmd = `ffmpeg -i ${media} -q:a 0 -map a ${ran}`;
             } else if (command === 'videoloop') {
-              var ffmpegCmd;
+              
               ffmpegCmd = `ffmpeg -stream_loop 2 -i ${media} -c copy ${ran}`;
             } else if (command === 'videomudo') {
-              var ffmpegCmd;
+              
               ffmpegCmd = `ffmpeg -i ${media} -an ${ran}`;
             } else {
               const effect = videoEffects[command];
               if (['sepia', 'espelhar', 'rotacionar', 'zoom', 'glitch', 'videobw', 'pretoebranco'].includes(command)) {
-                var ffmpegCmd;
+                
                 ffmpegCmd = `ffmpeg -i ${media} -vf "${effect}" ${ran}`;
               } else {
-                var ffmpegCmd;
+                
                 ffmpegCmd = `ffmpeg -i ${media} -filter_complex "${effect}" -map "[v]" -map "[a]" ${ran}`;
               }
             }
@@ -2808,8 +2719,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               const thumbUrl = thumbnail?.source || '';
               let mensagem = `📖✨ *Encontrei isso na Wikipédia (PT):*\n\n*${title || q}*\n\n${extract}\n\n`;
               if (link) {
-                var mensagem;
-                var mensagem;
+                
                 mensagem += `🔗 *Saiba mais:* ${link}\n`;
               }
               if (thumbUrl) {
@@ -2824,7 +2734,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               } else {
                 await reply(mensagem);
               }
-              var found;
+              
               found = true;
             }
           } catch (err) {
@@ -2844,8 +2754,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 const thumbUrl = thumbnail?.source || '';
                 let mensagem = `📖✨ *Encontrei isso na Wikipédia (EN):*\n\n*${title || q}*\n\n${extract}\n\n`;
                 if (link) {
-                  var mensagem;
-                  var mensagem;
+                  
                   mensagem += `🔗 *Saiba mais:* ${link}\n`;
                 }
                 if (thumbUrl) {
@@ -2860,7 +2769,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 } else {
                   await reply(mensagem);
                 }
-                var found;
+                
                 found = true;
               }
             } catch (err) {
@@ -2894,25 +2803,24 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               const significados = resp.data[0];
               let mensagem = `📘✨ *Significado de "${palavra.toUpperCase()}":*\n\n`;
               if (significados.class) {
-                var mensagem;
+                
                 mensagem += `*Classe:* ${significados.class}\n\n`;
               }
               if (significados.meanings && significados.meanings.length > 0) {
-                var mensagem;
+                
                 mensagem += `*Significados:*\n`;
                 significados.meanings.forEach((significado, index) => {
-                  var mensagem;
+                  
                   mensagem += `${index + 1}. ${significado}\n`;
                 });
-                var mensagem;
+                
                 mensagem += '\n';
               }
               if (significados.etymology) {
-                var mensagem;
+                
                 mensagem += `*Etimologia:* ${significados.etymology}\n\n`;
               }
               await reply(mensagem);
-              var definicaoEncontrada;
               definicaoEncontrada = true;
             }
           } catch (apiError) {
@@ -2922,7 +2830,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             const prompt = `Defina a palavra "${palavra}" em português de forma completa e fofa. Inclua a classe gramatical, os principais significados e um exemplo de uso em uma frase curta e bonitinha.`;
             const bahz = await ia.makeCognimaRequest('institute-of-science-tokyo/llama-3.1-swallow-70b-instruct-v0.1', prompt, null, KeyCog || null);
             await reply(`${bahz.data.choices[0].message.content}`);
-            var definicaoEncontrada;
             definicaoEncontrada = true;
           }
         } catch (e) {
@@ -2998,13 +2905,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let participantsInfo = {};
           if (isGroup && groupMetadata.participants) {
             groupMetadata.participants.forEach(p => {
-              var participantsInfo[p.jid || p.id];
               participantsInfo[p.jid || p.id] = p.pushname || p.jid.split('@')[0] || p.id.split('@')[0];
             });
           }
           subdonos.forEach((jid, index) => {
             const nameOrNumber = participantsInfo[jid] || jid.split('@')[0];
-            var listaMsg;
             listaMsg += `${index + 1}. @${jid.split('@')[0]} (${nameOrNumber})\n`;
             mentions.push(jid);
           });
@@ -3026,12 +2931,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             viewMessages: true
           });
           if (q.toLowerCase() === 'on') {
-            var botState.viewMessages;
             botState.viewMessages = true;
             fs.writeFileSync(botStateFile, JSON.stringify(botState, null, 2));
             await reply('✅ Visualização de mensagens ativada!');
           } else if (q.toLowerCase() === 'off') {
-            var botState.viewMessages;
             botState.viewMessages = false;
             fs.writeFileSync(botStateFile, JSON.stringify(botState, null, 2));
             await reply('✅ Visualização de mensagens desativada!');
@@ -3081,10 +2984,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const filtro = args[0]?.toLowerCase();
           let message = `╭───「 *Lista de Aluguéis* 」───╮\n│ 🌍 *Modo Aluguel Global*: ${globalMode}\n│ 📊 *Total de Grupos*: ${groupCount}\n╰────────────────╯\n`;
           if (groupCount === 0) {
-            var message;
+            
             message += '📪 Nenhum grupo com aluguel registrado.';
           } else {
-            var message;
+            
             message += '📋 *Grupos com Aluguel*:\n\n';
             let index = 1;
             for (const [groupId, info] of Object.entries(groupRentals)) {
@@ -3094,10 +2997,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               const groupName = groupMetadata.subject || 'Sem Nome';
               let status = 'Expirado';
               if (info.expiresAt === 'permanent') {
-                var status;
+                
                 status = 'Permanente';
               } else if (new Date(info.expiresAt) > new Date()) {
-                var status;
+                
                 status = 'Ativo';
               }
               const shouldInclude = !filtro || filtro === 'ven' && status === 'Expirado' || filtro === 'atv' && status === 'Ativo' || filtro === 'perm' && status === 'Permanente';
@@ -3105,17 +3008,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               const expires = info.expiresAt === 'permanent' ? '∞ Permanente' : info.expiresAt ? new Date(info.expiresAt).toLocaleString('pt-BR', {
                 timeZone: 'America/Sao_Paulo'
               }) : 'N/A';
-              var message;
+              
               message += `🔹 *${index}. ${groupName}*\n`;
-              var message;
+              
               message += `  - *Status*: ${status}\n`;
-              var message;
+              
               message += `  - *Expira em*: ${expires}\n\n`;
               index++;
             }
             if (index === 1) {
-              var message;
-              var message;
+              
+              
               message += '📪 Nenhum grupo encontrado com esse filtro.';
             }
           }
@@ -3128,7 +3031,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'leveling':
         if (!isGroup) return reply("Este comando só funciona em grupos.");
         if (!isGroupAdmin) return reply("Apenas administradores podem usar este comando.");
-        var groupData.levelingEnabled;
         groupData.levelingEnabled = !groupData.levelingEnabled;
         fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
         await reply(`🎚️ Sistema de leveling ${groupData.levelingEnabled ? 'ativado' : 'desativado'}!`);
@@ -3159,7 +3061,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           messages: 0,
           commands: 0
         };
-        var userDataAdd.xp;
         userDataAdd.xp += xpToAdd;
         checkLevelUp(menc_os2, userDataAdd, levelingDataAdd, nazu, from);
         fs.writeFileSync(LEVELING_FILE, JSON.stringify(levelingDataAdd, null, 2));
@@ -3180,7 +3081,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           messages: 0,
           commands: 0
         };
-        var userDataDel.xp;
         userDataDel.xp = Math.max(0, userDataDel.xp - xpToRemove);
         checkLevelDown(menc_os2, userDataDel, levelingDataDel);
         fs.writeFileSync(LEVELING_FILE, JSON.stringify(levelingDataDel, null, 2));
@@ -3193,7 +3093,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         const sortedUsers = Object.entries(levelingDataRank.users).sort((a, b) => b[1].level - a[1].level || b[1].xp - a[1].xp).slice(0, 10);
         let rankMessage = '🏆 *Ranking Global de Níveis*\n\n';
         sortedUsers.forEach(([userId, data], index) => {
-          var rankMessage;
           rankMessage += `${index + 1}. @${userId.split('@')[0]} - Nível ${data.level} (XP: ${data.xp})\n`;
         });
         await reply(rankMessage, {
@@ -3218,7 +3117,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             const extendResult = extendGroupRental(groupId, extraDays);
             if (extendResult.success) {
               successCount++;
-              var summary;
               summary += `✅ ${groupId}: ${extendResult.message}\n`;
               try {
                 const groupMeta = await nazu.groupMetadata(groupId);
@@ -3228,16 +3126,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 });
               } catch (e) {
                 console.error(`Erro ao enviar mensagem para ${groupId}:`, e);
-                var summary;
                 summary += `   ⚠️ Falha ao avisar no grupo.\n`;
               }
             } else {
               failCount++;
-              var summary;
               summary += `❌ ${groupId}: ${extendResult.message}\n`;
             }
           }
-          var summary;
           summary += `\nTotal: ${successCount} sucessos | ${failCount} falhas`;
           await reply(summary);
         } catch (e) {
@@ -3253,10 +3148,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const durationArg = parts[0];
           let durationDays = null;
           if (durationArg === 'permanente') {
-            var durationDays;
             durationDays = 'permanent';
           } else if (!isNaN(parseInt(durationArg)) && parseInt(durationArg) > 0) {
-            var durationDays;
             durationDays = parseInt(durationArg);
           } else {
             return reply(`🤔 Duração inválida. Use um número de dias (ex: 30) ou a palavra "permanente".\nExemplo: ${prefix}addaluguel 30`);
@@ -3280,25 +3173,20 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             return reply(`🤔 Uso: ${prefix}gerarcodigo <dias|permanente> [id_do_grupo_opcional]`);
           }
           if (durationArg === 'permanente') {
-            var durationDays;
             durationDays = 'permanent';
           } else if (!isNaN(parseInt(durationArg)) && parseInt(durationArg) > 0) {
-            var durationDays;
             durationDays = parseInt(durationArg);
           } else {
             return reply('🤔 Duração inválida. Use um número de dias (ex: 7) ou a palavra "permanente".');
           }
           if (targetGroupArg) {
             if (targetGroupArg.includes('@g.us')) {
-              var targetGroupId;
               targetGroupId = targetGroupArg;
             } else if (/^\d+$/.test(targetGroupArg)) {
-              var targetGroupId;
               targetGroupId = targetGroupArg + '@g.us';
             } else {
               const mentionedJid = info.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
               if (mentionedJid && mentionedJid.endsWith('@g.us')) {
-                var targetGroupId;
                 targetGroupId = mentionedJid;
               } else {
                 return reply('🤔 ID do grupo alvo inválido. Forneça o ID completo (numero@g.us) ou deixe em branco para um código genérico.');
@@ -3356,20 +3244,20 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           }
           saveRentalData(rentalData);
           let summary = `🧹 *Resumo da Limpeza de Aluguel* 🧹\n\n`;
-          var summary;
+          
           summary += `✅ Grupos removidos dos registros (bot não está mais neles): *${groupsCleaned}*\n`;
-          var summary;
+          
           summary += `⏰ Grupos vencidos processados e saídos: *${groupsExpired}*\n`;
-          var summary;
+          
           summary += `📩 Administradores notificados: *${adminsNotified}*\n`;
           if (groupsLeft.length > 0) {
-            var summary;
+            
             summary += `\n📋 *Grupos dos quais saí:*\n${groupsLeft.map(id => `- ${id.split('@')[0]}`).join('\n')}\n`;
           } else {
-            var summary;
+            
             summary += `\n📋 Nenhum grupo vencido encontrado para sair.\n`;
           }
-          var summary;
+          
           summary += `\n✨ Limpeza concluída com sucesso!`;
           await reply(summary);
         } catch (e) {
@@ -3407,7 +3295,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (autoResponses.length === 0) return reply("📜 Nenhuma auto-resposta definida.");
           let responseText = `📜 *Auto-Respostas do Grupo ${groupName}*\n\n`;
           autoResponses.forEach((item, index) => {
-            var responseText;
+            
             responseText += `${index + 1}. Recebida: ${item.received}\n   Resposta: ${item.response}\n`;
           });
           await reply(responseText);
@@ -3468,7 +3356,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (noPrefixCommands.length === 0) return reply("📜 Nenhum comando sem prefixo definido.");
           let responseText = `📜 *Comandos Sem Prefixo do Grupo ${groupName}*\n\n`;
           noPrefixCommands.forEach((item, index) => {
-            var responseText;
+            
             responseText += `${index + 1}. Mensagem: ${item.trigger}\n   Comando: ${item.command}\n`;
           });
           await reply(responseText);
@@ -3527,7 +3415,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (aliases.length === 0) return reply("📜 Nenhum apelido de comando definido.");
           let responseText = `📜 *Apelidos de Comandos do Grupo ${groupName}*\n\n`;
           aliases.forEach((item, index) => {
-            var responseText;
+            
             responseText += `${index + 1}. Apelido: ${groupPrefix}${item.alias}\n   Comando: ${groupPrefix}${item.command}\n`;
           });
           await reply(responseText);
@@ -3592,7 +3480,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           }
           let message = `🛑 *Blacklist Global* 🛑\n\n`;
           for (const [userId, data] of Object.entries(blacklistData.users)) {
-            var message;
+            
             message += `➤ @${userId.split('@')[0]}\n   Motivo: ${data.reason}\n   Adicionado por: ${data.addedBy}\n   Data: ${new Date(data.addedAt).toLocaleString('pt-BR')}\n\n`;
           }
           await reply(message, {
@@ -3660,16 +3548,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           var audio1 = isQuotedAudio ? info.message.extendedTextMessage.contextInfo.quotedMessage.audioMessage : "";
           let media = {};
           if (isQuotedDocument) {
-            var media;
             media = await getFileBuffer(docc1, "document");
           } else if (isQuotedVideo) {
-            var media;
             media = await getFileBuffer(video1, "video");
           } else if (isQuotedImage) {
-            var media;
             media = await getFileBuffer(foto1, "image");
           } else if (isQuotedAudio) {
-            var media;
             media = await getFileBuffer(audio1, "audio");
           }
           ;
@@ -3796,7 +3680,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let videoUrl;
           let videoInfo;
           if (q.includes('youtube.com') || q.includes('youtu.be')) {
-            var videoUrl;
             videoUrl = q;
             await reply('Aguarde um momentinho... ☀️');
             const dlRes = await youtube.mp3(videoUrl);
@@ -3829,12 +3712,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             ;
             return;
           } else {
-            var videoInfo;
             videoInfo = await youtube.search(q);
             if (!videoInfo.ok) {
               return reply(`❌ Erro na pesquisa: ${videoInfo.msg}`);
             }
-            var videoUrl;
             videoUrl = videoInfo.data.url;
           }
           if (!videoInfo.ok) {
@@ -3898,7 +3779,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!q) return reply(`Digite o nome do vídeo ou um link do YouTube.\n> Ex: ${prefix + command} Back to Black`);
           let videoUrl;
           if (q.includes('youtube.com') || q.includes('youtu.be')) {
-            var videoUrl;
             videoUrl = q;
             await reply('Aguarde um momentinho... ☀️');
             const dlRes = await youtube.mp4(videoUrl);
@@ -3929,7 +3809,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           } else {
             const searchResult = await youtube.search(q);
             if (!searchResult.ok) return reply(searchResult.msg);
-            var videoUrl;
             videoUrl = searchResult.data.url;
           }
           const videoInfo = await youtube.search(q);
@@ -4060,7 +3939,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const [searchTerm, limitStr] = q.split('/').map(s => s.trim());
           let maxImages = 5;
           if (limitStr && !isNaN(parseInt(limitStr))) {
-            var maxImages;
             maxImages = Math.max(1, Math.min(parseInt(limitStr), 10));
           }
           const datinha = await (/^https?:\/\/(?:[a-zA-Z0-9-]+\.)?pinterest\.\w{2,6}(?:\.\w{2})?\/pin\/\d+|https?:\/\/pin\.it\/[a-zA-Z0-9]+/.test(searchTerm) ? pinterest.dl(searchTerm) : pinterest.search(searchTerm));
@@ -4233,7 +4111,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'antipv3':
         try {
           if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
-          var antipvData.mode;
           antipvData.mode = antipvData.mode === 'antipv3' ? null : 'antipv3';
           fs.writeFileSync(__dirname + '/../database/antipv.json', JSON.stringify(antipvData, null, 2));
           await reply(`✅ Antipv3 ${antipvData.mode ? 'ativado' : 'desativado'}! O bot agora ${antipvData.mode ? 'bloqueia usuários que usam comandos no privado' : 'responde normalmente no privado'}.`);
@@ -4245,7 +4122,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'antipv2':
         try {
           if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
-          var antipvData.mode;
           antipvData.mode = antipvData.mode === 'antipv2' ? null : 'antipv2';
           fs.writeFileSync(__dirname + '/../database/antipv.json', JSON.stringify(antipvData, null, 2));
           await reply(`✅ Antipv2 ${antipvData.mode ? 'ativado' : 'desativado'}! O bot agora ${antipvData.mode ? 'avisa que comandos só funcionam em grupos no privado' : 'responde normalmente no privado'}.`);
@@ -4257,7 +4133,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'antipv4':
         try {
           if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
-          var antipvData.mode;
           antipvData.mode = antipvData.mode === 'antipv4' ? null : 'antipv4';
           fs.writeFileSync(__dirname + '/../database/antipv.json', JSON.stringify(antipvData, null, 2));
           await reply(`✅ Antipv4 ${antipvData.mode ? 'ativado' : 'desativado'}! O bot agora ${antipvData.mode ? 'avisa que o bot so funciona em grupos' : 'responde normalmente no privado'}.`);
@@ -4276,7 +4151,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             mode: 'off',
             message: '🚫 Este comando só funciona em grupos!'
           });
-          var antipvData.message;
           antipvData.message = q.trim();
           fs.writeFileSync(antipvFile, JSON.stringify(antipvData, null, 2));
           await reply(`✅ Mensagem do antipv atualizada para: "${antipvData.message}"`);
@@ -4288,7 +4162,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'antipv':
         try {
           if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
-          var antipvData.mode;
           antipvData.mode = antipvData.mode === 'antipv' ? null : 'antipv';
           fs.writeFileSync(__dirname + '/../database/antipv.json', JSON.stringify(antipvData, null, 2));
           await reply(`✅ Antipv ${antipvData.mode ? 'ativado' : 'desativado'}! O bot agora ${antipvData.mode ? 'ignora mensagens no privado' : 'responde normalmente no privado'}.`);
@@ -4319,20 +4192,20 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let message = {};
           if (isQuotedImage) {
             const image = await getFileBuffer(info.message.extendedTextMessage.contextInfo.quotedMessage.imageMessage, 'image');
-            var message;
+            
             message = {
               image,
               caption: q || 'Transmissão do dono!'
             };
           } else if (isQuotedVideo) {
             const video = await getFileBuffer(info.message.extendedTextMessage.contextInfo.quotedMessage.videoMessage, 'video');
-            var message;
+            
             message = {
               video,
               caption: q || 'Transmissão do dono!'
             };
           } else {
-            var message;
+            
             message = {
               text: q
             };
@@ -4368,15 +4241,15 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             }
           }
           let message = '🧹 Limpeza de arquivos concluída!\n\n';
-          var message;
+          
           message += '📊 Arquivos excluídos por categoria:\n';
           for (const [category, count] of Object.entries(deletedByCategory)) {
-            var message;
+            
             message += `- ${category}: ${count} arquivo(s)\n`;
           }
-          var message;
+          
           message += `\n📈 Total de arquivos excluídos: ${totalDeleted}\n`;
-          var message;
+          
           message += '🔄 Reiniciando o sistema em 2 segundos...';
           reply(message);
           setTimeout(() => {
@@ -4397,13 +4270,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const cases = new Set();
           let match;
           while ((match = caseRegex.exec(indexContent)) !== null) {
-            var match;
             cases.add(match[1]);
           }
           ;
           const multiCaseRegex = /case\s+'([^']+)'\s*:\s*case\s+'([^']+)'\s*:/g;
           while ((match = multiCaseRegex.exec(indexContent)) !== null) {
-            var match;
             cases.add(match[1]);
             cases.add(match[2]);
           }
@@ -4445,7 +4316,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (command === 'botoff' && !isOn) {
             return reply('🌙 O bot já está desativado!');
           }
-          var botState.status;
           botState.status = command === 'boton' ? 'on' : 'off';
           fs.writeFileSync(botStateFile, JSON.stringify(botState, null, 2));
           const message = command === 'boton' ? '✅ *Bot ativado!* Agora todos podem usar os comandos.' : '✅ *Bot desativado!* Apenas o dono pode usar comandos.';
@@ -4462,9 +4332,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const reason = q?.split(' ').slice(1).join(' ') || 'Sem motivo informado';
           if (!cmdToBlock) return reply('❌ Informe o comando a bloquear! Ex.: ' + prefix + 'blockcmd sticker');
           const blockFile = __dirname + '/../database/globalBlocks.json';
-          var globalBlocks.commands;
           globalBlocks.commands = globalBlocks.commands || {};
-          var globalBlocks.commands[cmdToBlock];
           globalBlocks.commands[cmdToBlock] = {
             reason,
             timestamp: Date.now()
@@ -4502,9 +4370,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           menc_os3 = menc_os2.includes(' ') ? menc_os2.split(' ')[0] : menc_os2;
           if (!menc_os3) return reply("Marque alguém 🙄");
           const blockFile = __dirname + '/../database/globalBlocks.json';
-          var globalBlocks.users;
           globalBlocks.users = globalBlocks.users || {};
-          var globalBlocks.users[menc_os3];
           globalBlocks.users[menc_os3] = {
             reason,
             timestamp: Date.now()
@@ -4584,7 +4450,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
           if (!q) return reply(`Por favor, digite o novo prefixo.\nExemplo: ${prefix}${command} /`);
           let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
-          var config.prefixo;
           config.prefixo = q;
           fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
           await reply(`Prefixo alterado com sucesso para "${q}"!`);
@@ -4599,7 +4464,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
           if (!q) return reply(`Por favor, digite o novo número do dono.\nExemplo: ${prefix}${command} +553399285117`);
           let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
-          var config.numerodono;
           config.numerodono = q;
           fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
           await reply(`Número do dono alterado com sucesso para "${q}"!`);
@@ -4614,7 +4478,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
           if (!q) return reply(`Por favor, digite o novo nome do dono.\nExemplo: ${prefix}${command} Hiudy`);
           let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
-          var config.nomedono;
           config.nomedono = q;
           fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
           await reply(`Nome do dono alterado com sucesso para "${q}"!`);
@@ -4630,7 +4493,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
           if (!q) return reply(`Por favor, digite o novo nome do bot.\nExemplo: ${prefix}${command} Nazuna`);
           let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
-          var config.nomebot;
           config.nomebot = q;
           fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
           await reply(`Nome do bot alterado com sucesso para "${q}"!`);
@@ -4645,7 +4507,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isOwner) return reply("Este comando é exclusivo para o meu dono!");
           if (!q) return reply(`Por favor, digite a nova API key.\nExemplo: ${prefix}${command} abc123xyz`);
           let config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
-          var config.apikey;
           config.apikey = q;
           fs.writeFileSync(__dirname + '/config.json', JSON.stringify(config, null, 2));
           await reply(`API key alterada com sucesso para "${q}"!`);
@@ -4684,7 +4545,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const sortedGroups = groups.sort((a, b) => a.subject.localeCompare(b.subject));
           let teks = `🌟 *Lista de Grupos e Comunidades* 🌟\n📊 *Total de Grupos:* ${sortedGroups.length}\n\n`;
           for (let i = 0; i < sortedGroups.length; i++) {
-            var teks;
+            
             teks += `🔹 *${i + 1}. ${sortedGroups[i].subject}*\n` + `🆔 *ID:* ${sortedGroups[i].id}\n` + `👥 *Participantes:* ${sortedGroups[i].participants.length}\n\n`;
           }
           ;
@@ -4700,7 +4561,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
           if (!isOwner) return reply("Este comando é apenas para o meu dono");
-          var banGpIds[from];
           banGpIds[from] = !banGpIds[from];
           if (banGpIds[from]) {
             await reply('🚫 Grupo banido, apenas usuarios premium ou meu dono podem utilizar o bot aqui agora.');
@@ -4721,7 +4581,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isOwner) return reply("Este comando é apenas para o meu dono");
           if (!menc_os2) return reply("Marque alguém 🙄");
           if (!!premiumListaZinha[menc_os2]) return reply('O usuário ja esta na lista premium.');
-          var premiumListaZinha[menc_os2];
           premiumListaZinha[menc_os2] = true;
           await nazu.sendMessage(from, {
             text: `✅ @${menc_os2.split('@')[0]} foi adicionado(a) a lista premium.`,
@@ -4762,7 +4621,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isOwner) return reply("Este comando é apenas para o meu dono");
           if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
           if (!!premiumListaZinha[from]) return reply('O grupo ja esta na lista premium.');
-          var premiumListaZinha[from];
           premiumListaZinha[from] = true;
           await nazu.sendMessage(from, {
             text: `✅ O grupo foi adicionado a lista premium.`
@@ -4805,34 +4663,34 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const usersPremium = Object.keys(premiumList).filter(id => id.includes('@s.whatsapp.net'));
           const groupsPremium = Object.keys(premiumList).filter(id => id.includes('@g.us'));
           let teks = `✨ *Lista de Membros Premium* ✨\n\n`;
-          var teks;
+          
           teks += `👤 *Usuários Premium* (${usersPremium.length})\n`;
           if (usersPremium.length > 0) {
             usersPremium.forEach((user, i) => {
               const userNumber = user.split('@')[0];
-              var teks;
+              
               teks += `🔹 ${i + 1}. @${userNumber}\n`;
             });
           } else {
-            var teks;
+            
             teks += `   Nenhum usuário premium encontrado.\n`;
           }
           ;
-          var teks;
+          
           teks += `\n👥 *Grupos Premium* (${groupsPremium.length})\n`;
           if (groupsPremium.length > 0) {
             for (let i = 0; i < groupsPremium.length; i++) {
               try {
                 const groupInfo = await nazu.groupMetadata(groupsPremium[i]);
-                var teks;
+                
                 teks += `🔹 ${i + 1}. ${groupInfo.subject}\n`;
               } catch {
-                var teks;
+                
                 teks += `🔹 ${i + 1}. Grupo ID: ${groupsPremium[i]}\n`;
               }
             }
           } else {
-            var teks;
+            
             teks += `   Nenhum grupo premium encontrado.\n`;
           }
           ;
@@ -4859,9 +4717,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           var boij33 = RSMM?.audioMessage || info.message?.audioMessage || RSMM?.viewOnceMessageV2?.message?.audioMessage || info.message?.viewOnceMessageV2?.message?.audioMessage || info.message?.viewOnceMessage?.message?.audioMessage || RSMM?.viewOnceMessage?.message?.audioMessage;
           if (boijj) {
             var px = boijj;
-            var px.viewOnce;
             px.viewOnce = false;
-            var px.video;
             px.video = {
               url: px.url
             };
@@ -4870,9 +4726,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             });
           } else if (boij22) {
             var px = boij22;
-            var px.viewOnce;
             px.viewOnce = false;
-            var px.image;
             px.image = {
               url: px.url
             };
@@ -4881,9 +4735,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             });
           } else if (boij33) {
             var px = boij33;
-            var px.viewOnce;
             px.viewOnce = false;
-            var px.audio;
             px.audio = {
               url: px.url
             };
@@ -4930,7 +4782,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const oldContador = groupData.contador || [];
           let removedCount = 0;
           let removedUsers = [];
-          var groupData.contador;
           groupData.contador = oldContador.filter(user => {
             try {
               if (!currentMembers.includes(user.id)) {
@@ -4958,7 +4809,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Este comando só funciona em grupos.");
           if (!isGroupAdmin) return reply("Apenas administradores podem resetar o rank de atividade.");
           const oldCount = (groupData.contador || []).length;
-          var groupData.contador;
           groupData.contador = [];
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`🔄 Reset do rank de atividade concluído!\n\nRemovidas ${oldCount} entradas de usuários. O rank agora está vazio.`);
@@ -4982,7 +4832,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             const currentMembers = metadata.participants?.map(p => p.jid || p.id) || [];
             const oldContador = gData.contador || [];
             let removedInGroup = 0;
-            var gData.contador;
             gData.contador = oldContador.filter(user => {
               try {
                 if (!currentMembers.includes(user.id)) {
@@ -5015,19 +4864,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           blue67 = groupData.contador.sort((a, b) => (a.figu == undefined ? a.figu = 0 : a.figu + a.msg + a.cmd) < (b.figu == undefined ? b.figu = 0 : b.figu + b.cmd + b.msg) ? 0 : -1);
           var menc;
           menc = [];
-          var blad;
+          let blad;
           blad = `*🏆 Rank dos ${blue67.length < 10 ? blue67.length : 10} mais ativos do grupo:*\n`;
           for (i6 = 0; i6 < (blue67.length < 10 ? blue67.length : 10); i6++) {
-            var i6;
             if (blue67[i6].id) {
               if (i6 != null) {
-                var blad;
-                var blad;
                 blad += `\n*🏅 ${i6 + 1}º Lugar:* @${blue67[i6].id.split('@')[0]}\n- mensagens encaminhadas: *${blue67[i6].msg}*\n- comandos executados: *${blue67[i6].cmd}*\n- Figurinhas encaminhadas: *${blue67[i6].figu}*\n`;
               }
               if (!groupData.mark) {
-                var groupData.mark;
-                var groupData.mark;
                 groupData.mark = {};
               }
               if (!['0', 'marca'].includes(groupData.mark[blue67[i6].id])) {
@@ -5071,8 +4915,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               blad += `\n*🏅 ${i6 + 1}º Lugar:* @${blue67[i6].id.split('@')[0]}\n- mensagens encaminhadas: *${blue67[i6].msg}*\n- comandos executados: *${blue67[i6].cmd}*\n- Figurinhas encaminhadas: *${blue67[i6].figu}*\n`;
             }
             if (!groupData.mark) {
-              var groupData.mark;
-              var groupData.mark;
               groupData.mark = {};
             }
             if (!['0', 'marca'].includes(groupData.mark[blue67[i6].id])) {
@@ -5121,11 +4963,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (isGroup && groupData.contador && Array.isArray(groupData.contador)) {
             const userData = groupData.contador.find(u => u.id === sender);
             if (userData) {
-              var groupMessages;
               groupMessages = userData.msg || 0;
-              var groupCommands;
               groupCommands = userData.cmd || 0;
-              var groupStickers;
               groupStickers = userData.figu || 0;
             }
             ;
@@ -5141,11 +4980,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               if (groupData.contador && Array.isArray(groupData.contador)) {
                 const userData = groupData.contador.find(u => u.id === sender);
                 if (userData) {
-                  var totalMessages;
                   totalMessages += userData.msg || 0;
-                  var totalCommands;
                   totalCommands += userData.cmd || 0;
-                  var totalStickers;
                   totalStickers += userData.figu || 0;
                 }
                 ;
@@ -5161,7 +4997,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const userStatus = isOwner ? 'Dono' : isPremium ? 'Premium' : isGroupAdmin ? 'Admin' : 'Membro';
           let profilePic = null;
           try {
-            var profilePic;
             profilePic = await nazu.profilePictureUrl(sender, 'image');
           } catch (e) {}
           ;
@@ -5235,7 +5070,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         let networkDetails = '';
         for (const [name, interfaces] of Object.entries(serverNetworkInterfaces)) {
           interfaces.forEach(iface => {
-            var networkDetails;
             networkDetails += `├ ${name} (${iface.family}): ${iface.address}\n`;
           });
         }
@@ -5246,7 +5080,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           percentUsed: 0
         };
         try {
-          var diskInfo;
           diskInfo = await getDiskSpaceInfo();
         } catch (error) {
           console.error('Erro ao obter informações de disco:', error);
@@ -5274,113 +5107,111 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             req.setTimeout(5000, () => reject(new Error('Timeout')));
           });
           const endNetworkTest = Date.now();
-          var networkLatency;
           networkLatency = `${endNetworkTest - startNetworkTest}ms`;
         } catch (error) {
-          var networkLatency;
           networkLatency = 'Erro ao testar';
           console.error('Erro ao testar latência de rede:', error);
         }
         let infoServerMessage = `🌸 ═════════════════════ 🌸\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `    *INFORMAÇÕES DO SERVIDOR*\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `🌸 ═════════════════════ 🌸\n\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `🖥️ *Sistema Operacional:* 🏠\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🟢 Node.js: ${nodeVersion}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 💻 Plataforma: ${serverOsInfo.platform}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🏗️ Arquitetura: ${serverOsInfo.arch}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🔧 Tipo: ${serverOsInfo.type}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 📋 Release: ${serverOsInfo.release}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🏷️ Hostname: ${serverOsInfo.hostname}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🔄 Endianness: ${serverOsInfo.endianness}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ ⏳ Sistema online há: ${osUptime} horas\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `└ 📅 Hora atual: ${currentServerTime}\n\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `⚡ *Processador (CPU):* 🧠\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🔢 Núcleos: ${serverCpuCount}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🏷️ Modelo: ${serverCpuModel}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 👤 Tempo usuário: ${serverCpuUser}s\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ ⚙️ Tempo sistema: ${serverCpuSystem}s\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 📈 Uso CPU atual: ${cpuPercent}%\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 📊 Load 1min: ${serverLoadAvg[0].toFixed(2)}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 📈 Load 5min: ${serverLoadAvg[1].toFixed(2)}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `└ 📉 Load 15min: ${serverLoadAvg[2].toFixed(2)}\n\n`;
         const memoryUsagePercent = ((serverTotalMemory - serverFreeMemory) / serverTotalMemory * 100).toFixed(1);
         const memoryEmoji = memoryUsagePercent > 80 ? '⚠️' : '✅';
         const memoryBar = '█'.repeat(memoryUsagePercent / 10) + '-'.repeat(10 - memoryUsagePercent / 10);
-        var infoServerMessage;
+        
         infoServerMessage += `💾 *Memória do Sistema:* 🧠\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🆓 RAM Livre: ${serverFreeMemory} GB\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 📊 RAM Total: ${serverTotalMemory} GB\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 📈 RAM Usada: ${(serverTotalMemory - serverFreeMemory).toFixed(2)} GB\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `└ ${memoryEmoji} Uso: [${memoryBar}] ${memoryUsagePercent}%\n\n`;
         const botMemoryUsagePercent = (serverMemUsed / serverMemTotal * 100).toFixed(1);
         const botMemoryEmoji = botMemoryUsagePercent > 80 ? '⚠️' : '✅';
         const botMemoryBar = '█'.repeat(botMemoryUsagePercent / 10) + '-'.repeat(10 - botMemoryUsagePercent / 10);
-        var infoServerMessage;
+        
         infoServerMessage += `🤖 *Memória da ${nomebot}:* 💖\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🧠 Heap Usado: ${serverMemUsed} MB\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 📦 Heap Total: ${serverMemTotal} MB\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🏠 RSS: ${serverMemRss} MB\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🔗 Externo: ${serverMemExternal} MB\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `└ ${botMemoryEmoji} Eficiência: [${botMemoryBar}] ${botMemoryUsagePercent}%\n\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `🌐 *Rede e Conectividade:* 🔗\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🔌 Interfaces: ${serverInterfaces}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += networkDetails;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 📡 Status: Online\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ ⏱️ Latência de Rede: ${networkLatency}\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `└ 🛡️ Firewall: Ativo\n\n`;
         const diskEmoji = diskUsagePercent > 80 ? '⚠️' : '✅';
         const diskBar = '█'.repeat(diskUsagePercent / 10) + '-'.repeat(10 - diskUsagePercent / 10);
-        var infoServerMessage;
+        
         infoServerMessage += `💽 *Armazenamento:* 💿\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 🆓 Livre: ${diskFree} GB\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 📊 Total: ${diskTotal} GB\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ 📈 Usado: ${diskUsed} GB\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `└ ${diskEmoji} Uso: [${diskBar}] ${diskUsagePercent}%\n\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `⏰ *Tempo e Latência:* 🕐\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `├ ⏱️ Latência do Bot: ${latency}ms\n`;
-        var infoServerMessage;
+        
         infoServerMessage += `└ 🚀 Bot online há: ${serverUptimeFormatted}\n`;
         await reply(infoServerMessage);
         break;
@@ -5396,7 +5227,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const totalGroups = Object.keys(allGroups).length;
           let totalUsers = 0;
           Object.values(allGroups).forEach(group => {
-            var totalUsers;
             totalUsers += group.participants.length;
           });
           const botStatus = botState.status === 'on' ? '✅ Online' : '❌ Offline';
@@ -5407,10 +5237,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           try {
             const indexContent = fs.readFileSync(__dirname + '/index.js', 'utf-8');
             const comandos = [...indexContent.matchAll(/case [`'"](\w+)[`'"]/g)].map(m => m[1]);
-            var totalCommands;
             totalCommands = comandos.length;
           } catch (e) {
-            var totalCommands;
             totalCommands = 'N/A';
           }
           const premiumUsers = Object.keys(premiumListaZinha).filter(key => key.includes('@s.whatsapp.net')).length;
@@ -5493,11 +5321,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             totalCmds = 0,
             totalFigs = 0;
           (groupData.contador || []).forEach(u => {
-            var totalMsgs;
             totalMsgs += u.msg || 0;
-            var totalCmds;
             totalCmds += u.cmd || 0;
-            var totalFigs;
             totalFigs += u.figu || 0;
           });
           const rentGlob = isRentalModeActive();
@@ -5533,27 +5358,20 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const totalGrupos = Object.keys(getGroups).length;
           let totalUsers = 0;
           Object.values(getGroups).forEach(group => {
-            var totalUsers;
             totalUsers += group.participants.length;
           });
           let statusEmoji = '🟢';
           let statusTexto = 'Excelente';
           if (speedConverted > 2) {
-            var statusEmoji;
             statusEmoji = '🟡';
-            var statusTexto;
             statusTexto = 'Bom';
           }
           if (speedConverted > 5) {
-            var statusEmoji;
             statusEmoji = '🟠';
-            var statusTexto;
             statusTexto = 'Médio';
           }
           if (speedConverted > 8) {
-            var statusEmoji;
             statusEmoji = '🔴';
-            var statusTexto;
             statusTexto = 'Ruim';
           }
           let mensagem = `
@@ -5576,14 +5394,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
 ┊ ╰ 💾 RAM Usada: *${ramBotProcessoMb} MB*
 ┊
 ╰━━「 ${nomebot} 」`;
-          var mensagem;
+          
           mensagem = mensagem.trim();
           let ppimg = "";
           try {
-            var ppimg;
             ppimg = await nazu.profilePictureUrl(botNumber, 'image');
           } catch {
-            var ppimg;
             ppimg = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1753966446765_oordgn.bin';
           }
           ;
@@ -5622,10 +5438,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!q) return reply('Falta o texto.');
           let ppimg = "";
           try {
-            var ppimg;
             ppimg = await nazu.profilePictureUrl(sender, 'image');
           } catch {
-            var ppimg;
             ppimg = 'https://telegra.ph/file/b5427ea4b8701bc47e751.jpg';
           }
           ;
@@ -5840,7 +5654,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!q || !author || !pack) return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
           const filePath = __dirname + '/../database/users/take.json';
           const dataTake = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf-8')) : {};
-          var dataTake[sender];
           dataTake[sender] = {
             author,
             pack
@@ -5891,11 +5704,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           };
           if (options[q.toLowerCase()] !== undefined) {
             if (!groupData.mark) {
-              var groupData.mark;
-              var groupData.mark;
               groupData.mark = {};
             }
-            var groupData.mark[sender];
             groupData.mark[sender] = q.toLowerCase();
             fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
             return reply(`*${options[q.toLowerCase()]}*`);
@@ -5914,14 +5724,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         if (!menc_prt) return reply("Marque uma mensagem.");
         let stanzaId, participant;
         if (info.message.extendedTextMessage) {
-          var stanzaId;
           stanzaId = info.message.extendedTextMessage.contextInfo.stanzaId;
-          var participant;
           participant = info.message.extendedTextMessage.contextInfo.participant || menc_prt;
         } else if (info.message.viewOnceMessage) {
-          var stanzaId;
           stanzaId = info.key.id;
-          var participant;
           participant = info.key.participant || menc_prt;
         }
         ;
@@ -5948,9 +5754,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           reason = q ? q.includes('@') ? q.includes(' ') ? q.split(' ').slice(1).join(' ') : "Não informado" : q : 'Não informado';
           var menc_os3;
           menc_os3 = menc_os2.includes(' ') ? menc_os2.split(' ')[0] : menc_os2;
-          var groupData.blockedUsers;
           groupData.blockedUsers = groupData.blockedUsers || {};
-          var groupData.blockedUsers[menc_os3];
           groupData.blockedUsers[menc_os3] = {
             reason,
             timestamp: Date.now()
@@ -6097,8 +5901,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             mark: {}
           };
           if (!data.mark) {
-            var data.mark;
-            var data.mark;
             data.mark = {};
           }
           let membros = AllgroupMembers.filter(m => !['0', 'games'].includes(data.mark[m]));
@@ -6138,7 +5940,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Este comando só pode ser usado em grupos 💔");
           let participantes = [];
           if (q) {
-            var participantes;
             participantes = q.split(',').map(n => n.trim()).filter(n => n);
             if (participantes.length !== 16) {
               return reply(`❌ Forneça exatamente 16 nomes! Você forneceu ${participantes.length}. Exemplo: ${prefix}${command} nome1,nome2,...,nome16`);
@@ -6147,39 +5948,38 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             return reply(`❌ Forneça exatamente 16 nomes! Você forneceu 0. Exemplo: ${prefix}${command} nome1,nome2,...,nome16`);
           }
           ;
-          var participantes;
           participantes = participantes.sort(() => Math.random() - 0.5);
           const grupo1 = participantes.slice(0, 8);
           const grupo2 = participantes.slice(8, 16);
           const confrontosGrupo1 = [[grupo1[0], grupo1[1]], [grupo1[2], grupo1[3]], [grupo1[4], grupo1[5]], [grupo1[6], grupo1[7]]];
           const confrontosGrupo2 = [[grupo2[0], grupo2[1]], [grupo2[2], grupo2[3]], [grupo2[4], grupo2[5]], [grupo2[6], grupo2[7]]];
           let mensagem = `🏆 *Chaveamento do Torneio* 🏆\n\n`;
-          var mensagem;
+          
           mensagem += `📌 *Grupo 1*\n`;
           grupo1.forEach((p, i) => {
-            var mensagem;
+            
             mensagem += `  ${i + 1}. ${p.includes('@') ? `@${p.split('@')[0]}` : p}\n`;
           });
-          var mensagem;
+          
           mensagem += `\n*Confrontos do Grupo 1*:\n`;
           confrontosGrupo1.forEach((confronto, i) => {
             const p1 = confronto[0].includes('@') ? `@${confronto[0].split('@')[0]}` : confronto[0];
             const p2 = confronto[1].includes('@') ? `@${confronto[1].split('@')[0]}` : confronto[1];
-            var mensagem;
+            
             mensagem += `  🥊 Partida ${i + 1}: ${p1} vs ${p2}\n`;
           });
-          var mensagem;
+          
           mensagem += `\n📌 *Grupo 2*\n`;
           grupo2.forEach((p, i) => {
-            var mensagem;
+            
             mensagem += `  ${i + 1}. ${p.includes('@') ? `@${p.split('@')[0]}` : p}\n`;
           });
-          var mensagem;
+          
           mensagem += `\n*Confrontos do Grupo 2*:\n`;
           confrontosGrupo2.forEach((confronto, i) => {
             const p1 = confronto[0].includes('@') ? `@${confronto[0].split('@')[0]}` : confronto[0];
             const p2 = confronto[1].includes('@') ? `@${confronto[1].split('@')[0]}` : confronto[1];
-            var mensagem;
+            
             mensagem += `  🥊 Partida ${i + 1}: ${p1} vs ${p2}\n`;
           });
           const imageA = await banner.Chaveamento("", grupo1, grupo2);
@@ -6215,14 +6015,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (q.includes('/')) {
             const [config, listaNomes] = q.split('/').map(s => s.trim());
             const [vencedores, grupos] = config.includes('-') ? config.split('-').map(n => parseInt(n.trim())) : [parseInt(config), 1];
-            var numVencedores;
             numVencedores = vencedores || 1;
-            var numGrupos;
             numGrupos = grupos || 1;
-            var nomes;
             nomes = listaNomes.split(',').map(n => n.trim()).filter(n => n);
           } else {
-            var nomes;
             nomes = q.split(',').map(n => n.trim()).filter(n => n);
           }
           if (nomes.length < numVencedores * numGrupos) return reply(`❌ Não há nomes suficientes! Você precisa de pelo menos ${numVencedores * numGrupos} nomes para sortear ${numVencedores} vencedor${numVencedores > 1 ? 'es' : ''}${numGrupos > 1 ? ` em ${numGrupos} grupos` : ''}.`);
@@ -6237,11 +6033,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               vencedores.push(nomesDisponiveis[indice]);
               nomesDisponiveis.splice(indice, 1);
             }
-            var resultado;
             resultado += vencedores.map((v, i) => `🏆 *#${i + 1}* - ${v}`).join('\n');
           } else {
             for (let g = 1; g <= numGrupos; g++) {
-              var resultado;
               resultado += `📌 *Grupo ${g}*:\n`;
               let vencedores = [];
               for (let i = 0; i < numVencedores; i++) {
@@ -6250,7 +6044,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 vencedores.push(nomesDisponiveis[indice]);
                 nomesDisponiveis.splice(indice, 1);
               }
-              var resultado;
               resultado += vencedores.map((v, i) => `  🏆 *#${i + 1}* - ${v}`).join('\n') + '\n\n';
             }
           }
@@ -6312,80 +6105,78 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             mark: {}
           };
           if (!data.mark) {
-            var data.mark;
-            var data.mark;
             data.mark = {};
           }
           var MRC_TD4 = AllgroupMembers.filter(m => !['0', 'games'].includes(data.mark[m]));
           if (pink4 && !aud_d4 && !purple4) {
             var DFC4 = pink4;
-            var pink4.caption;
+            
             pink4.caption = q.length > 1 ? q : pink4.caption.replace(new RegExp(prefix + command, "gi"), ` `);
-            var pink4.image;
+
             pink4.image = {
               url: pink4.url
             };
-            var pink4.mentions;
+            
             pink4.mentions = MRC_TD4;
           } else if (blue4 && !aud_d4 && !purple4) {
             var DFC4 = blue4;
-            var blue4.caption;
+            
             blue4.caption = q.length > 1 ? q.trim() : blue4.caption.replace(new RegExp(prefix + command, "gi"), ` `).trim();
-            var blue4.video;
+            
             blue4.video = {
               url: blue4.url
             };
-            var blue4.mentions;
+            
             blue4.mentions = MRC_TD4;
           } else if (red4 && !aud_d4 && !purple4) {
             var black4 = {};
-            var black4.text;
+            
             black4.text = red4.replace(new RegExp(prefix + command, "gi"), ` `).trim();
-            var black4.mentions;
+            
             black4.mentions = MRC_TD4;
             var DFC4 = black4;
           } else if (!aud_d4 && !figu_d4 && green4 && !purple4) {
             var brown4 = {};
-            var brown4.text;
+            
             brown4.text = green4.replace(new RegExp(prefix + command, "gi"), ` `).trim();
-            var brown4.mentions;
+            
             brown4.mentions = MRC_TD4;
             var DFC4 = brown4;
           } else if (purple4) {
             var DFC4 = purple4;
-            var purple4.document;
+            
             purple4.document = {
               url: purple4.url
             };
-            var purple4.mentions;
+            
             purple4.mentions = MRC_TD4;
           } else if (yellow4 && !aud_d4) {
             var DFC4 = yellow4;
-            var yellow4.caption;
+            
             yellow4.caption = q.length > 1 ? q.trim() : yellow4.caption.replace(new RegExp(prefix + command, "gi"), `${pushname}\n\n`).trim();
-            var yellow4.document;
+            
             yellow4.document = {
               url: yellow4.url
             };
-            var yellow4.mentions;
+            
             yellow4.mentions = MRC_TD4;
           } else if (figu_d4 && !aud_d4) {
             var DFC4 = figu_d4;
-            var figu_d4.sticker;
+            
             figu_d4.sticker = {
               url: figu_d4.url
             };
-            var figu_d4.mentions;
+            
             figu_d4.mentions = MRC_TD4;
           } else if (aud_d4) {
             var DFC4 = aud_d4;
-            var aud_d4.audio;
+            
             aud_d4.audio = {
               url: aud_d4.url
             };
-            var aud_d4.mentions;
+            
             aud_d4.mentions = MRC_TD4;
-            var aud_d4.ptt;
+            
             aud_d4.ptt = true;
           }
           ;
@@ -6401,7 +6192,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
           if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-          var groupData.antilinkhard;
           groupData.antilinkhard = !groupData.antilinkhard;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Antilinkhard ${groupData.antilinkhard ? 'ativado' : 'desativado'}! Qualquer link enviado resultará em banimento.`);
@@ -6416,7 +6206,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
           if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-          var groupData.antibtn;
           groupData.antibtn = !groupData.antibtn;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Anti Botão ${groupData.antibtn ? 'ativado' : 'desativado'}!`);
@@ -6430,7 +6219,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
           if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-          var groupData.antistatus;
+
           groupData.antistatus = !groupData.antistatus;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Anti Status ${groupData.antistatus ? 'ativado' : 'desativado'}!`);
@@ -6444,7 +6233,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
           if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-          var groupData.antidel;
+          
           groupData.antidel = !groupData.antidel;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Antidelete ${groupData.antidel ? 'ativado' : 'desativado'}!`);
@@ -6457,7 +6246,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-          var groupData.autodl;
+          
           groupData.autodl = !groupData.autodl;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Autodl ${groupData.autodl ? 'ativado' : 'desativado'}! Links suportados serão baixados automaticamente.`);
@@ -6471,20 +6260,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
           if (!q) return reply(`Digite o limite de comandos por dia ou "off" para desativar.\nExemplo: ` + prefix + `cmdlimit 10`);
-          var cmdLimitData[from];
           cmdLimitData[from] = cmdLimitData[from] || {
             users: {}
           };
           if (q.toLowerCase() === 'off') {
-            var cmdLimitData[from].enabled;
             cmdLimitData[from].enabled = false;
             delete cmdLimitData[from].limit;
           } else {
             const limit = parseInt(q);
             if (isNaN(limit) || limit < 1) return reply('Limite inválido! Use um número maior que 0 ou "off".');
-            var cmdLimitData[from].enabled;
             cmdLimitData[from].enabled = true;
-            var cmdLimitData[from].limit;
             cmdLimitData[from].limit = limit;
           }
           fs.writeFileSync(__dirname + '/../database/cmdlimit.json', JSON.stringify(cmdLimitData, null, 2));
@@ -6499,7 +6284,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
           if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-          var groupData.antipt;
+          
           groupData.antipt = !groupData.antipt;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ AntiPT ${groupData.antipt ? 'ativado' : 'desativado'}! Membros de Portugal serão banidos.`);
@@ -6513,7 +6298,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
           if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-          var groupData.antifake;
+          
           groupData.antifake = !groupData.antifake;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Antifake ${groupData.antifake ? 'ativado' : 'desativado'}! Membros de fora do Brasil/Portugal serão banidos.`);
@@ -6527,7 +6312,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
           if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-          var groupData.antidoc;
+          
           groupData.antidoc = !groupData.antidoc;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Antidoc ${groupData.antidoc ? 'ativado' : 'desativado'}! Documentos enviados resultarão em banimento.`);
@@ -6540,7 +6325,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-          var groupData.x9;
+          
           groupData.x9 = !groupData.x9;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Modo X9 ${groupData.x9 ? 'ativado' : 'desativado'}! Agora eu aviso sobre promoções e rebaixamentos.`);
@@ -6574,22 +6359,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const timeValue = parseInt(timeMatch[1]);
           const timeUnit = timeMatch[2];
           if (timeUnit === 's') {
-            var intervalSeconds;
-            var intervalSeconds;
             intervalSeconds = timeValue;
           } else if (timeUnit === 'm') {
-            var intervalSeconds;
-            var intervalSeconds;
             intervalSeconds = timeValue * 60;
           } else if (timeUnit === 'h') {
-            var intervalSeconds;
-            var intervalSeconds;
             intervalSeconds = timeValue * 3600;
           }
           if (isNaN(limit) || limit <= 0) {
             return reply("❌ Quantidade de mensagens deve ser um número positivo!");
           }
-          var groupData.messageLimit;
+          
           groupData.messageLimit = {
             enabled: true,
             limit: limit,
@@ -6635,7 +6414,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             return reply("🤔 O prefixo não pode conter espaços.");
           }
           ;
-          var groupData.customPrefix;
+          
           groupData.customPrefix = newPrefix;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Prefixo do bot alterado para "${newPrefix}" neste grupo!`);
@@ -6649,20 +6428,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
           if (!q) return reply(`Digite o intervalo em segundos ou "off" para desativar.\nExemplo: ` + prefix + `antiflood 5`);
-          var antifloodData[from];
           antifloodData[from] = antifloodData[from] || {
             users: {}
           };
           if (q.toLowerCase() === 'off') {
-            var antifloodData[from].enabled;
             antifloodData[from].enabled = false;
             delete antifloodData[from].interval;
           } else {
             const interval = parseInt(q);
             if (isNaN(interval) || interval < 1) return reply('Intervalo inválido! Use um número maior que 0 ou "off".');
-            var antifloodData[from].enabled;
             antifloodData[from].enabled = true;
-            var antifloodData[from].interval;
             antifloodData[from].interval = interval;
           }
           fs.writeFileSync(__dirname + '/../database/antiflood.json', JSON.stringify(antifloodData, null, 2));
@@ -6677,7 +6452,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
           if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-          var groupData.antiloc;
+          
           groupData.antiloc = !groupData.antiloc;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Antiloc ${groupData.antiloc ? 'ativado' : 'desativado'}! Localizações enviadas resultarão em banimento.`);
@@ -6695,10 +6470,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroupAdmin) return reply("você precisa ser adm 💔");
           const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
           if (!groupData.modobrincadeira || groupData.modobrincadeira === undefined) {
-            var groupData.modobrincadeira;
+            
             groupData.modobrincadeira = true;
           } else {
-            var groupData.modobrincadeira;
+            
             groupData.modobrincadeira = !groupData.modobrincadeira;
           }
           ;
@@ -6723,10 +6498,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroupAdmin) return reply("você precisa ser adm 💔");
           const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
           if (!groupData.bemvindo || groupData.bemvindo === undefined) {
-            var groupData.bemvindo;
+            
             groupData.bemvindo = true;
           } else {
-            var groupData.bemvindo;
+            
             groupData.bemvindo = !groupData.bemvindo;
           }
           ;
@@ -6784,21 +6559,19 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               const uploadResult = await upload(media);
               if (!uploadResult) throw new Error('Falha ao fazer upload da imagem');
               if (!groupData.welcome) {
-                var groupData.welcome;
-                var groupData.welcome;
+                
                 groupData.welcome = {};
               }
-              var groupData.welcome.image;
+              
               groupData.welcome.image = uploadResult;
               fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
               await reply('✅ Foto de boas-vindas configurada com sucesso!');
             } else if (q.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'banner') {
               if (!groupData.welcome) {
-                var groupData.welcome;
-                var groupData.welcome;
+                
                 groupData.welcome = {};
               }
-              var groupData.welcome.image;
+              
               groupData.welcome.image = 'banner';
               fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
               await reply('✅ Foto de boas-vindas configurada com sucesso!');
@@ -6825,11 +6598,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             const uploadResult = await upload(media);
             if (!uploadResult) throw new Error('Falha ao fazer upload da imagem');
             if (!groupData.exit) {
-              var groupData.exit;
-              var groupData.exit;
+              
               groupData.exit = {};
             }
-            var groupData.exit.image;
+            
             groupData.exit.image = uploadResult;
             fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
             await reply('✅ Foto de saída configurada com sucesso!');
@@ -6905,13 +6677,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!q) return reply(`📝 Para configurar a mensagem de saída, use:\n${prefix}${command} <mensagem>\n\nVocê pode usar:\n#numerodele# - Menciona quem saiu\n#nomedogp# - Nome do grupo\n#membros# - Total de membros\n#desc# - Descrição do grupo`);
           try {
             if (!groupData.exit) {
-              var groupData.exit;
-              var groupData.exit;
+              
               groupData.exit = {};
             }
-            var groupData.exit.enabled;
+            
             groupData.exit.enabled = true;
-            var groupData.exit.text;
+            
             groupData.exit.text = q;
             fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
             await reply('✅ Mensagem de saída configurada com sucesso!\n\n📝 Mensagem definida como:\n' + q);
@@ -6928,11 +6699,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroupAdmin) return reply("você precisa ser adm 💔");
           try {
             if (!groupData.exit) {
-              var groupData.exit;
-              var groupData.exit;
+              
               groupData.exit = {};
             }
-            var groupData.exit.enabled;
+            
             groupData.exit.enabled = !groupData.exit.enabled;
             fs.writeFileSync(__dirname + `/../database/grupos/${from}.json`, JSON.stringify(groupData, null, 2));
             await reply(groupData.exit.enabled ? '✅ Mensagens de saída ativadas!' : '❌ Mensagens de saída desativadas!');
@@ -6957,7 +6727,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           }
           let message = "📋 *Lista de Parcerias Ativas* 📋\n\n";
           for (const [userId, data] of Object.entries(parceriasData.partners)) {
-            var message;
+            
             message += `👤 @${userId.split('@')[0]} - Limite: ${data.limit} links | Enviados: ${data.count}\n`;
           }
           await reply(message, {
@@ -6976,14 +6746,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!q) return reply(`Uso: ${prefix}addparceria @usuário limite ou marcando uma mensagem com ${prefix}addparceria limite`);
           let userId, limit;
           if (menc_os2) {
-            var userId;
+            
             userId = menc_os2;
-            var limit;
+            
             limit = parseInt(args[1]);
           } else if (isQuotedMsg) {
-            var userId;
+            
             userId = info.message.extendedTextMessage.contextInfo.participant;
-            var limit;
+            
             limit = parseInt(q);
           } else {
             return reply("Por favor, marque um usuário ou responda a uma mensagem.");
@@ -6996,7 +6766,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               mentions: [userId]
             });
           }
-          var parceriasData.partners[userId];
           parceriasData.partners[userId] = {
             limit,
             count: 0
@@ -7017,10 +6786,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroupAdmin) return reply("Apenas administradores podem usar este comando.");
           let userId;
           if (menc_os2) {
-            var userId;
             userId = menc_os2;
           } else if (isQuotedMsg) {
-            var userId;
             userId = info.message.extendedTextMessage.contextInfo.participant;
           } else {
             return reply("Por favor, marque um usuário ou responda a uma mensagem.");
@@ -7044,7 +6811,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isGroup) return reply("Este comando só funciona em grupos.");
           if (!isGroupAdmin) return reply("Apenas administradores podem usar este comando.");
-          var parceriasData.active;
           parceriasData.active = !parceriasData.active;
           saveParceriasData(from, parceriasData);
           await reply(`✅ Sistema de parcerias ${parceriasData.active ? 'ativado' : 'desativado'} com sucesso!`);
@@ -7057,9 +6823,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isGroup) return reply("Este comando só funciona em grupos.");
           if (!isGroupAdmin) return reply("Apenas administradores podem gerenciar o antifig.");
-          var groupData.antifig;
+          
           groupData.antifig = groupData.antifig || {};
-          var groupData.antifig.enabled;
+          
           groupData.antifig.enabled = !groupData.antifig.enabled;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           const status = groupData.antifig.enabled ? "ativado" : "desativado";
@@ -7080,10 +6846,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             blacklist: {}
           };
-          var groupData.blacklist;
+          
           groupData.blacklist = groupData.blacklist || {};
           if (groupData.blacklist[menc_os2]) return reply("❌ Este usuário já está na blacklist.");
-          var groupData.blacklist[menc_os2];
+          
           groupData.blacklist[menc_os2] = {
             reason,
             timestamp: Date.now()
@@ -7107,7 +6873,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             blacklist: {}
           };
-          var groupData.blacklist;
+          
           groupData.blacklist = groupData.blacklist || {};
           if (!groupData.blacklist[menc_os2]) return reply("❌ Este usuário não está na blacklist.");
           delete groupData.blacklist[menc_os2];
@@ -7128,12 +6894,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             blacklist: {}
           };
-          var groupData.blacklist;
+          
           groupData.blacklist = groupData.blacklist || {};
           if (Object.keys(groupData.blacklist).length === 0) return reply("📋 A blacklist está vazia.");
           let text = "📋 *Lista de Usuários na Blacklist*\n\n";
           for (const [user, data] of Object.entries(groupData.blacklist)) {
-            var text;
             text += `👤 @${user.split('@')[0]}\n📝 Motivo: ${data.reason}\n🕒 Adicionado em: ${new Date(data.timestamp).toLocaleString()}\n\n`;
           }
           reply(text, {
@@ -7157,9 +6922,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             warnings: {}
           };
-          var groupData.warnings;
+          
           groupData.warnings = groupData.warnings || {};
-          var groupData.warnings[menc_os2];
+          
           groupData.warnings[menc_os2] = groupData.warnings[menc_os2] || [];
           groupData.warnings[menc_os2].push({
             reason,
@@ -7196,7 +6961,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             warnings: {}
           };
-          var groupData.warnings;
+          
           groupData.warnings = groupData.warnings || {};
           if (!groupData.warnings[menc_os2] || groupData.warnings[menc_os2].length === 0) return reply("❌ Este usuário não tem advertências.");
           groupData.warnings[menc_os2].pop();
@@ -7219,24 +6984,19 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             warnings: {}
           };
-          var groupData.warnings;
+          
           groupData.warnings = groupData.warnings || {};
           if (Object.keys(groupData.warnings).length === 0) return reply("📋 Não há advertências ativas no grupo.");
           let text = "📋 *Lista de Advertências*\n\n";
           for (const [user, warnings] of Object.entries(groupData.warnings)) {
             try {
               if (Array.isArray(warnings)) {
-                var text;
                 text += `👤 @${user.split('@')[0]} (${warnings.length}/3)\n`;
                 warnings.forEach((warn, index) => {
-                  var text;
                   text += `  ${index + 1}. Motivo: ${warn.reason}\n`;
-                  var text;
                   text += `     Por: @${warn.issuer.split('@')[0]}\n`;
-                  var text;
                   text += `     Em: ${new Date(warn.timestamp).toLocaleString()}\n`;
                 });
-                var text;
                 text += "\n";
               }
             } catch (e) {}
@@ -7257,10 +7017,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroupAdmin) return reply("você precisa ser adm 💔");
           const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
           if (!groupData.soadm || groupData.soadm === undefined) {
-            var groupData.soadm;
+            
             groupData.soadm = true;
           } else {
-            var groupData.soadm;
+            
             groupData.soadm = !groupData.soadm;
           }
           ;
@@ -7283,16 +7043,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
           const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
           if (!groupData.modolite) {
-            var groupData.modolite;
+            
             groupData.modolite = true;
             if (groupData.hasOwnProperty('modoliteOff')) {
               delete groupData.modoliteOff;
             }
           } else {
-            var groupData.modolite;
+            
             groupData.modolite = !groupData.modolite;
             if (!groupData.modolite) {
-              var groupData.modoliteOff;
+              
               groupData.modoliteOff = true;
             } else if (groupData.hasOwnProperty('modoliteOff')) {
               delete groupData.modoliteOff;
@@ -7313,10 +7073,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isOwner) return reply("Este comando é apenas para o meu dono 💔");
           const modoLiteFile = __dirname + '/../database/modolite.json';
-          var modoLiteGlobal.status;
           modoLiteGlobal.status = !modoLiteGlobal.status;
           if (!modoLiteGlobal.status) {
-            var modoLiteGlobal.forceOff;
             modoLiteGlobal.forceOff = true;
           } else if (modoLiteGlobal.hasOwnProperty('forceOff')) {
             delete modoLiteGlobal.forceOff;
@@ -7341,7 +7099,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             antilinkgp: false
           };
-          var groupData.antilinkgp;
+          
           groupData.antilinkgp = !groupData.antilinkgp;
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData));
           const message = groupData.antilinkgp ? `✅ *Antilinkgp foi ativado com sucesso!*\n\nAgora, se alguém enviar links de outros grupos, será banido automaticamente. Mantenha o grupo seguro! 🛡️` : `✅ *Antilinkgp foi desativado.*\n\nLinks de outros grupos não serão mais bloqueados. Use com cuidado! ⚠️`;
@@ -7360,7 +7118,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             antiporn: false
           };
-          var groupData.antiporn;
+          
           groupData.antiporn = !groupData.antiporn;
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData));
           const message = groupData.antiporn ? `✅ *Antiporn foi ativado com sucesso!*\n\nAgora, se alguém enviar conteúdo adulto (NSFW), será banido automaticamente. Mantenha o grupo seguro e adequado! 🛡️` : `✅ *Antiporn foi desativado.*\n\nConteúdo adulto não será mais bloqueado. Use com responsabilidade! ⚠️`;
@@ -7376,7 +7134,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
           const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {};
-          var groupData.autoSticker;
+          
           groupData.autoSticker = !groupData.autoSticker;
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
           reply(`✅ Auto figurinhas ${groupData.autoSticker ? 'ativadas' : 'desativadas'}! ${groupData.autoSticker ? 'Todas as imagens e vídeos serão convertidos em figurinhas.' : ''}`);
@@ -7392,7 +7150,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
           const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {};
-          var groupData.autorepo;
+          
           groupData.autorepo = !groupData.autorepo;
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
           reply(`✅ Auto resposta ${groupData.autorepo ? 'ativada' : 'desativada'}!`);
@@ -7414,7 +7172,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
           const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {};
-          var groupData.assistente;
+          
           groupData.assistente = !groupData.assistente;
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
           reply(`✅ *Assistente ${groupData.assistente ? 'ativada' : 'desativada'} com sucesso!*\n\n⚠️ Esta é uma funcionalidade *experimental (beta)* e ainda está em fase de testes. Podem ocorrer erros ou comportamentos inesperados. Caso encontre algo estranho, avise um administrador!\n\n🧠 Ao ativar essa IA, você concorda que ela pode *aprender com base nos padrões de conversa do grupo* para oferecer respostas mais relevantes e contextuais.`);
@@ -7432,7 +7190,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             antigore: false
           };
-          var groupData.antigore;
+          
           groupData.antigore = !groupData.antigore;
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData));
           const message = groupData.antigore ? `✅ *Antigore foi ativado com sucesso!*\n\nAgora, se alguém enviar conteúdo gore, será banido automaticamente. Mantenha o grupo seguro e saudável! 🛡️` : `✅ *Antigore foi desativado.*\n\nConteúdo gore não será mais bloqueado. Use com cuidado! ⚠️`;
@@ -7450,7 +7208,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isGroupAdmin) return reply("você precisa ser adm 💔");
           const groupFilePath = __dirname + `/../database/grupos/${from}.json`;
           if (!q) return reply(`📝 *Configuração da Mensagem de Boas-Vindas*\n\nPara definir uma mensagem personalizada, digite o comando seguido do texto desejado. Você pode usar as seguintes variáveis:\n\n- *#numerodele#* → Marca o novo membro.\n- *#nomedogp#* → Nome do grupo.\n- *#desc#* → Descrição do grupo.\n- *#membros#* → Número total de membros no grupo.\n\n📌 *Exemplo:*\n${prefixo}legendabv Bem-vindo(a) #numerodele# ao grupo *#nomedogp#*! Agora somos #membros# membros. Leia a descrição: #desc#`);
-          var groupData.textbv;
+          
           groupData.textbv = q;
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData));
           reply(`✅ *Mensagem de boas-vindas configurada com sucesso!*\n\n📌 Nova mensagem:\n"${groupData.textbv}"`);
@@ -7471,9 +7229,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             mutedUsers: {}
           };
-          var groupData.mutedUsers;
+          
           groupData.mutedUsers = groupData.mutedUsers || {};
-          var groupData.mutedUsers[menc_os2];
+          
           groupData.mutedUsers[menc_os2] = true;
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData));
           await nazu.sendMessage(from, {
@@ -7498,7 +7256,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             mutedUsers: {}
           };
-          var groupData.mutedUsers;
+          
           groupData.mutedUsers = groupData.mutedUsers || {};
           if (groupData.mutedUsers[menc_os2]) {
             delete groupData.mutedUsers[menc_os2];
@@ -7526,9 +7284,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             blockedCommands: {}
           };
-          var groupData.blockedCommands;
+          
           groupData.blockedCommands = groupData.blockedCommands || {};
-          var groupData.blockedCommands[q.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll(prefix, '')];
+          
           groupData.blockedCommands[q.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll(prefix, '')] = true;
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData));
           reply(`✅ O comando *${q.trim()}* foi bloqueado e só pode ser usado por administradores.`);
@@ -7546,7 +7304,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let groupData = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath)) : {
             blockedCommands: {}
           };
-          var groupData.blockedCommands;
+          
           groupData.blockedCommands = groupData.blockedCommands || {};
           if (groupData.blockedCommands[q.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll(prefix, '')]) {
             delete groupData.blockedCommands[q.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll(prefix, '')];
@@ -7611,7 +7369,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const membro1 = membros[Math.floor(Math.random() * membros.length)];
           let membro2 = membros[Math.floor(Math.random() * membros.length)];
           while (membro2 === membro1) {
-            var membro2;
             membro2 = membros[Math.floor(Math.random() * membros.length)];
           }
           ;
@@ -7638,7 +7395,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let membros = AllgroupMembers.filter(m => !['0', 'marca'].includes(data.mark[m]));
           let par = membros[Math.floor(Math.random() * membros.length)];
           while (par === menc_os2) {
-            var par;
             par = membros[Math.floor(Math.random() * membros.length)];
           }
           ;
@@ -7713,7 +7469,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const randomHumor = humors[Math.floor(Math.random() * humors.length)];
           let profilePic = 'https://raw.githubusercontent.com/nazuninha/uploads/main/outros/1747053564257_bzswae.bin';
           try {
-            var profilePic;
             profilePic = await nazu.profilePictureUrl(target, 'image');
           } catch (error) {
             console.warn(`Falha ao obter foto do perfil de ${targetName}:`, error.message);
@@ -7724,9 +7479,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             const statusData = await nazu.fetchStatus(target);
             const status = statusData?.[0]?.status;
             if (status) {
-              var bio;
               bio = status.status || bio;
-              var bioSetAt;
               bioSetAt = new Date(status.setAt).toLocaleString('pt-BR', {
                 dateStyle: 'short',
                 timeStyle: 'short'
@@ -7763,13 +7516,10 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const usuarioEscolha = q.toLowerCase();
           let resultado;
           if (usuarioEscolha === botEscolha) {
-            var resultado;
             resultado = 'Empate! 🤝';
           } else if (usuarioEscolha === 'pedra' && botEscolha === 'tesoura' || usuarioEscolha === 'papel' && botEscolha === 'pedra' || usuarioEscolha === 'tesoura' && botEscolha === 'papel') {
-            var resultado;
             resultado = 'Você ganhou! 🎉';
           } else {
-            var resultado;
             resultado = 'Eu ganhei! 😎';
           }
           await reply(`🖐️ *Pedra, Papel, Tesoura* 🖐️\n\nVocê: ${usuarioEscolha}\nEu: ${botEscolha}\n\n${resultado}`);
@@ -8202,7 +7952,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           };
           let responseText = ranksData[cleanedCommand] || `📊 *Ranking de ${cleanedCommand.replace('rank', '')}*:\n\n`;
           top5.forEach((m, i) => {
-            var responseText;
+            
             responseText += `🏅 *#${i + 1}* - @${m.split('@')[0]}\n`;
           });
           let media = gamesData.ranks[cleanedCommand];
@@ -8299,7 +8049,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           };
           let responseText = ranksData[cleanedCommand] + '\n\n' || `📊 *Ranking de ${cleanedCommand.replace('rank', '')}*:\n\n`;
           top5.forEach((m, i) => {
-            var responseText;
+            
             responseText += `🏅 *#${i + 1}* - @${m.split('@')[0]}\n`;
           });
           let media = gamesData.ranks[cleanedCommand];
@@ -8399,9 +8149,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isGroup) return reply("Este comando só funciona em grupos.");
           const reason = q.trim();
-          var groupData.afkUsers;
+          
           groupData.afkUsers = groupData.afkUsers || {};
-          var groupData.afkUsers[sender];
+          
           groupData.afkUsers[sender] = {
             reason: reason || 'Não especificado',
             since: Date.now()
@@ -8409,8 +8159,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           let afkSetMessage = `😴 Você está AFK.`;
           if (reason) {
-            var afkSetMessage;
-            var afkSetMessage;
             afkSetMessage += `
 Motivo: ${reason}`;
           }
@@ -8445,7 +8193,6 @@ Motivo: ${reason}`;
 
 `;
           groupData.rules.forEach((rule, index) => {
-            var rulesMessage;
             rulesMessage += `${index + 1}. ${rule}
 `;
           });
@@ -8461,7 +8208,7 @@ Motivo: ${reason}`;
           if (!isGroup) return reply("Este comando só funciona em grupos.");
           if (!isGroupAdmin) return reply("Apenas administradores podem adicionar regras.");
           if (!q) return reply(`📝 Por favor, forneça o texto da regra. Ex: ${prefix}addregra Proibido spam.`);
-          var groupData.rules;
+          
           groupData.rules = groupData.rules || [];
           groupData.rules.push(q);
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
@@ -8478,7 +8225,7 @@ ${groupData.rules.length}. ${q}`);
           if (!isGroup) return reply("Este comando só funciona em grupos.");
           if (!isGroupAdmin) return reply("Apenas administradores podem remover regras.");
           if (!q || isNaN(parseInt(q))) return reply(`🔢 Por favor, forneça o número da regra a ser removida. Ex: ${prefix}delregra 3`);
-          var groupData.rules;
+          
           groupData.rules = groupData.rules || [];
           const ruleNumber = parseInt(q);
           if (ruleNumber < 1 || ruleNumber > groupData.rules.length) {
@@ -8545,7 +8292,6 @@ ${groupData.rules.length}. ${q}`);
           let modsMessage = `🛡️ *Moderadores do Grupo ${groupName}* 🛡️\n\n`;
           const mentionedUsers = [];
           groupData.moderators.forEach(modJid => {
-            var modsMessage;
             modsMessage += `➥ @${modJid.split('@')[0]}\n`;
             mentionedUsers.push(modJid);
           });
@@ -8602,7 +8348,6 @@ ${groupData.rules.length}. ${q}`);
           }
           let cmdsMessage = `🔧 *Comandos Permitidos para Moderadores em ${groupName}* 🔧\n\n`;
           groupData.allowedModCommands.forEach(cmd => {
-            var cmdsMessage;
             cmdsMessage += `➥ ${prefix}${cmd}\n`;
           });
           await reply(cmdsMessage);
@@ -8616,7 +8361,7 @@ ${groupData.rules.length}. ${q}`);
         try {
           if (!isGroup) return reply("Este comando só funciona em grupos.");
           if (!isGroupAdmin) return reply("Apenas administradores podem ativar/desativar o anti-arquivamento.");
-          var groupData.antiarqv;
+          
           groupData.antiarqv = !groupData.antiarqv;
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`🛡️ Anti-arquivamento ${groupData.antiarqv ? 'ativado' : 'desativado'} com sucesso! Agora, apenas donos do grupo podem promover/rebaixar membros.`);
@@ -8631,7 +8376,7 @@ ${groupData.rules.length}. ${q}`);
           if (!isGroupAdmin) return reply("Apenas administradores podem adicionar donos do grupo.");
           if (!menc_os2) return reply(`Marque o usuário que deseja adicionar como dono do grupo. Ex: ${prefix}donogp @usuario`);
           const ownerToAdd = menc_os2;
-          var groupData.groupOwners;
+          
           groupData.groupOwners = groupData.groupOwners || [];
           if (groupData.groupOwners.includes(ownerToAdd)) {
             return reply(`@${ownerToAdd.split('@')[0]} já é um dono do grupo.`, {
@@ -8660,7 +8405,7 @@ ${groupData.rules.length}. ${q}`);
           if (!isGroupAdmin) return reply("Apenas administradores podem remover donos do grupo.");
           if (!menc_os2) return reply(`Marque o usuário que deseja remover como dono do grupo. Ex: ${prefix}rmdonogp @usuario`);
           const ownerToRemove = menc_os2;
-          var groupData.groupOwners;
+          
           groupData.groupOwners = groupData.groupOwners || [];
           const ownerIndex = groupData.groupOwners.indexOf(ownerToRemove);
           if (ownerIndex === -1) {
@@ -8682,7 +8427,7 @@ ${groupData.rules.length}. ${q}`);
       case 'listdonosgp':
         try {
           if (!isGroup) return reply("Este comando só funciona em grupos.");
-          var groupData.groupOwners;
+          
           groupData.groupOwners = groupData.groupOwners || [];
           if (groupData.groupOwners.length === 0) {
             return reply("🛡️ Não há donos do grupo definidos.");
@@ -8690,7 +8435,6 @@ ${groupData.rules.length}. ${q}`);
           let ownersMessage = `🛡️ *Donos do Grupo ${groupName}* 🛡️\n\n`;
           const mentionedOwners = [];
           groupData.groupOwners.forEach(ownerJid => {
-            var ownersMessage;
             ownersMessage += `➥ @${ownerJid.split('@')[0]}\n`;
             mentionedOwners.push(ownerJid);
           });
@@ -8748,13 +8492,9 @@ function getDiskSpaceInfo() {
         const freeLine = lines.find(line => line.includes('Total # of free bytes'));
         const totalLine = lines.find(line => line.includes('Total # of bytes'));
         if (freeLine) {
-          var freeBytes;
-          var freeBytes;
           freeBytes = parseFloat(freeLine.split(':')[1].trim().replace(/\./g, ''));
         }
         if (totalLine) {
-          var totalBytes;
-          var totalBytes;
           totalBytes = parseFloat(totalLine.split(':')[1].trim().replace(/\./g, ''));
         }
       } catch (winError) {
@@ -8768,9 +8508,7 @@ function getDiskSpaceInfo() {
         const lines = output.split('\n');
         if (lines.length > 1) {
           const parts = lines[1].split(/\s+/);
-          var totalBytes;
           totalBytes = parseInt(parts[1]) * 1024;
-          var freeBytes;
           freeBytes = parseInt(parts[3]) * 1024;
         }
       } catch (unixError) {
