@@ -205,7 +205,12 @@ class GameManager {
     }
 }
 
-// --- EXPORTAÇÃO (SINGLETON) ---
-// Cria e exporta uma única instância do gerenciador
-const tictactoeManager = new GameManager();
-export default tictactoeManager;
+// --- EXPORTAÇÃO DIRETA DAS FUNÇÕES ---
+const manager = new GameManager();
+
+export const invitePlayer = (...args) => manager.invitePlayer(...args);
+export const processInvitationResponse = (...args) => manager.processInvitationResponse(...args);
+export const makeMove = (...args) => manager.makeMove(...args);
+export const endGame = (...args) => manager.endGame(...args);
+export const hasActiveGame = (...args) => manager.hasActiveGame(...args);
+export const hasPendingInvitation = (...args) => manager.hasPendingInvitation(...args);
