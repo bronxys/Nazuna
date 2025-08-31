@@ -29,6 +29,8 @@ import {
 import {
     dirname
 } from 'path';
+import * as crypto from 'crypto';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageJson = JSON.parse(fs.readFileSync(pathz.join(__dirname, '..', '..', 'package.json'), 'utf-8'));
@@ -465,7 +467,6 @@ const saveActivationCodes = (data) => {
     }
 };
 const generateActivationCode = (durationDays, targetGroupId = null) => {
-    import crypto from 'crypto';
     let code = '';
     let codesData = loadActivationCodes();
     do {
