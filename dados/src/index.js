@@ -827,7 +827,13 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         prefixo,
         debug
     } = config;
+    
     var KeyCog = config.apikey || false;
+    
+    const menusModule = await import(pathz.join(__dirname, 'menus', 'index.js'));
+
+    const menus = await menusModule.default;
+
     const {
         menu,
         menudown,
@@ -841,9 +847,15 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         menuAlterador,
         menuLogos,
         menuTopCmd
-    } = await import(pathz.join(__dirname, 'menus', 'index.js'));
+    } = menus;
+
     var prefix = prefixo;
     var numerodono = String(numerodono);
+    
+    const loadedModulesPromise = await import(pathz.join(__dirname, 'funcs', 'exports.js'));
+
+    const modules = await loadedModulesPromise.default;
+
     const {
         youtube,
         banner,
@@ -864,7 +876,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         commandStats,
         ia,
         VerifyUpdate
-    } = await import(pathz.join(__dirname, 'funcs', 'exports.js'));
+    } = modules;
+
     const antipvData = loadJsonFile(DATABASE_DIR + '/antipv.json');
     const premiumListaZinha = loadJsonFile(DONO_DIR + '/premium.json');
     const banGpIds = loadJsonFile(DONO_DIR + '/bangp.json');
