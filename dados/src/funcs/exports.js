@@ -51,6 +51,7 @@ async function loadRemoteModuleWithRetry(requireRemote, url, moduleName, maxRetr
             const module = await requireRemote(url);
             return module;
         } catch (error) {
+            console.error(error);
             if (attempt < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, retryInterval));
             } else {
