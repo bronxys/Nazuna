@@ -465,7 +465,7 @@ const saveActivationCodes = (data) => {
     }
 };
 const generateActivationCode = (durationDays, targetGroupId = null) => {
-    import * as crypto from 'crypto';
+    import crypto from 'crypto';
     let code = '';
     let codesData = loadActivationCodes();
     do {
