@@ -81,4 +81,4 @@ ${lyricsText.join('\n\n')}
   }
 }
 
-export default (text) => getLyrics(text);
+export default getLyrics;

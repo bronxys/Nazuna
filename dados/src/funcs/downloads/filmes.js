@@ -96,4 +96,4 @@ async function Filmes(texto) {
   return null;
 }
 
-export default (text) => Filmes(text);
+export default Filmes;

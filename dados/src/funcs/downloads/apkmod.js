@@ -239,4 +239,4 @@ async function apkMod(searchText) {
   }
 }
 
-export default (text) => apkMod(text);
+export default apkMod;

@@ -587,7 +587,7 @@ function clearOldHistorico(maxAge = 24 * 60 * 60 * 1000) {
   });
 }
 
-export {
+export default {
   processUserMessages as makeAssistentRequest,
   makeCognimaRequest,
   makeCognimaImageRequest,

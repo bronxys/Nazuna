@@ -221,4 +221,4 @@ async function buscarPlugin(nome) {
   }
 }
 
-export default (text) => buscarPlugin(text);
+export default buscarPlugin;

@@ -91,4 +91,4 @@ async function RenderUpdates(repo, quantidade, ignorarDescricao = 'updating...')
   }
 }
 
-export default async (a, b, c) => RenderUpdates(a, b, c);
+export default RenderUpdates;
