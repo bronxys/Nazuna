@@ -30,6 +30,7 @@ import {
     dirname
 } from 'path';
 import * as crypto from 'crypto';
+import WaLib from '@cognima/walib';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -896,7 +897,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         const isSubOwner = isSubdono(sender);
         const isOwner = (nmrdn === sender) || info.key.fromMe || isSubOwner;
         const isOwnerOrSub = isOwner || isSubOwner;
-        import WaLib from '@cognima/walib';
         const type = WaLib.getContentType(info.message);
         const isMedia = ["imageMessage", "videoMessage", "audioMessage"].includes(type);
         const isImage = type === 'imageMessage';
