@@ -13,7 +13,12 @@ import pino from 'pino';
 import fs from 'fs/promises';
 import path from 'path';
 import qrcode from 'qrcode-terminal';
-import config from './config.json' assert { type: 'json' };
+import { readFile } from "fs/promises";
+
+const config = JSON.parse(
+  await readFile(new URL("./config.json", import.meta.url), "utf8")
+);
+
 import {
     fileURLToPath
 } from 'url';
