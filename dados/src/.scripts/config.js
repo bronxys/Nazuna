@@ -3,7 +3,7 @@
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import readline from 'readline';
 import os from 'os';
 import { promisify } from 'util';
@@ -81,6 +81,16 @@ async function runCommandWithSpinner(command, message) {
     }
 }
 
+async function runCommandInherit(cmd, args = []) {
+    return new Promise((resolve, reject) => {
+        const proc = spawn(cmd, args, { stdio: 'inherit' });
+        proc.on('close', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`${cmd} terminou com código ${code}`));
+        });
+    });
+}
+
 async function promptInput(rl, prompt, defaultValue, validator = () => true) {
     let value; let isValid = false;
     while (!isValid) {
@@ -114,7 +124,12 @@ async function installSystemDependencies() {
 
     if (SystemInfo.isTermux) {
         print.info('ℹ️ Atualizando pacotes do Termux...');
-        await runCommandWithSpinner('pkg update -y && pkg upgrade -y', 'Atualizando Termux...');
+        try {
+            await runCommandInherit('pkg', ['update', '-y']);
+            await runCommandInherit('pkg', ['upgrade', '-y']);
+        } catch (e) {
+            print.warning('⚠️ Falha ao atualizar pacotes do Termux. Continue com cuidado.');
+        }
     }
     
     for (const dep of DEPENDENCIES_CONFIG) {
@@ -128,7 +143,12 @@ async function installSystemDependencies() {
             
             if (installCommand) {
                 try {
-                    await runCommandWithSpinner(installCommand, `Instalando ${dep.name}...`);
+                    if (SystemInfo.isTermux && (dep.name === 'Git' || dep.name === 'FFmpeg')) {
+                        const [cmd, ...args] = installCommand.split(' ');
+                        await runCommandInherit(cmd, args);
+                    } else {
+                        await runCommandWithSpinner(installCommand, `Instalando ${dep.name}...`);
+                    }
                     status = `${colors.green}✅ Instalado com sucesso${colors.reset}`;
                 } catch (error) {
                     status = `${colors.red}❌ Falha na instalação${colors.reset}`;

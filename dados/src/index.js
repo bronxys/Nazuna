@@ -1831,7 +1831,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           mensagens: [jSoNzIn]
         }, pathz.join(__dirname, 'index.js'), KeyCog || null);
         if (respAssist.resp && respAssist.resp.length > 0) {
-          for (msgza of respAssist.resp) {
+          for (const msgza of respAssist.resp) {
             if (msgza.react) await nazu.react(msgza.react.replaceAll(' ', '').replaceAll('\n', ''), {
               key: info.key
             });

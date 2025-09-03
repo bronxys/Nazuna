@@ -3,10 +3,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
-// Sistema de histórico simplificado - apenas últimas 10 mensagens por grupo_user
 let historico = {};
 
-// ATUALIZAÇÃO: Função retorna apenas o código completo do comando.
 function getCommandCode(command, indexPath) {
   try {
     return { codigo: (fs.readFileSync(indexPath, "utf-8").match(new RegExp(`case\\s*["'\`]${command}["'\`]\\s*:[\\s\\S]*?break\\s*;?`, "i")) || [])[0] }
@@ -179,7 +177,6 @@ Você recebe:
 É melhor pedir pra verificar do que dar uma resposta errada!
 `;
 
-// Função para gerar imagem com ia
 async function makeCognimaImageRequest(params, key) {
   if(!params) {
     throw new Error('Parâmetros obrigatórios ausentes: params');
@@ -203,7 +200,6 @@ async function makeCognimaImageRequest(params, key) {
   };
 };
 
-// Função melhorada para requisições à API
 async function makeCognimaRequest(modelo, texto, systemPrompt = null, key, historico = [], retries = 3) {
   if (!modelo || !texto) {
     throw new Error('Parâmetros obrigatórios ausentes: modelo e texto');
@@ -215,17 +211,14 @@ async function makeCognimaRequest(modelo, texto, systemPrompt = null, key, histo
 
   const messages = [];
   
-  // Adiciona o system prompt como primeira mensagem
   if (systemPrompt) {
     messages.push({ role: 'user', content: systemPrompt });
   }
   
-  // Adiciona o histórico se existir
   if (historico && historico.length > 0) {
     messages.push(...historico);
   }
   
-  // Adiciona a mensagem atual
   messages.push({ role: 'user', content: texto });
 
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -269,7 +262,6 @@ async function makeCognimaRequest(modelo, texto, systemPrompt = null, key, histo
   }
 }
 
-// Função para limpar formatação para WhatsApp
 function cleanWhatsAppFormatting(texto) {
   if (!texto || typeof texto !== 'string') return texto;
   return texto
@@ -287,7 +279,6 @@ function cleanWhatsAppFormatting(texto) {
     .trim();
 }
 
-// Função robusta para extrair JSON da resposta da IA
 function extractJSON(content) {
   if (!content || typeof content !== 'string') {
     console.warn('Conteúdo inválido para extração de JSON, retornando objeto vazio.');
@@ -317,7 +308,6 @@ function extractJSON(content) {
   return { resp: [{ resp: cleanWhatsAppFormatting(content) || "Não entendi a resposta, pode tentar de novo?" }] };
 }
 
-// Função para validar e sanitizar mensagens
 function validateMessage(msg) {
   if (typeof msg === 'object' && msg !== null) {
     return {
@@ -364,7 +354,6 @@ function validateMessage(msg) {
   throw new Error('Formato de mensagem não suportado');
 }
 
-// Função para gerenciar histórico
 function updateHistorico(grupoUserId, role, content, nome = null) {
   if (!historico[grupoUserId]) {
     historico[grupoUserId] = [];
@@ -382,13 +371,11 @@ function updateHistorico(grupoUserId, role, content, nome = null) {
   
   historico[grupoUserId].push(entry);
   
-  // Mantém apenas as últimas 10 mensagens
   if (historico[grupoUserId].length > 4) {
     historico[grupoUserId] = historico[grupoUserId].slice(-4);
   }
 }
 
-// Função principal atualizada
 async function processUserMessages(data, indexPath, key) {
   try {
     const { mensagens } = data;
@@ -425,16 +412,13 @@ async function processUserMessages(data, indexPath, key) {
       return { resp: [], erro: 'Nenhuma mensagem válida para processar' };
     }
 
-    // Processa cada mensagem e atualiza o histórico
     const respostas = [];
     
     for (const msgValidada of mensagensValidadas) {
       const grupoUserId = `${msgValidada.id_grupo}_${msgValidada.id_enviou}`;
       
-      // Adiciona a mensagem do usuário ao histórico
       updateHistorico(grupoUserId, 'user', msgValidada.texto, msgValidada.nome_enviou);
       
-      // Prepara o input para a IA
       const userInput = {
         comandos,
         mensagens: [msgValidada],
@@ -457,7 +441,6 @@ async function processUserMessages(data, indexPath, key) {
       const content = response.choices[0].message.content;
       result = extractJSON(content);
 
-      // Se a IA solicitou análise de comandos
       if (result.analiseComandos && Array.isArray(result.analiseComandos) && result.analiseComandos.length > 0) {
         const commandInfos = result.analiseComandos.map(cmd => {
           const info = getCommandCode(cmd, indexPath);
@@ -488,12 +471,10 @@ async function processUserMessages(data, indexPath, key) {
         }
       }
 
-      // Adiciona as respostas da IA ao histórico
       if (result.resp && Array.isArray(result.resp)) {
         result.resp.forEach(resposta => {
           if (resposta.resp) {
             resposta.resp = cleanWhatsAppFormatting(resposta.resp);
-            // Adiciona a resposta da IA ao histórico
             updateHistorico(grupoUserId, 'assistant', resposta.resp);
           }
         });
