@@ -5,7 +5,7 @@
   Revisão: 31/08/2025
 ═════════════════════════════
 */
-import { downloadContentFromMessage, generateWAMessageFromContent, generateWAMessage, isJidNewsletter, getContentType } from '@cognima/walib';
+import { downloadContentFromMessage, generateWAMessageFromContent, generateWAMessage, isJidNewsletter, getContentType, proto } from '@cognima/walib';
 import { exec, execSync } from 'child_process';
 import { parseHTML } from 'linkedom';
 import axios from 'axios';
@@ -28,6 +28,7 @@ const DONO_DIR = DATABASE_DIR + '/dono';
 const PARCERIAS_DIR = pathz.join(DATABASE_DIR, 'parcerias');
 const LEVELING_FILE = pathz.join(DATABASE_DIR, 'leveling.json');
 const CUSTOM_AUTORESPONSES_FILE = pathz.join(DATABASE_DIR, 'customAutoResponses.json');
+const DIVULGACAO_FILE = pathz.join(DONO_DIR, 'divulgacao.json');
 const NO_PREFIX_COMMANDS_FILE = pathz.join(DATABASE_DIR, 'noPrefixCommands.json');
 const COMMAND_ALIASES_FILE = pathz.join(DATABASE_DIR, 'commandAliases.json');
 const GLOBAL_BLACKLIST_FILE = pathz.join(DONO_DIR, 'globalBlacklist.json');
@@ -1663,31 +1664,47 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       ;
     }
     ;
-    if (isGroup && isAntiLinkGp && !isGroupAdmin && budy2.includes('chat.whatsapp.com')) {
+
+    if (isGroup && isAntiLinkGp && !isGroupAdmin) {
+      let foundGroupLink = false;
+      let link_dgp = null;
       try {
-        if (isOwner) return;
-        const link_dgp = await nazu.groupInviteCode(from);
-        if (budy2.includes(link_dgp)) return;
-        await nazu.sendMessage(from, {
-          delete: {
-            remoteJid: from,
-            fromMe: false,
-            id: info.key.id,
-            participant: sender
-          }
-        });
-        if (!AllgroupMembers.includes(sender)) return;
-        if (isBotAdmin) {
-          await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-          await reply(`🔗 Ops! @${sender.split('@')[0]}, links de outros grupos não são permitidos aqui e você foi removido(a).`, {
-            mentions: [sender]
-          });
-        } else {
-          await reply(`🔗 Atenção, @${sender.split('@')[0]}! Links de outros grupos não são permitidos. Não consigo remover você, mas por favor, evite compartilhar esses links. 😉`, {
-            mentions: [sender]
-          });
+        if (budy2.includes('chat.whatsapp.com')) {
+          foundGroupLink = true;
+          link_dgp = await nazu.groupInviteCode(from);
+          if (budy2.includes(link_dgp)) foundGroupLink = false;
         }
-        return;
+        if (!foundGroupLink && info.message?.requestPaymentMessage) {
+          const paymentText = info.message.requestPaymentMessage?.noteMessage?.extendedTextMessage?.text || '';
+          if (paymentText.includes('chat.whatsapp.com')) {
+            foundGroupLink = true;
+            link_dgp = link_dgp || await nazu.groupInviteCode(from);
+            if (paymentText.includes(link_dgp)) foundGroupLink = false;
+          }
+        }
+        if (foundGroupLink) {
+          if (isOwner) return;
+          await nazu.sendMessage(from, {
+            delete: {
+              remoteJid: from,
+              fromMe: false,
+              id: info.key.id,
+              participant: sender
+            }
+          });
+          if (!AllgroupMembers.includes(sender)) return;
+          if (isBotAdmin) {
+            await nazu.groupParticipantsUpdate(from, [sender], 'remove');
+            await reply(`🔗 Ops! @${sender.split('@')[0]}, links de outros grupos não são permitidos aqui e você foi removido(a).`, {
+              mentions: [sender]
+            });
+          } else {
+            await reply(`🔗 Atenção, @${sender.split('@')[0]}! Links de outros grupos não são permitidos. Não consigo remover você, mas por favor, evite compartilhar esses links. 😉`, {
+              mentions: [sender]
+            });
+          }
+          return;
+        }
       } catch (error) {
         console.error("Erro no sistema antilink de grupos:", error);
       }
@@ -6200,6 +6217,77 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply("Ocorreu um erro 💔");
         }
         break;
+
+case 'setdiv':
+        try {
+          if (!isOwner) return reply("Apenas o dono do bot pode configurar a mensagem de divulgação.");
+          
+          if (!q) {
+            ensureJsonFileExists(DIVULGACAO_FILE, { savedMessage: "" });
+            const config = JSON.parse(fs.readFileSync(DIVULGACAO_FILE, 'utf-8'));
+            const currentMessage = config.savedMessage || "Nenhuma mensagem de divulgação foi salva ainda.";
+            return reply(`Nenhuma nova mensagem foi definida.\n\n*Mensagem atual:*\n${currentMessage}`);
+          }
+
+          const config = { savedMessage: q };
+          fs.writeFileSync(DIVULGACAO_FILE, JSON.stringify(config, null, 2));
+
+          await reply(`✅ Mensagem de divulgação salva com sucesso!`);
+
+        } catch (e) {
+          console.error('Erro no comando setdiv:', e);
+          await reply("💔 Ocorreu um erro ao salvar a mensagem.");
+        }
+        break;
+
+case 'divulgar':
+        try {
+          if (!isGroup) return reply("Este comando só pode ser usado em grupos.");
+          if (!isOwner) return reply("Apenas o dono do bot pode usar este comando.");
+
+          const args = q.trim().split(' ');
+          const maxCount = 50;
+
+          const markAll = args[args.length - 1]?.toLowerCase() === 'all';
+          if (markAll) args.pop();
+
+          const count = parseInt(args.pop());
+          const messageText = args.join(' ').trim() || JSON.parse(fs.readFileSync(DIVULGACAO_FILE, 'utf-8')).savedMessage;
+
+          if (!messageText) {
+            return reply(
+              `❌ Nenhuma mensagem para divulgar.\n\n`+
+              `*Formatos de uso:*\n`+
+              `• \`${prefix}divulgar <msg> <qtd> [all]\`\n` +
+              `• \`${prefix}divulgar <qtd> [all]\` (usa msg salva)\n\n`+
+              `ℹ️ Adicione \`all\` no final para marcar todos os membros do grupo.`
+            );
+          }
+
+          if (isNaN(count) || count <= 0 || count > maxCount) {
+            return reply(`Quantidade inválida. Forneça um número entre 1 e ${maxCount}.`);
+          }
+
+          const contextInfo = markAll ? { contextInfo: { mentionedJid: AllgroupMembers } } : {};
+
+          for (let i = 0; i < count; i++) {
+            const paymentObject = {
+              requestPaymentMessage: {
+                currencyCodeIso4217: 'BRL', amount1000: '0', requestFrom: sender,
+                noteMessage: { extendedTextMessage: { text: messageText, ...contextInfo } },
+                amount: { value: '0', offset: 1000, currencyCode: 'BRL' },
+                expiryTimestamp: Math.floor(Date.now() / 1000) + 86400
+              }
+            };
+            const generatedMessage = await generateWAMessageFromContent(from, proto.Message.fromObject(paymentObject), { userJid: nazu?.user?.id });
+            await nazu.relayMessage(from, generatedMessage.message, { messageId: generatedMessage.key.id });
+          }
+
+        } catch (e) {
+          await reply("💔 Ocorreu um erro ao tentar enviar a divulgação.");
+        }
+        break;
+
       case 'antibotao':
       case 'antibtn':
         try {

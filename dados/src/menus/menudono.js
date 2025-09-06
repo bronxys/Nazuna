@@ -63,6 +63,8 @@ ${menuTopBorder}${separatorIcon} *${managementMenuTitle}*
 ${middleBorder}
 ${middleBorder}${menuItemIcon}${prefix}addsubdono
 ${middleBorder}${menuItemIcon}${prefix}delsubdono
+${middleBorder}${menuItemIcon}${prefix}setdiv
+${middleBorder}${menuItemIcon}${prefix}divulgar
 ${middleBorder}${menuItemIcon}${prefix}listasubdonos
 ${middleBorder}${menuItemIcon}${prefix}addpremium
 ${middleBorder}${menuItemIcon}${prefix}delpremium
