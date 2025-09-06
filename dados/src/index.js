@@ -917,6 +917,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           mark: {}
         };
       };
+      groupData.minMessage = groupData.minMessage || null;
       groupData.moderators = groupData.moderators || [];
       groupData.allowedModCommands = groupData.allowedModCommands || [];
       groupData.mutedUsers = groupData.mutedUsers || {};
@@ -978,6 +979,37 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const isAutoRepo = groupData.autorepo;
     const isAssistente = groupData.assistente;
     const isModoLite = isGroup && isModoLiteActive(groupData, modoLiteGlobal);
+    
+    if (isGroup && groupData.minMessage && (isImage || isVideo || isVisuU || isVisuU2) && !isGroupAdmin && !isOwner) {
+  let caption = '';
+  if (isImage) {
+    caption = info.message.imageMessage?.caption || '';
+  } else if (isVideo) {
+    caption = info.message.videoMessage?.caption || '';
+  } else if (isVisuU) {
+    caption = info.message.viewOnceMessage?.message?.imageMessage?.caption || info.message.viewOnceMessage?.message?.videoMessage?.caption || '';
+  } else if (isVisuU2) {
+    caption = info.message.viewOnceMessageV2?.message?.imageMessage?.caption || info.message.viewOnceMessageV2?.message?.videoMessage?.caption || '';
+  }
+  if (caption.length < groupData.minMessage.minDigits) {
+    try {
+      await nazu.sendMessage(from, { delete: info.key });
+      if (groupData.minMessage.action === 'ban') {
+        if (isBotAdmin) {
+          await nazu.groupParticipantsUpdate(from, [sender], 'remove');
+          await reply(`🚫 Usuário removido por enviar mídia sem legenda suficiente (mínimo: ${groupData.minMessage.minDigits} caracteres).`);
+        } else {
+          await reply(`⚠️ Mídia sem legenda suficiente detectada, mas não sou admin para remover o usuário.`);
+        }
+      } else { // adv
+        await reply(`⚠️ Advertência: Envie mídias com pelo menos ${groupData.minMessage.minDigits} caracteres na legenda para evitar remoção.`);
+      }
+    } catch (error) {
+      console.error('Erro ao processar minMessage:', error);
+    }
+  }
+};
+
     if (isGroup && isStatusMention && isAntiStatus && !isGroupAdmin) {
       if (isBotAdmin) {
         await nazu.sendMessage(from, {
@@ -8534,6 +8566,33 @@ ${groupData.rules.length}. ${q}`);
           await reply("Ocorreu um erro ao listar donos do grupo 💔");
         }
         break;
+        
+        case 'minmessage':
+  try {
+    if (!isGroup) return reply("Este comando só funciona em grupos.");
+    if (!isGroupAdmin) return reply("Apenas administradores podem configurar isso.");
+    if (!args[0]) return reply(`Uso: ${prefix}minmessage <mínimo de dígitos> <ban/adv> ou ${prefix}minmessage off`);
+    if (args[0].toLowerCase() === 'off') {
+      delete groupData.minMessage;
+      fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+      await reply(`✅ Sistema de legenda mínima desativado.`);
+    } else {
+      const minDigits = parseInt(args[0]);
+      const action = args[1]?.toLowerCase();
+      if (isNaN(minDigits) || minDigits < 1 || !['ban', 'adv'].includes(action)) {
+        return reply(`Formato inválido. Use: ${prefix}minmessage <número positivo> <ban/adv>`);
+      }
+      groupData.minMessage = { minDigits, action };
+      fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+      await reply(`✅ Configurado: Mínimo de ${minDigits} caracteres em legendas de fotos/vídeos. Ação em violação: ${action === 'ban' ? 'banir' : 'advertir'}.`);
+    }
+  } catch (e) {
+    console.error('Erro no comando minmessage:', e);
+    await reply("Ocorreu um erro ao configurar 💔");
+  }
+  break;
+  
+  
       default:
         if (isCmd) await nazu.react('❌', {
           key: info.key

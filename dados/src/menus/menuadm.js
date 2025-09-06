@@ -91,6 +91,7 @@ ${bottomBorder}
 ${menuTopBorder}${separatorIcon} *${activationsMenuTitle}*
 ${middleBorder}
 ${middleBorder}${menuItemIcon}${prefix}autodl
+${middleBorder}${menuItemIcon}${prefix}minmessage
 ${middleBorder}${menuItemIcon}${prefix}assistente
 ${middleBorder}${menuItemIcon}${prefix}modobn
 ${middleBorder}${menuItemIcon}${prefix}modonsfw
