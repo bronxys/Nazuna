@@ -32,6 +32,9 @@ const DIVULGACAO_FILE = pathz.join(DONO_DIR, 'divulgacao.json');
 const NO_PREFIX_COMMANDS_FILE = pathz.join(DATABASE_DIR, 'noPrefixCommands.json');
 const COMMAND_ALIASES_FILE = pathz.join(DATABASE_DIR, 'commandAliases.json');
 const GLOBAL_BLACKLIST_FILE = pathz.join(DONO_DIR, 'globalBlacklist.json');
+const MENU_DESIGN_FILE = pathz.join(DONO_DIR, 'menuDesign.json');
+const ECONOMY_FILE = pathz.join(DATABASE_DIR, 'economy.json');
+
 function formatUptime(seconds, longFormat = false, showZero = false) {
   const d = Math.floor(seconds / (24 * 3600));
   const h = Math.floor(seconds % (24 * 3600) / 3600);
@@ -132,6 +135,33 @@ ensureJsonFileExists(COMMAND_ALIASES_FILE, {
 ensureJsonFileExists(GLOBAL_BLACKLIST_FILE, {
   users: {},
   groups: {}
+});
+ensureJsonFileExists(MENU_DESIGN_FILE, {
+  header: `╭┈⊰ 🌸 『 *{botName}* 』\n┊Olá, {userName}!\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`,
+  menuTopBorder: "╭┈",
+  bottomBorder: "╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯",
+  menuTitleIcon: "🍧ฺꕸ▸",
+  menuItemIcon: "•.̇𖥨֗🍓⭟",
+  separatorIcon: "❁",
+  middleBorder: "┊"
+});
+ensureJsonFileExists(ECONOMY_FILE, {
+  users: {},
+  shop: {
+    "pickaxe": { name: "Picareta", price: 500, type: "tool", effect: { mineBonus: 0.2 } },
+    "vault": { name: "Cofre", price: 1000, type: "upgrade", effect: { bankCapacity: 5000 } },
+    "lucky": { name: "Amuleto da Sorte", price: 1500, type: "upgrade", effect: { workBonus: 0.2 } },
+    "rod": { name: "Vara de Pesca", price: 400, type: "tool", effect: { fishBonus: 0.2 } },
+  "lamp": { name: "Lanterna", price: 600, type: "tool", effect: { exploreBonus: 0.2 } },
+  "bow": { name: "Arco de Caça", price: 800, type: "tool", effect: { huntBonus: 0.25 } },
+  "forge": { name: "Kit de Forja", price: 1200, type: "tool", effect: { forgeBonus: 0.25 } }
+  },
+  jobCatalog: {
+    "estagiario": { name: "Estagiário", min: 80, max: 140 },
+    "designer": { name: "Designer", min: 150, max: 250 },
+    "programador": { name: "Programador", min: 200, max: 350 },
+    "gerente": { name: "Gerente", min: 260, max: 420 }
+  }
 });
 ensureJsonFileExists(LEVELING_FILE, {
   users: {},
@@ -638,6 +668,53 @@ function getPatent(level, patents) {
   }
   return "Iniciante";
 }
+
+// ====== Economia (Gold) Helpers ======
+function loadEconomy() {
+  return loadJsonFile(ECONOMY_FILE, { users: {}, shop: {}, jobCatalog: {} });
+}
+function saveEconomy(data) {
+  try {
+    fs.writeFileSync(ECONOMY_FILE, JSON.stringify(data, null, 2));
+    return true;
+  } catch (e) { console.error('❌ Erro ao salvar economy.json:', e); return false; }
+}
+function getEcoUser(econ, userId) {
+  econ.users[userId] = econ.users[userId] || { wallet: 0, bank: 0, cooldowns: {}, inventory: {}, job: null };
+  return econ.users[userId];
+}
+function parseAmount(text, maxValue) {
+  if (!text) return NaN;
+  const t = text.trim().toLowerCase();
+  if (['all', 'tudo', 'max'].includes(t)) return maxValue;
+  const n = parseInt(t.replace(/[^0-9]/g, ''));
+  return isNaN(n) ? NaN : Math.max(0, n);
+}
+function fmt(n) { return new Intl.NumberFormat('pt-BR').format(Math.floor(n)); }
+function timeLeft(targetMs) {
+  const diff = targetMs - Date.now();
+  if (diff <= 0) return '0s';
+  const s = Math.ceil(diff / 1000);
+  const m = Math.floor(s / 60); const rs = s % 60; const h = Math.floor(m / 60); const rm = m % 60;
+  return h > 0 ? `${h}h ${rm}m` : (m > 0 ? `${m}m ${rs}s` : `${rs}s`);
+}
+function applyShopBonuses(user, econ) {
+  const inv = user.inventory || {};
+  const shop = econ.shop || {};
+  let mineBonus = 0; let workBonus = 0; let bankCapacity = Infinity; let fishBonus = 0; let exploreBonus = 0; let huntBonus = 0; let forgeBonus = 0;
+  Object.entries(inv).forEach(([key, qty]) => {
+    if (!qty || !shop[key]) return;
+    const eff = shop[key].effect || {};
+    if (eff.mineBonus) mineBonus += eff.mineBonus * qty;
+    if (eff.workBonus) workBonus += eff.workBonus * qty;
+    if (eff.bankCapacity) bankCapacity = isFinite(bankCapacity) ? bankCapacity + eff.bankCapacity * qty : (eff.bankCapacity * qty);
+    if (eff.fishBonus) fishBonus += eff.fishBonus * qty;
+    if (eff.exploreBonus) exploreBonus += eff.exploreBonus * qty;
+    if (eff.huntBonus) huntBonus += eff.huntBonus * qty;
+    if (eff.forgeBonus) forgeBonus += eff.forgeBonus * qty;
+  });
+  return { mineBonus, workBonus, bankCapacity, fishBonus, exploreBonus, huntBonus, forgeBonus };
+}
 function checkLevelUp(userId, userData, levelingData, nazu, from) {
   const nextLevelXp = calculateNextLevelXp(userData.level);
   if (userData.xp >= nextLevelXp) {
@@ -677,6 +754,170 @@ const saveCustomAutoResponses = responses => {
   } catch (error) {
     console.error('❌ Erro ao salvar auto-respostas personalizadas:', error);
     return false;
+  }
+};
+
+// Funções para auto-respostas com suporte a mídia
+const loadGroupAutoResponses = (groupId) => {
+  const groupFile = pathz.join(GRUPOS_DIR, `${groupId}.json`);
+  const groupData = loadJsonFile(groupFile, {});
+  return groupData.autoResponses || [];
+};
+
+const saveGroupAutoResponses = (groupId, autoResponses) => {
+  try {
+    const groupFile = pathz.join(GRUPOS_DIR, `${groupId}.json`);
+    let groupData = loadJsonFile(groupFile, {});
+    groupData.autoResponses = autoResponses;
+    fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar auto-respostas do grupo:', error);
+    return false;
+  }
+};
+
+const addAutoResponse = async (groupId, trigger, responseData, isGlobal = false) => {
+  try {
+    const newResponse = {
+      id: Date.now().toString(),
+      trigger: normalizar(trigger),
+      response: responseData,
+      createdAt: new Date().toISOString(),
+      isGlobal: isGlobal
+    };
+
+    if (isGlobal) {
+      const globalResponses = loadCustomAutoResponses();
+      globalResponses.push(newResponse);
+      return saveCustomAutoResponses(globalResponses);
+    } else {
+      const groupResponses = loadGroupAutoResponses(groupId);
+      groupResponses.push(newResponse);
+      return saveGroupAutoResponses(groupId, groupResponses);
+    }
+  } catch (error) {
+    console.error('❌ Erro ao adicionar auto-resposta:', error);
+    return false;
+  }
+};
+
+const deleteAutoResponse = (groupId, responseId, isGlobal = false) => {
+  try {
+    if (isGlobal) {
+      const globalResponses = loadCustomAutoResponses();
+      const filteredResponses = globalResponses.filter(r => r.id !== responseId);
+      if (filteredResponses.length === globalResponses.length) return false;
+      return saveCustomAutoResponses(filteredResponses);
+    } else {
+      const groupResponses = loadGroupAutoResponses(groupId);
+      const filteredResponses = groupResponses.filter(r => r.id !== responseId);
+      if (filteredResponses.length === groupResponses.length) return false;
+      return saveGroupAutoResponses(groupId, filteredResponses);
+    }
+  } catch (error) {
+    console.error('❌ Erro ao deletar auto-resposta:', error);
+    return false;
+  }
+};
+
+const processAutoResponse = async (nazu, from, triggerText, info) => {
+  try {
+    const normalizedTrigger = normalizar(triggerText);
+    
+    // Verificar auto-respostas globais (do dono)
+    const globalResponses = loadCustomAutoResponses();
+    for (const response of globalResponses) {
+      if (normalizedTrigger.includes(response.trigger || response.received)) {
+        await sendAutoResponse(nazu, from, response, info);
+        return true;
+      }
+    }
+
+    // Verificar auto-respostas do grupo (dos admins)
+    if (from.endsWith('@g.us')) {
+      const groupResponses = loadGroupAutoResponses(from);
+      for (const response of groupResponses) {
+        if (normalizedTrigger.includes(response.trigger)) {
+          await sendAutoResponse(nazu, from, response, info);
+          return true;
+        }
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('❌ Erro ao processar auto-resposta:', error);
+    return false;
+  }
+};
+
+const sendAutoResponse = async (nazu, from, response, quotedMessage) => {
+  try {
+    const responseData = response.response || response;
+    
+    // Compatibilidade com sistema antigo (apenas texto)
+    if (typeof responseData === 'string') {
+      await nazu.sendMessage(from, { text: responseData }, { quoted: quotedMessage });
+      return;
+    }
+
+    // Sistema novo com suporte a mídia
+    const messageContent = {};
+    const sendOptions = { quoted: quotedMessage };
+
+    switch (responseData.type) {
+      case 'text':
+        messageContent.text = responseData.content;
+        break;
+
+      case 'image':
+        if (responseData.buffer) {
+          messageContent.image = Buffer.from(responseData.buffer, 'base64');
+        } else if (responseData.url) {
+          messageContent.image = { url: responseData.url };
+        }
+        if (responseData.caption) {
+          messageContent.caption = responseData.caption;
+        }
+        break;
+
+      case 'video':
+        if (responseData.buffer) {
+          messageContent.video = Buffer.from(responseData.buffer, 'base64');
+        } else if (responseData.url) {
+          messageContent.video = { url: responseData.url };
+        }
+        if (responseData.caption) {
+          messageContent.caption = responseData.caption;
+        }
+        break;
+
+      case 'audio':
+        if (responseData.buffer) {
+          messageContent.audio = Buffer.from(responseData.buffer, 'base64');
+        } else if (responseData.url) {
+          messageContent.audio = { url: responseData.url };
+        }
+        messageContent.mimetype = 'audio/mp4';
+        messageContent.ptt = responseData.ptt || false;
+        break;
+
+      case 'sticker':
+        if (responseData.buffer) {
+          messageContent.sticker = Buffer.from(responseData.buffer, 'base64');
+        } else if (responseData.url) {
+          messageContent.sticker = { url: responseData.url };
+        }
+        break;
+
+      default:
+        messageContent.text = responseData.content || 'Resposta automática';
+    }
+
+    await nazu.sendMessage(from, messageContent, sendOptions);
+  } catch (error) {
+    console.error('❌ Erro ao enviar auto-resposta:', error);
   }
 };
 const loadNoPrefixCommands = () => {
@@ -790,6 +1031,68 @@ const removeGlobalBlacklist = userId => {
 const getGlobalBlacklist = () => {
   return loadGlobalBlacklist();
 };
+
+// Funções para gerenciar o design do menu
+const loadMenuDesign = () => {
+  try {
+    if (fs.existsSync(MENU_DESIGN_FILE)) {
+      return JSON.parse(fs.readFileSync(MENU_DESIGN_FILE, 'utf-8'));
+    } else {
+      // Design padrão caso o arquivo não exista
+      return {
+        header: `╭┈⊰ 🌸 『 *{botName}* 』\n┊Olá, {userName}!\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`,
+        menuTopBorder: "╭┈",
+        bottomBorder: "╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯",
+        menuTitleIcon: "🍧ฺꕸ▸",
+        menuItemIcon: "•.̇𖥨֗🍓⭟",
+        separatorIcon: "❁",
+        middleBorder: "┊"
+      };
+    }
+  } catch (error) {
+    console.error(`❌ Erro ao carregar design do menu: ${error.message}`);
+    // Retorna design padrão em caso de erro
+    return {
+      header: `╭┈⊰ 🌸 『 *{botName}* 』\n┊Olá, {userName}!\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`,
+      menuTopBorder: "╭┈",
+      bottomBorder: "╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯",
+      menuTitleIcon: "🍧ฺꕸ▸",
+      menuItemIcon: "•.̇𖥨֗🍓⭟",
+      separatorIcon: "❁",
+      middleBorder: "┊"
+    };
+  }
+};
+
+const saveMenuDesign = (design) => {
+  try {
+    ensureDirectoryExists(DONO_DIR);
+    fs.writeFileSync(MENU_DESIGN_FILE, JSON.stringify(design, null, 2));
+    return true;
+  } catch (error) {
+    console.error(`❌ Erro ao salvar design do menu: ${error.message}`);
+    return false;
+  }
+};
+
+const getMenuDesignWithDefaults = (botName, userName) => {
+  const design = loadMenuDesign();
+  
+  // Substitui os placeholders pelos valores atuais
+  const processedDesign = {};
+  for (const [key, value] of Object.entries(design)) {
+    if (typeof value === 'string') {
+      processedDesign[key] = value
+        .replace(/{botName}/g, botName)
+        .replace(/{userName}/g, userName);
+    } else {
+      processedDesign[key] = value;
+    }
+  }
+  
+  return processedDesign;
+};
+
 async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
   var config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
   var {
@@ -800,7 +1103,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     debug
   } = config;
   var KeyCog = config.apikey || false;
-  const menusModule = await import(pathz.join(__dirname, 'menus', 'index.js'));
+  const menusModule = await import(new URL('./menus/index.js', import.meta.url));
   const menus = await menusModule.default;
   const {
     menu,
@@ -812,13 +1115,14 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     menuFerramentas,
     menuSticker,
     menuIa,
-    menuAlterador,
-    menuLogos,
-    menuTopCmd
+  menuAlterador,
+  menuLogos,
+  menuTopCmd,
+  menuGold
   } = menus;
   var prefix = prefixo;
   var numerodono = String(numerodono);
-  const loadedModulesPromise = await import(pathz.join(__dirname, 'funcs', 'exports.js'));
+  const loadedModulesPromise = await import(new URL('./funcs/exports.js', import.meta.url));
   const modules = await loadedModulesPromise.default;
   const {
     youtube,
@@ -917,6 +1221,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           mark: {}
         };
       };
+  // default flags
+  groupData.modogold = typeof groupData.modogold === 'boolean' ? groupData.modogold : false;
       groupData.minMessage = groupData.minMessage || null;
       groupData.moderators = groupData.moderators || [];
       groupData.allowedModCommands = groupData.allowedModCommands || [];
@@ -1816,7 +2122,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         }
         ;
       } catch (error) {
-        console.error("Erro no sistema de jogo da velha:", error);
+
       }
       ;
     }
@@ -2027,7 +2333,337 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     }
     ;
     switch (command) {
-      //ALTERADORES
+      // ====== MENUS ======
+      case 'menugold': {
+        await sendMenuWithMedia('menugold', menuGold);
+        break;
+      }
+
+      // ====== ADMIN: ATIVAR/DESATIVAR MODO GOLD (POR GRUPO) ======
+      case 'modogold': {
+        if (!isGroup) return reply('Este comando só funciona em grupos.');
+        if (!isGroupAdmin) return reply('Apenas administradores podem usar este comando.');
+        groupData.modogold = !groupData.modogold;
+        fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+        await reply(`💰 Modo Gold ${groupData.modogold ? 'ATIVADO' : 'DESATIVADO'} neste grupo.`);
+        break;
+      }
+
+      // ====== ECONOMIA (requer modogold ativo no grupo) ======
+  case 'perfil':
+      case 'carteira':
+      case 'banco':
+      case 'depositar':
+      case 'dep':
+      case 'sacar':
+      case 'saque':
+      case 'transferir':
+      case 'pix':
+      case 'loja':
+      case 'lojagold':
+      case 'comprar':
+      case 'buy':
+  case 'inventario':
+  case 'inv':
+  case 'apostar':
+  case 'bet':
+  case 'slots':
+      case 'minerar':
+      case 'mine':
+      case 'trabalhar':
+      case 'work':
+  case 'emprego':
+  case 'vagas':
+  case 'demitir':
+  case 'pescar':
+  case 'fish':
+  case 'explorar':
+  case 'explore':
+  case 'cacar':
+  case 'caçar':
+  case 'hunt':
+  case 'forjar':
+  case 'forge':
+  case 'crime':
+      case 'assaltar':
+      case 'roubar':
+      case 'topgold':
+      case 'diario':
+      case 'daily':
+      case 'resetgold':
+      {
+        if (!isGroup) return reply('💰 Os comandos de economia funcionam apenas em grupos.');
+  if (!groupData.modogold) return reply(`💤 O Modo Gold está desativado aqui. Um admin pode ativar com: ${prefix}modogold`);
+        const econ = loadEconomy();
+  const me = getEcoUser(econ, sender);
+  const { mineBonus, workBonus, bankCapacity, fishBonus, exploreBonus, huntBonus, forgeBonus } = applyShopBonuses(me, econ);
+
+        const sub = command;
+        const mentioned = (menc_jid2 && menc_jid2[0]) || (q.includes('@') ? q.split(' ')[0].replace('@','')+"@s.whatsapp.net" : null);
+
+        if (sub === 'resetgold') {
+          if (!(isOwner && !isSubOwner && sender === nmrdn)) return reply('Apenas o Dono principal pode resetar usuários.');
+          const target = (menc_jid2 && menc_jid2[0]) || null;
+          const scope = (q||'').toLowerCase();
+          if (scope.includes('all') || scope.includes('todos')) {
+            let count = 0;
+            for (const p of (AllgroupMembers||[])) {
+              if (econ.users[p]) { delete econ.users[p]; count++; }
+            }
+            saveEconomy(econ);
+            return reply(`✅ Resetado o gold de ${count} membros do grupo.`);
+          }
+          if (!target) return reply('Marque um usuário para resetar ou use "all".');
+          delete econ.users[target];
+          saveEconomy(econ);
+          return reply(`✅ Gold resetado para @${target.split('@')[0]}.`, { mentions:[target] });
+        }
+
+        // Visualizações
+        if (sub === 'perfil' || sub === 'carteira') {
+          const total = (me.wallet||0) + (me.bank||0);
+          return reply(`👤 Perfil Financeiro
+💼 Carteira: ${fmt(me.wallet)}
+🏦 Banco: ${fmt(me.bank)}
+💠 Total: ${fmt(total)}
+ 💼 Emprego: ${me.job ? econ.jobCatalog[me.job]?.name || me.job : 'Desempregado(a)'}
+`);
+        }
+        if (sub === 'banco') {
+          const cap = isFinite(bankCapacity) ? bankCapacity : '∞';
+          return reply(`🏦 Banco
+Saldo: ${fmt(me.bank)}
+Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
+`);
+        }
+
+        if (sub === 'depositar' || sub === 'dep') {
+          const amount = parseAmount(q.split(' ')[0], me.wallet);
+          if (!isFinite(amount) || amount <= 0) return reply('Informe um valor válido (ou "all").');
+          if (amount > me.wallet) return reply('Você não tem tudo isso na carteira.');
+          const cap = isFinite(bankCapacity) ? bankCapacity : Infinity;
+          const space = cap - me.bank;
+          if (space <= 0) return reply('Seu banco está cheio. Compre um Cofre na loja para aumentar a capacidade.');
+          const toDep = Math.min(amount, space);
+          me.wallet -= toDep; me.bank += toDep;
+          saveEconomy(econ);
+          return reply(`✅ Depositado ${fmt(toDep)}. Banco: ${fmt(me.bank)} | Carteira: ${fmt(me.wallet)}`);
+        }
+        if (sub === 'sacar' || sub === 'saque') {
+          const amount = parseAmount(q.split(' ')[0], me.bank);
+          if (!isFinite(amount) || amount <= 0) return reply('Informe um valor válido (ou "all").');
+          if (amount > me.bank) return reply('Saldo insuficiente no banco.');
+          me.bank -= amount; me.wallet += amount;
+          saveEconomy(econ);
+          return reply(`✅ Sacado ${fmt(amount)}. Banco: ${fmt(me.bank)} | Carteira: ${fmt(me.wallet)}`);
+        }
+
+        if (sub === 'transferir' || sub === 'pix') {
+          if (!mentioned) return reply('Marque o usuário e informe o valor. Ex: '+prefix+sub+' @user 100');
+          const amount = parseAmount(args.slice(-1)[0], me.wallet);
+          if (!isFinite(amount) || amount <= 0) return reply('Informe um valor válido.');
+          if (amount > me.wallet) return reply('Você não tem esse valor na carteira.');
+          const other = getEcoUser(econ, mentioned);
+          if (mentioned === sender) return reply('Você não pode transferir para si mesmo.');
+          me.wallet -= amount; other.wallet += amount;
+          saveEconomy(econ);
+          return reply(`💸 Transferido ${fmt(amount)} para @${mentioned.split('@')[0]}.`, { mentions:[mentioned] });
+        }
+
+        if (sub === 'loja' || sub === 'lojagold') {
+          const items = Object.entries(econ.shop||{});
+          if (items.length === 0) return reply('A loja está vazia no momento.');
+          let text = '🛍️ Loja de Itens\n\n';
+          for (const [k, it] of items) {
+            text += `• ${k} — ${it.name} — ${fmt(it.price)}\n`;
+          }
+          text += `\nCompre com: ${prefix}comprar <item>`;
+          return reply(text);
+        }
+        if (sub === 'comprar' || sub === 'buy') {
+          const key = (args[0]||'').toLowerCase();
+          if (!key) return reply('Informe o item. Ex: '+prefix+'comprar pickaxe');
+          const it = (econ.shop||{})[key];
+          if (!it) return reply('Item não encontrado. Veja a loja com '+prefix+'loja');
+          if (me.wallet < it.price) return reply('Saldo insuficiente na carteira.');
+          me.wallet -= it.price;
+          me.inventory[key] = (me.inventory[key]||0)+1;
+          saveEconomy(econ);
+          return reply(`✅ Você comprou ${it.name} por ${fmt(it.price)}!`);
+        }
+
+        if (sub === 'inventario' || sub === 'inv') {
+          const entries = Object.entries(me.inventory||{}).filter(([,q])=>q>0);
+          if (entries.length===0) return reply('Seu inventário está vazio.');
+          let text = '🎒 Inventário\n\n';
+          for (const [k,q] of entries) {
+            const it = (econ.shop||{})[k];
+            text += `• ${it?.name || k} x${q}\n`;
+          }
+          return reply(text);
+        }
+
+        if (sub === 'apostar' || sub === 'bet') {
+          const amount = parseAmount(args[0], me.wallet);
+          if (!isFinite(amount) || amount <= 0) return reply('Valor inválido.');
+          if (amount > me.wallet) return reply('Saldo insuficiente.');
+          const win = Math.random() < 0.47;
+          if (win) { me.wallet += amount; saveEconomy(econ); return reply(`🍀 Você ganhou ${fmt(amount)}!`); }
+          me.wallet -= amount; saveEconomy(econ); return reply(`💥 Você perdeu ${fmt(amount)}.`);
+        }
+        if (sub === 'slots') {
+          const amount = parseAmount(args[0]||'100', me.wallet);
+          if (!isFinite(amount) || amount <= 0) return reply('Valor inválido.');
+          if (amount > me.wallet) return reply('Saldo insuficiente.');
+          const symbols = ['🍒','🍋','🍉','⭐','🔔'];
+          const r = [0,0,0].map(()=>symbols[Math.floor(Math.random()*symbols.length)]);
+          let mult = 0;
+          if (r[0]===r[1] && r[1]===r[2]) mult = 3;
+          else if (r[0]===r[1] || r[1]===r[2] || r[0]===r[2]) mult = 1.5;
+          const delta = Math.floor(amount * (mult-1));
+          me.wallet += delta; // delta pode ser negativo
+          saveEconomy(econ);
+          return reply(`🎰 ${r.join(' | ')}\n${mult>1?`Você ganhou ${fmt(Math.floor(amount*(mult-1)))}!`:`Você perdeu ${fmt(amount)}`}`);
+        }
+
+        if (sub === 'vagas') {
+          const jobs = econ.jobCatalog||{}; let txt='💼 Vagas de Emprego\n\n';
+          Object.entries(jobs).forEach(([k,j])=>{ txt += `• ${k} — ${j.name} (${fmt(j.min)}-${fmt(j.max)})\n`; });
+          txt += `\nUse: ${prefix}emprego <vaga>`; return reply(txt);
+        }
+        if (sub === 'emprego') {
+          const key = (args[0]||'').toLowerCase(); if (!key) return reply('Informe a vaga. Veja com '+prefix+'vagas');
+          const job = (econ.jobCatalog||{})[key]; if (!job) return reply('Vaga inexistente.');
+          me.job = key; saveEconomy(econ); return reply(`✅ Agora você trabalha como ${job.name}. Ganhos ao usar ${prefix}trabalhar aumentam conforme a vaga.`);
+        }
+        if (sub === 'demitir') { me.job = null; saveEconomy(econ); return reply('👋 Você pediu demissão.'); }
+
+        if (sub === 'pescar' || sub === 'fish') {
+          const cd = me.cooldowns?.fish || 0; if (Date.now()<cd) return reply(`⏳ Aguarde ${timeLeft(cd)} para pescar novamente.`);
+          const base = 40 + Math.floor(Math.random()*61); // 40-100
+          const bonus = Math.floor(base * (fishBonus||0)); const total = base + bonus;
+          me.wallet += total; me.cooldowns.fish = Date.now() + 2*60*1000; saveEconomy(econ);
+          return reply(`🎣 Você pescou e ganhou ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}!`);
+        }
+
+        if (sub === 'explorar' || sub === 'explore') {
+          const cd = me.cooldowns?.explore || 0; if (Date.now()<cd) return reply(`⏳ Aguarde ${timeLeft(cd)} para explorar novamente.`);
+          const base = 60 + Math.floor(Math.random()*91); // 60-150
+          const bonus = Math.floor(base * (exploreBonus||0)); const total = base + bonus;
+          me.wallet += total; me.cooldowns.explore = Date.now() + 3*60*1000; saveEconomy(econ);
+          return reply(`🧭 Você explorou e encontrou ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}!`);
+        }
+
+        if (sub === 'cacar' || sub === 'caçar' || sub === 'hunt') {
+          const cd = me.cooldowns?.hunt || 0; if (Date.now()<cd) return reply(`⏳ Aguarde ${timeLeft(cd)} para caçar novamente.`);
+          const base = 70 + Math.floor(Math.random()*111); // 70-180
+          const bonus = Math.floor(base * (huntBonus||0)); const total = base + bonus;
+          me.wallet += total; me.cooldowns.hunt = Date.now() + 3*60*1000; saveEconomy(econ);
+          return reply(`🏹 Você caçou e ganhou ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}!`);
+        }
+
+        if (sub === 'forjar' || sub === 'forge') {
+          const cd = me.cooldowns?.forge || 0; if (Date.now()<cd) return reply(`⏳ Aguarde ${timeLeft(cd)} para forjar novamente.`);
+          const cost = 100; if (me.wallet < cost) return reply(`Você precisa de ${fmt(cost)} para materiais.`);
+          me.wallet -= cost;
+          const success = Math.random()<0.6;
+          if (success) {
+            const gain = 180 + Math.floor(Math.random()*221); // 180-400
+            const bonus = Math.floor(gain * (forgeBonus||0)); const total = gain + bonus;
+            me.wallet += total; me.cooldowns.forge = Date.now()+6*60*1000; saveEconomy(econ);
+            return reply(`⚒️ Forja bem-sucedida! Lucro ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}.`);
+          } else {
+            me.cooldowns.forge = Date.now()+6*60*1000; saveEconomy(econ);
+            return reply(`🔥 A forja falhou e os materiais foram perdidos.`);
+          }
+        }
+
+        if (sub === 'crime') {
+          const cd = me.cooldowns?.crime || 0; if (Date.now()<cd) return reply(`⏳ Aguarde ${timeLeft(cd)} para tentar de novo.`);
+          const success = Math.random() < 0.4; // 40% sucesso
+          if (success) {
+            const gain = 150 + Math.floor(Math.random()*251); me.wallet += gain; me.cooldowns.crime = Date.now()+8*60*1000; saveEconomy(econ);
+            return reply(`🕵️ Você cometeu um crime e lucrou ${fmt(gain)}. Cuidado para não ser pego!`);
+          } else {
+            const fine = 100 + Math.floor(Math.random()*201); const pay = Math.min(me.wallet, fine); me.wallet -= pay; me.cooldowns.crime = Date.now()+8*60*1000; saveEconomy(econ);
+            return reply(`🚔 Você foi pego! Pagou multa de ${fmt(pay)}.`);
+          }
+        }
+
+        if (sub === 'minerar' || sub === 'mine') {
+          const cd = me.cooldowns?.mine || 0;
+          if (Date.now() < cd) return reply(`⏳ Aguarde ${timeLeft(cd)} para minerar novamente.`);
+          const base = 50 + Math.floor(Math.random()*71); // 50-120
+          const bonus = Math.floor(base * mineBonus);
+          const total = base + bonus;
+          me.wallet += total;
+          me.cooldowns.mine = Date.now() + 60*1000; // 1 min
+          saveEconomy(econ);
+          return reply(`⛏️ Você minerou e ganhou ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}!`);
+        }
+
+        if (sub === 'trabalhar' || sub === 'work') {
+          const cd = me.cooldowns?.work || 0;
+          if (Date.now() < cd) return reply(`⏳ Aguarde ${timeLeft(cd)} para trabalhar novamente.`);
+          const base = 100 + Math.floor(Math.random()*151); // 100-250
+          const bonus = Math.floor(base * workBonus);
+          const total = base + bonus;
+          me.wallet += total;
+          me.cooldowns.work = Date.now() + 5*60*1000; // 5 min
+          saveEconomy(econ);
+          return reply(`💼 Você trabalhou e recebeu ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}!`);
+        }
+
+        if (sub === 'assaltar' || sub === 'roubar') {
+          if (!mentioned) return reply('Marque alguém para assaltar.');
+          if (mentioned === sender) return reply('Você não pode assaltar a si mesmo.');
+          const cd = me.cooldowns?.rob || 0;
+          if (Date.now() < cd) return reply(`⏳ Aguarde ${timeLeft(cd)} para tentar novamente.`);
+          const target = getEcoUser(econ, mentioned);
+          const chance = Math.random();
+          const maxSteal = Math.min(target.wallet, 300);
+          if (maxSteal <= 0) {
+            me.cooldowns.rob = Date.now() + 10*60*1000; // 10 min
+            saveEconomy(econ);
+            return reply('A vítima está sem dinheiro na carteira. Roubo falhou.');
+          }
+          if (chance < 0.5) {
+            const amt = 50 + Math.floor(Math.random() * Math.max(1, maxSteal-49));
+            target.wallet -= amt; me.wallet += amt;
+            me.cooldowns.rob = Date.now() + 10*60*1000;
+            saveEconomy(econ);
+            return reply(`🦹 Sucesso! Você roubou ${fmt(amt)} de @${mentioned.split('@')[0]}.`, { mentions:[mentioned] });
+          } else {
+            const multa = 80 + Math.floor(Math.random()*121); // 80-200
+            const pay = Math.min(me.wallet, multa);
+            me.wallet -= pay; target.wallet += pay;
+            me.cooldowns.rob = Date.now() + 10*60*1000;
+            saveEconomy(econ);
+            return reply(`🚨 Você foi pego! Pagou ${fmt(pay)} de multa para @${mentioned.split('@')[0]}.`, { mentions:[mentioned] });
+          }
+        }
+
+        if (sub === 'diario' || sub === 'daily') {
+          const cd = me.cooldowns?.daily || 0;
+          if (Date.now() < cd) return reply(`⏳ Você já coletou hoje. Volte em ${timeLeft(cd)}.`);
+          const reward = 500;
+          me.wallet += reward; me.cooldowns.daily = Date.now() + 24*60*60*1000;
+          saveEconomy(econ);
+          return reply(`🎁 Recompensa diária coletada: ${fmt(reward)}!`);
+        }
+
+        if (sub === 'topgold') {
+          const arr = Object.entries(econ.users).map(([id,u])=>[id,(u.wallet||0)+(u.bank||0)]).sort((a,b)=>b[1]-a[1]).slice(0,10);
+          if (arr.length===0) return reply('Sem dados suficientes para ranking.');
+          let text = '🏆 Ranking de Riqueza\n\n';
+          const mentions = [];
+          arr.forEach(([id,total],i)=>{ text += `${i+1}. @${id.split('@')[0]} — ${fmt(total)}\n`; mentions.push(id); });
+          return reply(text, { mentions });
+        }
+
+        return reply('Comando de economia inválido. Use '+prefix+'menugold para ver os comandos.');
+      }
+
       case 'speedup':
       case 'boyvoice':
       case 'vozmenino':
@@ -3321,13 +3957,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!q || !q.includes('/')) return reply(`Por favor, forneça a mensagem recebida e a resposta separadas por /. Ex: ${groupPrefix}addauto bom dia/Olá, bom dia!`);
           const [received, response] = q.split('/').map(s => s.trim());
           if (!received || !response) return reply("Formato inválido. Use: mensagem recebida/mensagem do bot");
-          const autoResponses = loadCustomAutoResponses();
-          autoResponses.push({
-            received: normalizar(received),
-            response
-          });
-          if (saveCustomAutoResponses(autoResponses)) {
-            await reply(`✅ Auto-resposta adicionada!\nMensagem recebida: ${received}\nResposta: ${response}`);
+          
+          const responseData = {
+            type: 'text',
+            content: response
+          };
+          
+          if (await addAutoResponse(from, received, responseData, true)) {
+            await reply(`✅ Auto-resposta global adicionada!\nTrigger: ${received}\nResposta: ${response}`);
           } else {
             await reply("😥 Erro ao salvar a auto-resposta. Tente novamente!");
           }
@@ -3336,21 +3973,218 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply("Ocorreu um erro ao adicionar auto-resposta 💔");
         }
         break;
+
+      case 'addautomedia':
+      case 'addautomidia':
+        try {
+          if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+          if (!q) return reply(`📝 Como usar:\n\n1️⃣ ${groupPrefix}addautomidia [trigger]\n2️⃣ Responda uma mídia (imagem, vídeo, áudio ou sticker)\n3️⃣ Opcionalmente adicione uma legenda\n\nExemplo: ${groupPrefix}addautomidia oi (respondendo uma imagem)`);
+          
+          const trigger = q.trim();
+          let responseData = null;
+          
+          // Verificar se é resposta a uma mídia
+          if (quotedMessageContent) {
+            if (isQuotedImage) {
+              const imageBuffer = await getFileBuffer(quotedMessageContent.imageMessage, 'image');
+              responseData = {
+                type: 'image',
+                buffer: imageBuffer.toString('base64'),
+                caption: quotedMessageContent.imageMessage.caption || ''
+              };
+            } else if (isQuotedVideo) {
+              const videoBuffer = await getFileBuffer(quotedMessageContent.videoMessage, 'video');
+              responseData = {
+                type: 'video',
+                buffer: videoBuffer.toString('base64'),
+                caption: quotedMessageContent.videoMessage.caption || ''
+              };
+            } else if (isQuotedAudio) {
+              const audioBuffer = await getFileBuffer(quotedMessageContent.audioMessage, 'audio');
+              responseData = {
+                type: 'audio',
+                buffer: audioBuffer.toString('base64'),
+                ptt: quotedMessageContent.audioMessage.ptt || false
+              };
+            } else if (isQuotedSticker) {
+              const stickerBuffer = await getFileBuffer(quotedMessageContent.stickerMessage, 'sticker');
+              responseData = {
+                type: 'sticker',
+                buffer: stickerBuffer.toString('base64')
+              };
+            } else {
+              return reply('❌ Por favor, responda a uma mídia válida (imagem, vídeo, áudio ou sticker)!');
+            }
+          } else {
+            return reply('❌ Por favor, responda a uma mídia para adicionar como auto-resposta!');
+          }
+          
+          if (await addAutoResponse(from, trigger, responseData, true)) {
+            await reply(`✅ Auto-resposta global com mídia adicionada!\nTrigger: ${trigger}\nTipo: ${responseData.type}`);
+          } else {
+            await reply("😥 Erro ao salvar a auto-resposta. Tente novamente!");
+          }
+        } catch (e) {
+          console.error('Erro no comando addautomidia:', e);
+          await reply("Ocorreu um erro ao adicionar auto-resposta com mídia 💔");
+        }
+        break;
+
+      case 'addautoadm':
+      case 'addautoadmin':
+        try {
+          if (!isGroup) return reply('🚫 Este comando só funciona em grupos!');
+          if (!isGroupAdmin) return reply('🚫 Este comando é apenas para administradores do grupo!');
+          if (!q || !q.includes('/')) return reply(`Por favor, forneça a mensagem recebida e a resposta separadas por /. Ex: ${groupPrefix}addautoadm oi/Olá! Como posso ajudar?`);
+          const [received, response] = q.split('/').map(s => s.trim());
+          if (!received || !response) return reply("Formato inválido. Use: mensagem recebida/mensagem do bot");
+          
+          const responseData = {
+            type: 'text',
+            content: response
+          };
+          
+          if (await addAutoResponse(from, received, responseData, false)) {
+            await reply(`✅ Auto-resposta do grupo adicionada!\nTrigger: ${received}\nResposta: ${response}`);
+          } else {
+            await reply("😥 Erro ao salvar a auto-resposta. Tente novamente!");
+          }
+        } catch (e) {
+          console.error('Erro no comando addautoadm:', e);
+          await reply("Ocorreu um erro ao adicionar auto-resposta do grupo 💔");
+        }
+        break;
+
+      case 'addautoadmidia':
+      case 'addautoadmmidia':
+        try {
+          if (!isGroup) return reply('🚫 Este comando só funciona em grupos!');
+          if (!isGroupAdmin) return reply('🚫 Este comando é apenas para administradores do grupo!');
+          if (!q) return reply(`📝 Como usar:\n\n1️⃣ ${groupPrefix}addautoadmidia [trigger]\n2️⃣ Responda uma mídia (imagem, vídeo, áudio ou sticker)\n3️⃣ Opcionalmente adicione uma legenda\n\nExemplo: ${groupPrefix}addautoadmidia bemvindo (respondendo uma imagem)`);
+          
+          const trigger = q.trim();
+          let responseData = null;
+          
+          // Verificar se é resposta a uma mídia
+          if (quotedMessageContent) {
+            if (isQuotedImage) {
+              const imageBuffer = await getFileBuffer(quotedMessageContent.imageMessage, 'image');
+              responseData = {
+                type: 'image',
+                buffer: imageBuffer.toString('base64'),
+                caption: quotedMessageContent.imageMessage.caption || ''
+              };
+            } else if (isQuotedVideo) {
+              const videoBuffer = await getFileBuffer(quotedMessageContent.videoMessage, 'video');
+              responseData = {
+                type: 'video',
+                buffer: videoBuffer.toString('base64'),
+                caption: quotedMessageContent.videoMessage.caption || ''
+              };
+            } else if (isQuotedAudio) {
+              const audioBuffer = await getFileBuffer(quotedMessageContent.audioMessage, 'audio');
+              responseData = {
+                type: 'audio',
+                buffer: audioBuffer.toString('base64'),
+                ptt: quotedMessageContent.audioMessage.ptt || false
+              };
+            } else if (isQuotedSticker) {
+              const stickerBuffer = await getFileBuffer(quotedMessageContent.stickerMessage, 'sticker');
+              responseData = {
+                type: 'sticker',
+                buffer: stickerBuffer.toString('base64')
+              };
+            } else {
+              return reply('❌ Por favor, responda a uma mídia válida (imagem, vídeo, áudio ou sticker)!');
+            }
+          } else {
+            return reply('❌ Por favor, responda a uma mídia para adicionar como auto-resposta!');
+          }
+          
+          if (await addAutoResponse(from, trigger, responseData, false)) {
+            await reply(`✅ Auto-resposta do grupo com mídia adicionada!\nTrigger: ${trigger}\nTipo: ${responseData.type}`);
+          } else {
+            await reply("😥 Erro ao salvar a auto-resposta. Tente novamente!");
+          }
+        } catch (e) {
+          console.error('Erro no comando addautoadmidia:', e);
+          await reply("Ocorreu um erro ao adicionar auto-resposta do grupo com mídia 💔");
+        }
+        break;
       case 'listautoresponses':
       case 'listauto':
         try {
           if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
           const autoResponses = loadCustomAutoResponses();
-          if (autoResponses.length === 0) return reply("📜 Nenhuma auto-resposta definida.");
-          let responseText = `📜 *Auto-Respostas do Grupo ${groupName}*\n\n`;
+          if (autoResponses.length === 0) return reply("📜 Nenhuma auto-resposta global definida.");
+          
+          let responseText = `📜 *Auto-Respostas Globais (${autoResponses.length})*\n\n`;
           autoResponses.forEach((item, index) => {
+            const trigger = item.trigger || item.received;
+            const responseInfo = item.response;
             
-            responseText += `${index + 1}. Recebida: ${item.received}\n   Resposta: ${item.response}\n`;
+            if (typeof responseInfo === 'string') {
+              // Compatibilidade com sistema antigo
+              responseText += `${index + 1}. 📝 **${trigger}**\n   ↳ ${responseInfo}\n\n`;
+            } else {
+              // Sistema novo com mídia
+              const typeEmoji = {
+                text: '📝',
+                image: '🖼️',
+                video: '🎥',
+                audio: '🎵',
+                sticker: '🎭'
+              };
+              responseText += `${index + 1}. ${typeEmoji[responseInfo.type] || '📝'} **${trigger}**\n   ↳ Tipo: ${responseInfo.type}`;
+              if (responseInfo.caption) {
+                responseText += `\n   ↳ Legenda: ${responseInfo.caption}`;
+              }
+              responseText += `\n\n`;
+            }
           });
+          responseText += `🔧 Use ${groupPrefix}delauto [número] para remover`;
           await reply(responseText);
         } catch (e) {
           console.error('Erro no comando listauto:', e);
           await reply("Ocorreu um erro ao listar auto-respostas 💔");
+        }
+        break;
+
+      case 'listautoadm':
+      case 'listautoadmin':
+        try {
+          if (!isGroup) return reply('🚫 Este comando só funciona em grupos!');
+          if (!isGroupAdmin) return reply('🚫 Este comando é apenas para administradores do grupo!');
+          
+          const autoResponses = loadGroupAutoResponses(from);
+          if (autoResponses.length === 0) return reply("📜 Nenhuma auto-resposta do grupo definida.");
+          
+          let responseText = `📜 *Auto-Respostas do Grupo (${autoResponses.length})*\n\n`;
+          autoResponses.forEach((item, index) => {
+            const responseInfo = item.response;
+            
+            if (typeof responseInfo === 'string') {
+              responseText += `${index + 1}. 📝 **${item.trigger}**\n   ↳ ${responseInfo}\n\n`;
+            } else {
+              const typeEmoji = {
+                text: '📝',
+                image: '🖼️',
+                video: '🎥',
+                audio: '🎵',
+                sticker: '🎭'
+              };
+              responseText += `${index + 1}. ${typeEmoji[responseInfo.type] || '📝'} **${item.trigger}**\n   ↳ Tipo: ${responseInfo.type}`;
+              if (responseInfo.caption) {
+                responseText += `\n   ↳ Legenda: ${responseInfo.caption}`;
+              }
+              responseText += `\n\n`;
+            }
+          });
+          responseText += `🔧 Use ${groupPrefix}delautoadm [número] para remover`;
+          await reply(responseText);
+        } catch (e) {
+          console.error('Erro no comando listautoadm:', e);
+          await reply("Ocorreu um erro ao listar auto-respostas do grupo 💔");
         }
         break;
       case 'delautoresponse':
@@ -3363,13 +4197,113 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (index < 0 || index >= autoResponses.length) return reply(`❌ Número inválido. Use ${groupPrefix}listauto para ver a lista.`);
           const removed = autoResponses.splice(index, 1)[0];
           if (saveCustomAutoResponses(autoResponses)) {
-            await reply(`🗑️ Auto-resposta removida:\nMensagem recebida: ${removed.received}\nResposta: ${removed.response}`);
+            const trigger = removed.trigger || removed.received;
+            await reply(`🗑️ Auto-resposta global removida:\nTrigger: ${trigger}`);
           } else {
             await reply("😥 Erro ao remover a auto-resposta. Tente novamente!");
           }
         } catch (e) {
           console.error('Erro no comando delauto:', e);
           await reply("Ocorreu um erro ao remover auto-resposta 💔");
+        }
+        break;
+
+      case 'delautoadm':
+      case 'delautoadmin':
+        try {
+          if (!isGroup) return reply('🚫 Este comando só funciona em grupos!');
+          if (!isGroupAdmin) return reply('🚫 Este comando é apenas para administradores do grupo!');
+          if (!q || isNaN(parseInt(q))) return reply(`Por favor, forneça o número da auto-resposta a ser removida. Ex: ${groupPrefix}delautoadm 1`);
+          const index = parseInt(q) - 1;
+          const autoResponses = loadGroupAutoResponses(from);
+          if (index < 0 || index >= autoResponses.length) return reply(`❌ Número inválido. Use ${groupPrefix}listautoadm para ver a lista.`);
+          const removed = autoResponses.splice(index, 1)[0];
+          if (saveGroupAutoResponses(from, autoResponses)) {
+            await reply(`🗑️ Auto-resposta do grupo removida:\nTrigger: ${removed.trigger}`);
+          } else {
+            await reply("😥 Erro ao remover a auto-resposta. Tente novamente!");
+          }
+        } catch (e) {
+          console.error('Erro no comando delautoadm:', e);
+          await reply("Ocorreu um erro ao remover auto-resposta do grupo 💔");
+        }
+        break;
+
+      case 'autoresponses':
+      case 'autorespostas':
+        try {
+          if (!isGroup) return reply('🚫 Este comando só funciona em grupos!');
+          if (!isGroupAdmin) return reply('🚫 Este comando é apenas para administradores do grupo!');
+          
+          const globalResponses = loadCustomAutoResponses();
+          const groupResponses = loadGroupAutoResponses(from);
+          
+          let responseText = `📋 *Sistema de Auto-Respostas*\n\n`;
+          
+          if (globalResponses.length > 0) {
+            responseText += `🌍 **Auto-Respostas Globais (${globalResponses.length})**\n`;
+            globalResponses.forEach((item, index) => {
+              const trigger = item.trigger || item.received;
+              const responseInfo = item.response;
+              
+              if (typeof responseInfo === 'string') {
+                responseText += `${index + 1}. 📝 ${trigger}\n`;
+              } else {
+                const typeEmoji = {
+                  text: '📝',
+                  image: '🖼️',
+                  video: '🎥',
+                  audio: '🎵',
+                  sticker: '🎭'
+                };
+                responseText += `${index + 1}. ${typeEmoji[responseInfo.type] || '📝'} ${trigger}\n`;
+              }
+            });
+            responseText += '\n';
+          }
+          
+          if (groupResponses.length > 0) {
+            responseText += `👥 **Auto-Respostas do Grupo (${groupResponses.length})**\n`;
+            groupResponses.forEach((item, index) => {
+              const responseInfo = item.response;
+              
+              if (typeof responseInfo === 'string') {
+                responseText += `${index + 1}. 📝 ${item.trigger}\n`;
+              } else {
+                const typeEmoji = {
+                  text: '📝',
+                  image: '🖼️',
+                  video: '🎥',
+                  audio: '🎵',
+                  sticker: '🎭'
+                };
+                responseText += `${index + 1}. ${typeEmoji[responseInfo.type] || '📝'} ${item.trigger}\n`;
+              }
+            });
+            responseText += '\n';
+          }
+          
+          if (globalResponses.length === 0 && groupResponses.length === 0) {
+            responseText += '📜 Nenhuma auto-resposta configurada.\n\n';
+          }
+          
+          responseText += `📝 **Comandos Disponíveis:**\n`;
+          responseText += `• ${groupPrefix}addautoadm [trigger]/[resposta] - Adicionar texto\n`;
+          responseText += `• ${groupPrefix}addautoadmidia [trigger] - Adicionar mídia\n`;
+          responseText += `• ${groupPrefix}listautoadm - Listar do grupo\n`;
+          responseText += `• ${groupPrefix}delautoadm [número] - Remover do grupo\n\n`;
+          
+          if (isOwner) {
+            responseText += `🔧 **Comandos do Dono:**\n`;
+            responseText += `• ${groupPrefix}addauto [trigger]/[resposta] - Adicionar global\n`;
+            responseText += `• ${groupPrefix}addautomidia [trigger] - Adicionar mídia global\n`;
+            responseText += `• ${groupPrefix}listauto - Listar globais`;
+          }
+          
+          await reply(responseText);
+        } catch (e) {
+          console.error('Erro no comando autoresponses:', e);
+          await reply("Ocorreu um erro ao listar auto-respostas 💔");
         }
         break;
       case 'addnoprefix':
@@ -4020,7 +4954,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const useVideo = fs.existsSync(menuVideoPath);
           const mediaPath = useVideo ? menuVideoPath : menuImagePath;
           const mediaBuffer = fs.readFileSync(mediaPath);
-          const menuText = await menu(prefix, nomebot, pushname);
+          
+          // Obtém o design personalizado do menu
+          const customDesign = getMenuDesignWithDefaults(nomebot, pushname);
+          const menuText = await menu(prefix, nomebot, pushname, customDesign);
+          
           await nazu.sendMessage(from, {
             [useVideo ? 'video' : 'image']: mediaBuffer,
             caption: menuText,
@@ -4031,7 +4969,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (error) {
           console.error('Erro ao enviar menu:', error);
-          const menuText = await menu(prefix, nomebot, pushname);
+          // Obtém o design personalizado mesmo em caso de erro
+          const customDesign = getMenuDesignWithDefaults(nomebot, pushname);
+          const menuText = await menu(prefix, nomebot, pushname, customDesign);
           await reply(`${menuText}\n\n⚠️ *Nota*: Ocorreu um erro ao carregar a mídia do menu.`);
         }
         break;
@@ -4146,7 +5086,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const useVideo = fs.existsSync(menuVideoPath);
           const mediaPath = useVideo ? menuVideoPath : menuImagePath;
           const mediaBuffer = fs.readFileSync(mediaPath);
-          const menuText = typeof menuFunction === 'function' ? typeof menuFunction.then === 'function' ? await menuFunction : await menuFunction(prefix, nomebot, pushname) : 'Menu não disponível';
+          
+          // Obtém o design personalizado do menu
+          const customDesign = getMenuDesignWithDefaults(nomebot, pushname);
+          
+          // Aplica o design personalizado ao menu
+          const menuText = typeof menuFunction === 'function' ? 
+            (typeof menuFunction.then === 'function' ? 
+              await menuFunction : 
+              await menuFunction(prefix, nomebot, pushname, customDesign)) : 
+            'Menu não disponível';
+          
           await nazu.sendMessage(from, {
             [useVideo ? 'video' : 'image']: mediaBuffer,
             caption: menuText,
@@ -4585,6 +5535,224 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           reply("ocorreu um erro 💔");
         }
         break;
+      
+      // ================================
+      // COMANDOS DE DESIGN DO MENU
+      // ================================
+      
+      case 'setborda':
+      case 'setbordatopo':
+      case 'settopborder':
+        try {
+          if (!isOwner) return reply("Este comando é apenas para o meu dono");
+          if (!q) return reply(`Uso: ${prefix + command} <emoji/texto>\n\nExemplo: ${prefix + command} ╭─⊰`);
+          
+          const currentDesign = loadMenuDesign();
+          currentDesign.menuTopBorder = q;
+          
+          if (saveMenuDesign(currentDesign)) {
+            await reply(`✅ Borda superior do menu definida como: ${q}`);
+          } else {
+            await reply("❌ Erro ao salvar configurações do design do menu.");
+          }
+        } catch (e) {
+          console.error(e);
+          await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes! 🥺");
+        }
+        break;
+
+      case 'setbordafim':
+      case 'setbottomborder':
+      case 'setbordabaixo':
+        try {
+          if (!isOwner) return reply("Este comando é apenas para o meu dono");
+          if (!q) return reply(`Uso: ${prefix + command} <emoji/texto>\n\nExemplo: ${prefix + command} ╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`);
+          
+          const currentDesign = loadMenuDesign();
+          currentDesign.bottomBorder = q;
+          
+          if (saveMenuDesign(currentDesign)) {
+            await reply(`✅ Borda inferior do menu definida como: ${q}`);
+          } else {
+            await reply("❌ Erro ao salvar configurações do design do menu.");
+          }
+        } catch (e) {
+          console.error(e);
+          await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes! 🥺");
+        }
+        break;
+
+      case 'setbordameio':
+      case 'setmiddleborder':
+      case 'setbordamiddle':
+        try {
+          if (!isOwner) return reply("Este comando é apenas para o meu dono");
+          if (!q) return reply(`Uso: ${prefix + command} <emoji/texto>\n\nExemplo: ${prefix + command} ┊`);
+          
+          const currentDesign = loadMenuDesign();
+          currentDesign.middleBorder = q;
+          
+          if (saveMenuDesign(currentDesign)) {
+            await reply(`✅ Borda do meio do menu definida como: ${q}`);
+          } else {
+            await reply("❌ Erro ao salvar configurações do design do menu.");
+          }
+        } catch (e) {
+          console.error(e);
+          await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes! 🥺");
+        }
+        break;
+
+      case 'setitemicon':
+      case 'seticoneitem':
+      case 'setitem':
+        try {
+          if (!isOwner) return reply("Este comando é apenas para o meu dono");
+          if (!q) return reply(`Uso: ${prefix + command} <emoji/texto>\n\nExemplo: ${prefix + command} •.̇𖥨֗🍓⭟`);
+          
+          const currentDesign = loadMenuDesign();
+          currentDesign.menuItemIcon = q;
+          
+          if (saveMenuDesign(currentDesign)) {
+            await reply(`✅ Ícone dos itens do menu definido como: ${q}`);
+          } else {
+            await reply("❌ Erro ao salvar configurações do design do menu.");
+          }
+        } catch (e) {
+          console.error(e);
+          await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes! 🥺");
+        }
+        break;
+
+      case 'setseparador':
+      case 'setseparatoricon':
+      case 'seticoneseparador':
+        try {
+          if (!isOwner) return reply("Este comando é apenas para o meu dono");
+          if (!q) return reply(`Uso: ${prefix + command} <emoji/texto>\n\nExemplo: ${prefix + command} ❁`);
+          
+          const currentDesign = loadMenuDesign();
+          currentDesign.separatorIcon = q;
+          
+          if (saveMenuDesign(currentDesign)) {
+            await reply(`✅ Ícone separador do menu definido como: ${q}`);
+          } else {
+            await reply("❌ Erro ao salvar configurações do design do menu.");
+          }
+        } catch (e) {
+          console.error(e);
+          await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes! 🥺");
+        }
+        break;
+
+      case 'settitleicon':
+      case 'seticonetitulo':
+      case 'settitulo':
+        try {
+          if (!isOwner) return reply("Este comando é apenas para o meu dono");
+          if (!q) return reply(`Uso: ${prefix + command} <emoji/texto>\n\nExemplo: ${prefix + command} 🍧ฺꕸ▸`);
+          
+          const currentDesign = loadMenuDesign();
+          currentDesign.menuTitleIcon = q;
+          
+          if (saveMenuDesign(currentDesign)) {
+            await reply(`✅ Ícone do título do menu definido como: ${q}`);
+          } else {
+            await reply("❌ Erro ao salvar configurações do design do menu.");
+          }
+        } catch (e) {
+          console.error(e);
+          await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes! 🥺");
+        }
+        break;
+
+      case 'setheader':
+      case 'setcabecalho':
+      case 'setheadermenu':
+        try {
+          if (!isOwner) return reply("Este comando é apenas para o meu dono");
+          if (!q) return reply(`Uso: ${prefix + command} <texto>\n\nExemplo: ${prefix + command} ╭┈⊰ 🌸 『 *{botName}* 』\\n┊Olá, {userName}!\\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯\n\n*Placeholders disponíveis:*\n{botName} - Nome do bot\n{userName} - Nome do usuário`);
+          
+          const currentDesign = loadMenuDesign();
+          // Processa quebras de linha explícitas
+          currentDesign.header = q.replace(/\\n/g, '\n');
+          
+          if (saveMenuDesign(currentDesign)) {
+            await reply(`✅ Cabeçalho do menu definido com sucesso!\n\n*Preview:*\n${currentDesign.header.replace(/{botName}/g, nomebot).replace(/{userName}/g, pushname)}`);
+          } else {
+            await reply("❌ Erro ao salvar configurações do design do menu.");
+          }
+        } catch (e) {
+          console.error(e);
+          await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes! 🥺");
+        }
+        break;
+
+      case 'resetdesign':
+      case 'resetarmenu':
+      case 'resetdesignmenu':
+        try {
+          if (!isOwner) return reply("Este comando é apenas para o meu dono");
+          
+          const defaultDesign = {
+            header: `╭┈⊰ 🌸 『 *{botName}* 』\n┊Olá, {userName}!\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`,
+            menuTopBorder: "╭┈",
+            bottomBorder: "╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯",
+            menuTitleIcon: "🍧ฺꕸ▸",
+            menuItemIcon: "•.̇𖥨֗🍓⭟",
+            separatorIcon: "❁",
+            middleBorder: "┊"
+          };
+          
+          if (saveMenuDesign(defaultDesign)) {
+            await reply("✅ Design do menu resetado para o padrão com sucesso!");
+          } else {
+            await reply("❌ Erro ao resetar o design do menu.");
+          }
+        } catch (e) {
+          console.error(e);
+          await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes! 🥺");
+        }
+        break;
+
+      case 'designmenu':
+      case 'verdesign':
+      case 'configmenu':
+        try {
+          if (!isOwner) return reply("Este comando é apenas para o meu dono");
+          
+          const currentDesign = loadMenuDesign();
+          const designText = `╭─⊰ 🎨 *CONFIGURAÇÕES DO DESIGN* 🎨 ⊱─╮
+┊
+┊ 🔸 *Cabeçalho:*
+┊ ${currentDesign.header.replace(/{botName}/g, nomebot).replace(/{userName}/g, pushname)}
+┊
+┊ 🔸 *Borda Superior:* ${currentDesign.menuTopBorder}
+┊ 🔸 *Borda Inferior:* ${currentDesign.bottomBorder}
+┊ 🔸 *Borda do Meio:* ${currentDesign.middleBorder}
+┊ 🔸 *Ícone do Item:* ${currentDesign.menuItemIcon}
+┊ 🔸 *Ícone Separador:* ${currentDesign.separatorIcon}
+┊ 🔸 *Ícone do Título:* ${currentDesign.menuTitleIcon}
+┊
+┊ 📝 *Comandos disponíveis:*
+┊ ${prefix}setborda - Alterar borda superior
+┊ ${prefix}setbordafim - Alterar borda inferior  
+┊ ${prefix}setbordameio - Alterar borda do meio
+┊ ${prefix}setitem - Alterar ícone dos itens
+┊ ${prefix}setseparador - Alterar ícone separador
+┊ ${prefix}settitulo - Alterar ícone do título
+┊ ${prefix}setheader - Alterar cabeçalho
+┊ ${prefix}resetdesign - Resetar para padrão
+┊
+╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`;
+          
+          await reply(designText);
+        } catch (e) {
+          console.error(e);
+          await reply("🐝 Ops! Ocorreu um erro inesperado. Tente novamente em alguns instantes! 🥺");
+        }
+        break;
+
       case 'listagp':
       case 'listgp':
         try {
@@ -8598,13 +9766,7 @@ ${groupData.rules.length}. ${q}`);
           key: info.key
         });
         if (!isCmd && isAutoRepo) {
-          const autoResponses = loadCustomAutoResponses();
-          const normalizedBody = normalizar(body);
-          const matchedResponse = autoResponses.find(item => normalizedBody.includes(item.received));
-          if (matchedResponse) {
-            await reply(matchedResponse.response);
-          }
-          ;
+          await processAutoResponse(nazu, from, body, info);
         }
         ;
     }

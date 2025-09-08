@@ -31,9 +31,23 @@ ${middleBorder}${menuItemIcon}${prefix}fotomenu
 ${middleBorder}${menuItemIcon}${prefix}videomenu
 ${bottomBorder}
 
+${menuTopBorder}${separatorIcon} *DESIGN DO MENU*
+${middleBorder}
+${middleBorder}${menuItemIcon}${prefix}designmenu
+${middleBorder}${menuItemIcon}${prefix}setborda
+${middleBorder}${menuItemIcon}${prefix}setbordafim
+${middleBorder}${menuItemIcon}${prefix}setbordameio
+${middleBorder}${menuItemIcon}${prefix}setitem
+${middleBorder}${menuItemIcon}${prefix}setseparador
+${middleBorder}${menuItemIcon}${prefix}settitulo
+${middleBorder}${menuItemIcon}${prefix}setheader
+${middleBorder}${menuItemIcon}${prefix}resetdesign
+${bottomBorder}
+
 ${menuTopBorder}${separatorIcon} *${autoResponseMenuTitle}*
 ${middleBorder}
 ${middleBorder}${menuItemIcon}${prefix}addauto
+${middleBorder}${menuItemIcon}${prefix}addautomidia
 ${middleBorder}${menuItemIcon}${prefix}listauto
 ${middleBorder}${menuItemIcon}${prefix}delauto
 ${bottomBorder}
@@ -69,6 +83,7 @@ ${middleBorder}${menuItemIcon}${prefix}listasubdonos
 ${middleBorder}${menuItemIcon}${prefix}addpremium
 ${middleBorder}${menuItemIcon}${prefix}delpremium
 ${middleBorder}${menuItemIcon}${prefix}listprem
+${middleBorder}${menuItemIcon}${prefix}resetgold
 ${middleBorder}${menuItemIcon}${prefix}bangp
 ${middleBorder}${menuItemIcon}${prefix}unbangp
 ${middleBorder}${menuItemIcon}${prefix}listbangp

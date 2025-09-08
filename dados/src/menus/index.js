@@ -11,7 +11,8 @@ const menuModules = {
     menuFerramentas: "./ferramentas.js",
     menuSticker: "./menufig.js",
     menuIa: "./menuia.js",
-    menuTopCmd: "./topcmd.js"
+    menuTopCmd: "./topcmd.js",
+    menuGold: "./menugold.js"
 };
 
 /**
