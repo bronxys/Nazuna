@@ -6975,7 +6975,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'topcmds':
       case 'comandosmaisusados':
         try {
-          const topCommands = commandStats.getMostUsedCommands(10);
+          const topCommands = await commandStats.getMostUsedCommands(10);
           const menuVideoPath = __dirname + '/../midias/menu.mp4';
           const menuImagePath = __dirname + '/../midias/menu.jpg';
           const useVideo = fs.existsSync(menuVideoPath);
