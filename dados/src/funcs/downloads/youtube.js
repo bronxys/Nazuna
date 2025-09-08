@@ -158,8 +158,9 @@ async function mp3(input, quality = "m4a") {
       }
     }
     
+    const url = `https://youtube.com/watch?v=${id}`;
+    
     if (!meta) {
-      const url = `https://youtube.com/watch?v=${id}`;
       meta = await yts(url);
       
       // Armazena no cache
@@ -211,8 +212,10 @@ async function mp4(input, quality = "360") {
       }
     }
     
+    
+    const url = `https://youtube.com/watch?v=${id}`;
+      
     if (!meta) {
-      const url = `https://youtube.com/watch?v=${id}`;
       meta = await yts(url);
       
       // Armazena no cache
