@@ -22,14 +22,18 @@ const config = JSON.parse(
 import {
     fileURLToPath
 } from 'url';
+
 import {
     dirname,
     join
 } from 'path';
+
 import indexModule from './index.js';
+
 const logger = pino({
     level: 'silent'
 });
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const AUTH_DIR = path.join(__dirname, '..', 'database', 'qr-code');

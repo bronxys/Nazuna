@@ -7,15 +7,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Carrega um módulo JavaScript local de forma assíncrona usando import() dinâmico.
- * @param {string} modulePath - O caminho relativo ou absoluto para o módulo.
+ * Carrega um módulo JavaScript local de forma assíncrona usando import() dinâmico com URL.
+ * @param {string} modulePath - O caminho relativo para o módulo.
  * @returns {Promise<any | undefined>} Uma Promise que resolve com o módulo carregado.
  */
 async function loadModuleAsync(modulePath) {
     try {
-        const fullPath = path.join(__dirname, modulePath);
-        const module = await import(fullPath);
-        return module.default || module; // Retorna a exportação padrão ou o módulo inteiro
+        const moduleUrl = new URL(modulePath, import.meta.url);
+        const module = await import(moduleUrl);
+        return module.default || module;
     } catch (error) {
         console.warn(`[AVISO] Não foi possível carregar o módulo local: ${modulePath}. Erro: ${error.message}`);
         return undefined;
@@ -29,7 +29,7 @@ async function loadModuleAsync(modulePath) {
  */
 async function loadJson(filePath) {
     try {
-        const fullPath = path.join(__dirname, filePath);
+        const fullPath = path.resolve(__dirname, filePath);
         const data = await fs.readFile(fullPath, "utf-8");
         return JSON.parse(data);
     } catch (error) {
@@ -41,26 +41,26 @@ async function loadJson(filePath) {
 // Caminhos dos módulos locais organizados por pastas
 const localModulePaths = {
     // --- downloads ---
-    youtube: "downloads/youtube.js",
-    tiktok: "downloads/tiktok.js",
-    pinterest: "downloads/pinterest.js",
-    igdl: "downloads/igdl.js",
-    Lyrics: "downloads/lyrics.js",
-    mcPlugin: "downloads/mcplugins.js",
-    FilmesDL: "downloads/filmes.js",
+    youtube: "./downloads/youtube.js",
+    tiktok: "./downloads/tiktok.js",
+    pinterest: "./downloads/pinterest.js",
+    igdl: "./downloads/igdl.js",
+    Lyrics: "./downloads/lyrics.js",
+    mcPlugin: "./downloads/mcplugins.js",
+    FilmesDL: "./downloads/filmes.js",
 
     // --- utils ---
-    styleText: "utils/gerarnick.js",
-    VerifyUpdate: "utils/update-verify.js",
-    emojiMix: "utils/emojimix.js",
-    upload: "utils/upload.js",
-    tictactoe: "utils/tictactoe.js",
-    stickerModule: "utils/sticker.js",
-    commandStats: "utils/commandStats.js",
+    styleText: "./utils/gerarnick.js",
+    VerifyUpdate: "./utils/update-verify.js",
+    emojiMix: "./utils/emojimix.js",
+    upload: "./utils/upload.js",
+    tictactoe: "./utils/tictactoe.js",
+    stickerModule: "./utils/sticker.js",
+    commandStats: "./utils/commandStats.js",
 
     // --- private ---
-    ia: "private/ia.js",
-    banner: "private/banner.js",
+    ia: "./private/ia.js",
+    banner: "./private/banner.js",
 };
 
 export default (async () => {

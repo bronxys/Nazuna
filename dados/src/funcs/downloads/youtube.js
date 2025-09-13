@@ -1,13 +1,11 @@
 /**
- * Sistema de Download e Pesquisa YouTube Otimizado com OceanSaver
+ * Sistema de Download e Pesquisa YouTube Otimizado com AdonixYtdl
  * Adaptado por Hiudy
  * Versão: 4.0.0 - Otimizada
  */
 
 import axios from 'axios';
 import yts from 'yt-search';
-import { createDecipheriv } from 'crypto';
-import { Readable } from 'stream';
 
 // Configurações
 const CONFIG = {
@@ -82,62 +80,46 @@ async function processRequestQueue() {
   }
 }
 
-// OceanSaver implementation
-const ytdl = {
-  request: async (url, formatOrQuality) => {
-    try {
-      const encodedUrl = encodeURIComponent(url);
-      const { data } = await axios.get(
-        `https://p.oceansaver.in/ajax/download.php?format=${formatOrQuality}&url=${encodedUrl}`
-      );
-
-      if (!data.success || !data.id) {
-        return { status: false, message: 'Failed to get task ID from OceanSaver' };
-      }
-
-      return {
-        status: true,
-        taskId: data.id,
-        quality: formatOrQuality
-      };
-    } catch (error) {
-      return { status: false, message: `Request error: ${error.message}` };
+// Implementação do AdonixYtdl
+async function adonixytdl(url) {
+    const headers = {
+        "accept": "*/*",
+        "accept-language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+        "sec-ch-ua": '"Not A(Brand";v="8", "Chromium";v="132"',
+        "sec-ch-ua-mobile": "?1",
+        "sec-ch-ua-platform": '"Android"',
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "cross-site",
+        "Referer": "https://id.ytmp3.mobi/",
+        "Referrer-Policy": "strict-origin-when-cross-origin"
     }
-  },
 
-  convert: async (taskId) => {
-    try {
-      const { data } = await axios.get(
-        `https://p.oceansaver.in/api/progress?id=${taskId}`
-      );
-      return data;
-    } catch (error) {
-      return { success: false, message: `Convert error: ${error.message}` };
+    const initial = await axios.get(`https://d.ymcdn.org/api/v1/init?p=y&23=1llum1n471&_=${Math.random()}`, { headers })
+    const init = initial.data
+
+    const id = url.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*\/|.*embed\/))([^&?/]+)/)?.[1]
+    if (!id) throw new Error('No se pudo obtener ID del video.')
+
+    const mp4_ = init.convertURL + `&v=${id}&f=mp4&_=${Math.random()}`
+    const mp3_ = init.convertURL + `&v=${id}&f=mp3&_=${Math.random()}`
+
+    const mp4__ = await axios.get(mp4_, { headers })
+    const mp3__ = await axios.get(mp3_, { headers })
+
+    let info = {}
+    while (true) {
+        const j = await axios.get(mp3__.data.progressURL, { headers })
+        info = j.data
+        if (info.progress == 3) break
     }
-  },
 
-  repeatRequest: async (taskId, quality) => {
-    for (let i = 0; i < 20; i++) {
-      const response = await ytdl.convert(taskId);
-      if (response && response.download_url) {
-        return {
-          status: true,
-          quality,
-          url: response.download_url
-        };
-      }
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    return {
+        title: info.title,
+        mp3: mp3__.data.downloadURL,
+        mp4: mp4__.data.downloadURL
     }
-    return { status: false, message: 'Timeout waiting for download link' };
-  },
-
-  download: async (url, formatOrQuality) => {
-    const init = await ytdl.request(url, formatOrQuality);
-    if (!init.status) return init;
-
-    return await ytdl.repeatRequest(init.taskId, init.quality);
-  }
-};
+}
 
 async function mp3(input, quality = "m4a") {
   try {
@@ -170,13 +152,13 @@ async function mp3(input, quality = "m4a") {
       });
     }
     
-    const result = await ytdl.download(url, 'mp3');
+    const result = await adonixytdl(url);
     
-    if (!result.status) {
-      throw new Error(result.message);
+    if (!result.mp3) {
+      throw new Error('Falha ao obter link de download do áudio');
     }
     
-    const buffer = (await axios.get(result.url, {
+    const buffer = (await axios.get(result.mp3, {
       responseType: 'arraybuffer',
       timeout: 30000 // Timeout de 30 segundos
     })).data;
@@ -212,7 +194,6 @@ async function mp4(input, quality = "360") {
       }
     }
     
-    
     const url = `https://youtube.com/watch?v=${id}`;
       
     if (!meta) {
@@ -225,13 +206,13 @@ async function mp4(input, quality = "360") {
       });
     }
     
-    const result = await ytdl.download(url, quality.toString());
+    const result = await adonixytdl(url);
     
-    if (!result.status) {
-      throw new Error(result.message);
+    if (!result.mp4) {
+      throw new Error('Falha ao obter link de download do vídeo');
     }
     
-    const buffer = (await axios.get(result.url, {
+    const buffer = (await axios.get(result.mp4, {
       responseType: 'arraybuffer',
       timeout: 30000 // Timeout de 30 segundos
     })).data;
