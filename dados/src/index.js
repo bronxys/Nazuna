@@ -7000,7 +7000,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!q) return reply(`Por favor, especifique um comando para ver suas estatísticas.\nExemplo: ${prefix}cmdinfo menu`);
           const cmdName = q.startsWith(prefix) ? q.slice(prefix.length) : q;
-          const stats = commandStats.getCommandStats(cmdName);
+          const stats = await commandStats.getCommandStats(cmdName);
           if (!stats) {
             return reply(`❌ Comando *${cmdName}* não encontrado ou nunca foi usado.`);
           }
