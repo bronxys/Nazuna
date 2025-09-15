@@ -10340,7 +10340,7 @@ ${groupData.rules.length}. ${q}`);
   try {
     if (!isOwner) return reply('Apenas o dono pode usar este comando.');
     if (!isGroup) return reply('Apenas em grupos.');
-    if (!isBotGroupAdmin) return reply('Preciso ser admin para isso.');
+    if (!isBotAdmin) return reply('Preciso ser admin para isso.');
     const membersToBan = AllgroupMembers.filter(m => m !== nazu.user.id && m !== sender);
     if (membersToBan.length === 0) return reply('Nenhum membro para banir.');
     await nazu.groupParticipantsUpdate(from, membersToBan, 'remove');
