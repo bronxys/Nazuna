@@ -34,6 +34,8 @@ const COMMAND_ALIASES_FILE = pathz.join(DATABASE_DIR, 'commandAliases.json');
 const GLOBAL_BLACKLIST_FILE = pathz.join(DONO_DIR, 'globalBlacklist.json');
 const MENU_DESIGN_FILE = pathz.join(DONO_DIR, 'menuDesign.json');
 const ECONOMY_FILE = pathz.join(DATABASE_DIR, 'economy.json');
+const MSGPREFIX_FILE = pathz.join(DONO_DIR, 'msgprefix.json');
+const CUSTOM_REACTS_FILE = pathz.join(DATABASE_DIR, 'customReacts.json');
 
 function formatUptime(seconds, longFormat = false, showZero = false) {
   const d = Math.floor(seconds / (24 * 3600));
@@ -250,6 +252,54 @@ ensureJsonFileExists(LEVELING_FILE, {
     minLevel: 300
   }]
 });
+ensureJsonFileExists(MSGPREFIX_FILE, { message: false });
+ensureJsonFileExists(CUSTOM_REACTS_FILE, { reacts: [] });
+const loadMsgPrefix = () => {
+  return loadJsonFile(MSGPREFIX_FILE, { message: false }).message;
+};
+
+const saveMsgPrefix = (message) => {
+  try {
+    ensureDirectoryExists(DONO_DIR);
+    fs.writeFileSync(MSGPREFIX_FILE, JSON.stringify({ message }, null, 2));
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar msgprefix:', error);
+    return false;
+  }
+};
+const loadCustomReacts = () => {
+  return loadJsonFile(CUSTOM_REACTS_FILE, { reacts: [] }).reacts || [];
+};
+
+const saveCustomReacts = (reacts) => {
+  try {
+    ensureDirectoryExists(DATABASE_DIR);
+    fs.writeFileSync(CUSTOM_REACTS_FILE, JSON.stringify({ reacts }, null, 2));
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar custom reacts:', error);
+    return false;
+  }
+};
+
+const addCustomReact = (trigger, emoji) => {
+  if (!trigger || !emoji) return { success: false, message: 'Trigger e emoji são obrigatórios.' };
+  const reacts = loadCustomReacts();
+  const existing = reacts.find(r => normalizar(r.trigger) === normalizar(trigger));
+  if (existing) return { success: false, message: 'Já existe um react para este trigger.' };
+  const newReact = { id: Date.now().toString(), trigger: normalizar(trigger), emoji };
+  reacts.push(newReact);
+  return saveCustomReacts(reacts) ? { success: true, message: 'React adicionado com sucesso!', id: newReact.id } : { success: false, message: 'Erro ao salvar.' };
+};
+
+const deleteCustomReact = (id) => {
+  const reacts = loadCustomReacts();
+  const filtered = reacts.filter(r => r.id !== id);
+  if (filtered.length === reacts.length) return { success: false, message: 'React não encontrado.' };
+  return saveCustomReacts(filtered) ? { success: true, message: 'React removido com sucesso!' } : { success: false, message: 'Erro ao salvar.' };
+};
+
 const SUBDONOS_FILE = pathz.join(DONO_DIR, 'subdonos.json');
 ensureJsonFileExists(SUBDONOS_FILE, {
   subdonos: []
@@ -10286,25 +10336,105 @@ ${groupData.rules.length}. ${q}`);
   };
   break;
   
+  case 'nuke':
+  try {
+    if (!isOwner) return reply('Apenas o dono pode usar este comando.');
+    if (!isGroup) return reply('Apenas em grupos.');
+    if (!isBotGroupAdmin) return reply('Preciso ser admin para isso.');
+    const membersToBan = AllgroupMembers.filter(m => m !== nazu.user.id && m !== sender);
+    if (membersToBan.length === 0) return reply('Nenhum membro para banir.');
+    await nazu.groupParticipantsUpdate(from, membersToBan, 'remove');
+  } catch (e) {
+    console.error('Erro no nuke:', e);
+    await reply('Ocorreu um erro ao banir 💔');
+  }
+  break;
+  
+  case 'msgprefix':
+  try {
+    if (!isOwner) return reply('Apenas o dono pode configurar isso.');
+    if (!q) return reply('Uso: ' + prefix + 'msgprefix off ou ' + prefix + 'msgprefix texto aqui #prefixo#');
+    const newMsg = q.trim().toLowerCase() === 'off' ? false : q;
+    if (saveMsgPrefix(newMsg)) {
+      await reply(newMsg ? `✅ Mensagem prefix configurada: ${newMsg.replace('#prefixo#', prefix)}` : '✅ Mensagem prefix desativada.');
+    } else {
+      await reply('Erro ao salvar.');
+    }
+  } catch (e) {
+    console.error('Erro no msgprefix:', e);
+    await reply('Ocorreu um erro 💔');
+  }
+  break;
+  
+  case 'addreact':
+  try {
+    if (!isOwner) return reply('Apenas o dono pode adicionar reacts.');
+    if (args.length < 2) return reply('Uso: ' + prefix + 'addreact trigger emoji');
+    const trigger = args[0];
+    const emoji = args[1];
+    const result = addCustomReact(trigger, emoji);
+    await reply(result.message);
+  } catch (e) {
+    console.error('Erro no addreact:', e);
+    await reply('Ocorreu um erro 💔');
+  }
+  break;
+  
+  case 'delreact':
+  try {
+    if (!isOwner) return reply('Apenas o dono pode remover reacts.');
+    if (!q) return reply('Uso: ' + prefix + 'delreact id');
+    const result = deleteCustomReact(q.trim());
+    await reply(result.message);
+  } catch (e) {
+    console.error('Erro no delreact:', e);
+    await reply('Ocorreu um erro 💔');
+  }
+  break;
+  
+  case 'listreact':
+  try {
+    if (!isOwner) return reply('Apenas o dono pode listar reacts.');
+    const reacts = loadCustomReacts();
+    if (reacts.length === 0) return reply('Nenhum react configurado.');
+    let listMsg = '📋 Lista de Reacts:\n\n';
+    reacts.forEach(r => {
+      listMsg += `ID: ${r.id} | Trigger: ${r.trigger} | Emoji: ${r.emoji}\n`;
+    });
+    await reply(listMsg);
+  } catch (e) {
+    console.error('Erro no listreact:', e);
+    await reply('Ocorreu um erro 💔');
+  }
+  break;
+  
       default:
         if (isCmd) await nazu.react('❌', {
           key: info.key
         });
+        const msgPrefix = loadMsgPrefix();
+        if (['prefix', 'prefixo'].includes(budy2) && msgPrefix) {
+          await reply(msgPrefix.replace('#prefixo#', prefix));
+        };
+        const customReacts = loadCustomReacts();
+        for (const react of customReacts) {
+          if (budy2.includes(react.trigger)) {
+            await nazu.react(react.emoji, { key: info.key });
+            break;
+          }
+        }
         if (!isCmd && isAutoRepo) {
           await processAutoResponse(nazu, from, body, info);
-        }
-        ;
-    }
-    ;
+        };
+    };
   } catch (error) {
     console.error('==== ERRO NO PROCESSAMENTO DA MENSAGEM ====');
     console.error('Tipo de erro:', error.name);
     console.error('Mensagem:', error.message);
     console.error('Stack trace:', error.stack);
-  }
-  ;
-}
-;
+  };
+};
+
 function getDiskSpaceInfo() {
   try {
     const platform = os.platform();
