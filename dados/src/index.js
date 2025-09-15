@@ -7120,9 +7120,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           ;
           const pingImageUrl = await banner.Ping("", ppimg, nomebot, speedConverted.toFixed(3), uptimeBot, totalGrupos, totalUsers);
           await nazu.sendMessage(from, {
-            image: {
-              url: pingImageUrl
-            },
+            image: pingImageUrl,
             caption: mensagem
           }, {
             quoted: info
@@ -7699,9 +7697,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
           const imageA = await banner.Chaveamento("", grupo1, grupo2);
           await nazu.sendMessage(from, {
-            image: {
-              url: imageA
-            },
+            image: imageA,
             caption: mensagem
           });
         } catch (e) {

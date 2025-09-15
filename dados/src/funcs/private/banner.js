@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://node6.ldc.srv.br:10020/api';
+const API_URL = 'https://htmltoimage.cognima.com.br/api.php';
 
 export const Welcome = async (profilePic, userNumber, groupName, memberCount) => {
   const html = `
@@ -50,8 +50,8 @@ export const Welcome = async (profilePic, userNumber, groupName, memberCount) =>
   };
 
   try {
-    const { data } = await axios.post(API_URL, payload);
-    return data?.url || null;
+    const { data } = await axios.post(API_URL, payload, { responseType: "arraybuffer"});
+    return data;
   } catch (err) {
     console.error(err);
     return null;
@@ -99,8 +99,8 @@ export const Ping = async (backgroundImage, characterImage, botName, pingSpeed, 
   const payload = { html, css, viewport_width: '1200', viewport_height: '500', google_fonts: 'Poppins', device_scale: '2' };
 
   try {
-    const { data } = await axios.post(API_URL, payload);
-    return data?.url || null;
+    const { data } = await axios.post(API_URL, payload, { responseType: "arraybuffer"});
+    return data;
   } catch (err) {
     console.error(err);
     return null;
@@ -144,8 +144,8 @@ export const Play = async (thumbnailImage, songName, artistName, duration) => {
   const payload = { html, css, viewport_width: '1200', viewport_height: '500', google_fonts: 'Poppins', device_scale: '2' };
 
   try {
-    const { data } = await axios.post(API_URL, payload);
-    return data?.url || null;
+    const { data } = await axios.post(API_URL, payload, { responseType: "arraybuffer"});
+    return data;
   } catch (err) {
     console.error(err);
     return null;
@@ -200,8 +200,8 @@ export const Chaveamento = async (
   const payload = { html, css, viewport_width: '1600', viewport_height: '900', google_fonts: 'Poppins', device_scale: '2' };
 
   try {
-    const { data } = await axios.post(API_URL, payload);
-    return data?.url || null;
+    const { data } = await axios.post(API_URL, payload, { responseType: "arraybuffer"});
+    return data;
   } catch (err) {
     console.error(err);
     return null;

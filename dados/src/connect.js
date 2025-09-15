@@ -132,9 +132,8 @@ async function createGroupMessage(NazunaSock, groupMetadata, participants, setti
             } = await import(new URL('./funcs/exports.js', import.meta.url));
         const image = settings.image !== 'banner' ? {
             url: settings.image
-        } : {
-            url: await banner.Welcome(profilePicUrl, bannerName, groupMetadata.subject, groupMetadata.participants.length)
-        };
+        } : await banner.Welcome(profilePicUrl, bannerName, groupMetadata.subject, groupMetadata.participants.length);
+        
         message.image = image;
         message.caption = text;
         delete message.text;
