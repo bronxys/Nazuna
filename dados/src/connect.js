@@ -2,7 +2,8 @@ import {
     makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
-    fetchLatestBaileysVersion
+    fetchLatestBaileysVersion,
+    makeCacheableSignalKeyStore
 } from '@cognima/walib';
 import {
     Boom
@@ -129,28 +130,10 @@ async function createGroupMessage(NazunaSock, groupMetadata, participants, setti
         }
         
         const loadedModulesPromise = await import(new URL('./funcs/exports.js', import.meta.url));
-  const modules = await loadedModulesPromise.default;
-  const {
-    youtube,
-    banner,
-    tiktok,
-    pinterest,
-    igdl,
-    sendSticker,
-    FilmesDL,
-    styleText,
-    emojiMix,
-    upload,
-    mcPlugin,
-    tictactoe,
-    toolsJson,
-    vabJson,
-    google,
-    Lyrics,
-    commandStats,
-    ia,
-    VerifyUpdate
-  } = modules;
+        const modules = await loadedModulesPromise.default;
+        const {
+        banner,
+        } = modules;
        
         const image = settings.image !== 'banner' ? {
             url: settings.image
@@ -262,8 +245,9 @@ async function createBotSocket(authDir) {
         });
         const {
             state,
-            saveCreds
-        } = await useMultiFileAuthState(authDir);
+            saveCreds,
+            signalRepository
+        } = await useMultiFileAuthState(authDir, makeCacheableSignalKeyStore);
         const {
             version,
             isLatest
@@ -283,6 +267,7 @@ async function createBotSocket(authDir) {
             msgRetryCounterCache,
             cachedGroupMetadata: async (jid) => groupCache.get(jid),
             auth: state,
+            signalRepository,
             browser: ['Ubuntu', 'Edge', '110.0.1587.56'],
             logger,
         });
@@ -318,6 +303,9 @@ async function createBotSocket(authDir) {
                     for (const info of m.messages) {
                         if (!info.message || !info.key.remoteJid)
                             continue;
+                        if (info?.WebMessageInfo) {
+                            continue;
+                        }
                         messagesCache.set(info.key.id, info.message);
                         await indexModule(NazunaSock, info, null, groupCache, messagesCache);
                     }

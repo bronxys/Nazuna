@@ -50,6 +50,8 @@ ${middleBorder}${menuItemIcon}${prefix}marcar
 ${middleBorder}${menuItemIcon}${prefix}sorteio
 ${middleBorder}${menuItemIcon}${prefix}linkgp
 ${middleBorder}${menuItemIcon}${prefix}grupo A/F
+${middleBorder}${menuItemIcon}${prefix}opengp HH:MM|off
+${middleBorder}${menuItemIcon}${prefix}closegp HH:MM|off
 ${middleBorder}${menuItemIcon}${prefix}setname
 ${middleBorder}${menuItemIcon}${prefix}setdesc
 ${middleBorder}${menuItemIcon}${prefix}addregra

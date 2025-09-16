@@ -14,7 +14,7 @@ ${h}
 
 ${menuTopBorder}${separatorIcon} ${menuTitleIcon} STATUS & PERFIL ${menuTitleIcon}
 ${middleBorder}
-${middleBorder}${menuItemIcon} ${prefix}perfil
+${middleBorder}${menuItemIcon} ${prefix}perfilrpg
 ${middleBorder}${menuItemIcon} ${prefix}carteira
 ${middleBorder}${menuItemIcon} ${prefix}banco
 ${middleBorder}${menuItemIcon} ${prefix}topgold

@@ -41,6 +41,9 @@ ${middleBorder}
 ${middleBorder}${menuItemIcon}${prefix}mention
 ${middleBorder}${menuItemIcon}${prefix}afk
 ${middleBorder}${menuItemIcon}${prefix}voltei
+${middleBorder}${menuItemIcon}${prefix}lembrete
+${middleBorder}${menuItemIcon}${prefix}meuslembretes
+${middleBorder}${menuItemIcon}${prefix}apagalembrete
 ${bottomBorder}
 
 ${menuTopBorder}${separatorIcon} *${ranksMenuTitle}*

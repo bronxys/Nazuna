@@ -21,6 +21,10 @@ ${middleBorder}${menuItemIcon}${prefix}encurtalink
 ${middleBorder}${menuItemIcon}${prefix}qrcode
 ${middleBorder}${menuItemIcon}${prefix}tradutor
 ${middleBorder}${menuItemIcon}${prefix}dicionario
+${middleBorder}
+${middleBorder}${menuItemIcon}${prefix}lembrete
+${middleBorder}${menuItemIcon}${prefix}meuslembretes
+${middleBorder}${menuItemIcon}${prefix}apagalembrete
 ${bottomBorder}
 `;
 }

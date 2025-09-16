@@ -20,8 +20,8 @@
     "license": "ISC",
     "dependencies": {
         "@cacheable/node-cache": "latest",
-        "@cognima/walib": "npm:baileys@6.7.19",
         "@hapi/boom": "latest",
+        "@cognima/walib": "npm:baileys@^7.0.0-rc.3",
         "axios": "latest",
         "fluent-ffmpeg": "latest",
         "linkedom": "latest",
