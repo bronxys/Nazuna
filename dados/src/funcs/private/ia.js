@@ -3,7 +3,114 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
+let apiKeyStatus = {
+  isValid: true,
+  lastError: null,
+  notificationSent: false,
+  lastCheck: Date.now()
+};
+
 let historico = {};
+
+function isApiKeyError(error) {
+  if (!error) return false;
+  
+  const errorMessage = (error.message || '').toLowerCase();
+  const statusCode = error.response?.status;
+  const responseData = error.response?.data;
+  
+  const authErrorCodes = [401, 403, 429];
+  
+  const keyErrorMessages = [
+    'api key',
+    'unauthorized',
+    'invalid token',
+    'authentication failed',
+    'access denied',
+    'quota exceeded',
+    'rate limit',
+    'forbidden',
+    'token expired',
+    'invalid credentials'
+  ];
+  
+  if (authErrorCodes.includes(statusCode)) {
+    return true;
+  }
+  
+  if (keyErrorMessages.some(msg => errorMessage.includes(msg))) {
+    return true;
+  }
+  
+  if (responseData && typeof responseData === 'object') {
+    const responseString = JSON.stringify(responseData).toLowerCase();
+    if (keyErrorMessages.some(msg => responseString.includes(msg))) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+function updateApiKeyStatus(error = null) {
+  if (error && isApiKeyError(error)) {
+    apiKeyStatus.isValid = false;
+    apiKeyStatus.lastError = error.message || 'Erro na API key';
+    apiKeyStatus.lastCheck = Date.now();
+    console.error('🔑 API Key inválida detectada:', apiKeyStatus.lastError);
+    return false;
+  } else if (!error) {
+    const wasInvalid = !apiKeyStatus.isValid;
+    apiKeyStatus.isValid = true;
+    apiKeyStatus.lastError = null;
+    apiKeyStatus.notificationSent = false;
+    apiKeyStatus.lastCheck = Date.now();
+    
+    if (wasInvalid) {
+      console.log('✅ API Key voltou a funcionar normalmente');
+    }
+    return true;
+  }
+  
+  return apiKeyStatus.isValid;
+}
+
+function getApiKeyStatus() {
+  return { ...apiKeyStatus };
+}
+
+async function notifyOwnerAboutApiKey(nazu, ownerNumber, error) {
+  if (apiKeyStatus.notificationSent) return;
+  
+  try {
+    const message = `🚨 *ALERTA - API KEY INVÁLIDA* 🚨
+
+⚠️ A API key do Cognima está com problemas:
+
+*Erro:* ${error || 'Chave inválida ou expirada'}
+*Data:* ${new Date().toLocaleString('pt-BR')}
+
+🔧 *Ações necessárias:*
+• Verificar se a API key não expirou
+• Confirmar se ainda há créditos na conta
+• Verificar se a key está correta no config.json
+
+💡 *Enquanto isso:*
+• O sistema de IA foi temporariamente desativado
+• Usuários receberão mensagem informativa
+• Reative a IA após corrigir a key
+
+Para reativar, corrija a key e use o comando *!ia status*`;
+
+    const ownerId = ownerNumber.replace(/[^\d]/g, '') + '@s.whatsapp.net';
+    await nazu.sendText(ownerId, message);
+    
+    apiKeyStatus.notificationSent = true;
+    console.log('📧 Notificação sobre API key enviada ao dono');
+  } catch (notifyError) {
+    console.error('❌ Erro ao notificar dono sobre API key:', notifyError.message);
+  }
+}
 
 function getCommandCode(command, indexPath) {
   try {
@@ -185,6 +292,13 @@ async function makeCognimaImageRequest(params, key) {
   if (!key) {
     throw new Error('API key não fornecida');
   };
+
+  if (!apiKeyStatus.isValid) {
+    const timeSinceLastCheck = Date.now() - apiKeyStatus.lastCheck;
+    if (timeSinceLastCheck < 5 * 60 * 1000) {
+      throw new Error(`API key inválida. Último erro: ${apiKeyStatus.lastError}`);
+    }
+  }
   
   try {
     const response = await axios.post('https://v2.cognima.com.br/api/v1/generate', params, {
@@ -194,8 +308,14 @@ async function makeCognimaImageRequest(params, key) {
       }
     });
     
+    updateApiKeyStatus();
     return response.data.data.data;
   } catch (error) {
+    if (isApiKeyError(error)) {
+      updateApiKeyStatus(error);
+      throw new Error(`API key inválida ou expirada: ${error.response?.data?.message || error.message}`);
+    }
+    
     throw new Error(`Falha na requisição: ${error.message}`);
   };
 };
@@ -207,6 +327,13 @@ async function makeCognimaRequest(modelo, texto, systemPrompt = null, key, histo
 
   if (!key) {
     throw new Error('API key não fornecida');
+  }
+
+  if (!apiKeyStatus.isValid) {
+    const timeSinceLastCheck = Date.now() - apiKeyStatus.lastCheck;
+    if (timeSinceLastCheck < 5 * 60 * 1000) {
+      throw new Error(`API key inválida. Último erro: ${apiKeyStatus.lastError}`);
+    }
   }
 
   const messages = [];
@@ -244,6 +371,7 @@ async function makeCognimaRequest(modelo, texto, systemPrompt = null, key, histo
         throw new Error('Resposta da API inválida');
       }
 
+      updateApiKeyStatus();
       return response.data;
 
     } catch (error) {
@@ -252,6 +380,11 @@ async function makeCognimaRequest(modelo, texto, systemPrompt = null, key, histo
         message: error.response?.data?.message || error.message,
         key: key ? `${key.substring(0, 8)}...` : 'undefined'
       });
+
+      if (isApiKeyError(error)) {
+        updateApiKeyStatus(error);
+        throw new Error(`API key inválida ou expirada: ${error.response?.data?.message || error.message}`);
+      }
 
       if (attempt === retries - 1) {
         throw new Error(`Falha na requisição após ${retries} tentativas: ${error.message}`);
@@ -376,7 +509,7 @@ function updateHistorico(grupoUserId, role, content, nome = null) {
   }
 }
 
-async function processUserMessages(data, indexPath, key) {
+async function processUserMessages(data, indexPath, key, nazu = null, ownerNumber = null) {
   try {
     const { mensagens } = data;
     if (!mensagens || !Array.isArray(mensagens)) {
@@ -385,6 +518,15 @@ async function processUserMessages(data, indexPath, key) {
 
     if (!key) {
       throw new Error('API key não fornecida');
+    }
+
+    if (!apiKeyStatus.isValid) {
+      return { 
+        resp: [], 
+        erro: 'Sistema de IA temporariamente desativado',
+        apiKeyInvalid: true,
+        message: 'API key inválida ou expirada. Entre em contato com o administrador.'
+      };
     }
 
     let comandos = [];
@@ -426,60 +568,83 @@ async function processUserMessages(data, indexPath, key) {
       };
 
       let result;
-      const response = (await makeCognimaRequest(
-        'qwen/qwen3-235b-a22b', 
-        JSON.stringify(userInput), 
-        ASSISTANT_PROMPT,
-        key,
-        historico[grupoUserId] || []
-      )).data;
-
-      if (!response || !response.choices || !response.choices[0]) {
-        throw new Error("Resposta da API Cognima foi inválida ou vazia na primeira chamada.");
-      }
-
-      const content = response.choices[0].message.content;
-      result = extractJSON(content);
-
-      if (result.analiseComandos && Array.isArray(result.analiseComandos) && result.analiseComandos.length > 0) {
-        const commandInfos = result.analiseComandos.map(cmd => {
-          const info = getCommandCode(cmd, indexPath);
-          return {
-            comando: cmd,
-            disponivel: info !== null,
-            codigo: info?.codigo || 'Comando não encontrado ou erro na leitura.'
-          };
-        });
-
-        const enhancedInput = {
-          ...userInput,
-          commandInfos,
-          solicitacaoAnalise: true
-        };
-
-        const secondResponse = (await makeCognimaRequest(
-          'qwen/qwen3-235b-a22b',
-          JSON.stringify(enhancedInput),
+      try {
+        const response = (await makeCognimaRequest(
+          'qwen/qwen3-235b-a22b', 
+          JSON.stringify(userInput), 
           ASSISTANT_PROMPT,
           key,
           historico[grupoUserId] || []
         )).data;
 
-        if (secondResponse && secondResponse.choices && secondResponse.choices[0]) {
-          const secondContent = secondResponse.choices[0].message.content;
-          result = extractJSON(secondContent);
+        if (!response || !response.choices || !response.choices[0]) {
+          throw new Error("Resposta da API Cognima foi inválida ou vazia na primeira chamada.");
         }
-      }
 
-      if (result.resp && Array.isArray(result.resp)) {
-        result.resp.forEach(resposta => {
-          if (resposta.resp) {
-            resposta.resp = cleanWhatsAppFormatting(resposta.resp);
-            updateHistorico(grupoUserId, 'assistant', resposta.resp);
+        const content = response.choices[0].message.content;
+        result = extractJSON(content);
+
+        if (result.analiseComandos && Array.isArray(result.analiseComandos) && result.analiseComandos.length > 0) {
+          const commandInfos = result.analiseComandos.map(cmd => {
+            const info = getCommandCode(cmd, indexPath);
+            return {
+              comando: cmd,
+              disponivel: info !== null,
+              codigo: info?.codigo || 'Comando não encontrado ou erro na leitura.'
+            };
+          });
+
+          const enhancedInput = {
+            ...userInput,
+            commandInfos,
+            solicitacaoAnalise: true
+          };
+
+          const secondResponse = (await makeCognimaRequest(
+            'qwen/qwen3-235b-a22b',
+            JSON.stringify(enhancedInput),
+            ASSISTANT_PROMPT,
+            key,
+            historico[grupoUserId] || []
+          )).data;
+
+          if (secondResponse && secondResponse.choices && secondResponse.choices[0]) {
+            const secondContent = secondResponse.choices[0].message.content;
+            result = extractJSON(secondContent);
           }
-        });
+        }
+
+        if (result.resp && Array.isArray(result.resp)) {
+          result.resp.forEach(resposta => {
+            if (resposta.resp) {
+              resposta.resp = cleanWhatsAppFormatting(resposta.resp);
+              updateHistorico(grupoUserId, 'assistant', resposta.resp);
+            }
+          });
+          
+          respostas.push(...result.resp);
+        }
+      } catch (apiError) {
+        console.error('Erro na API Cognima:', apiError.message);
         
-        respostas.push(...result.resp);
+        // Se é erro de API key, notifica o dono
+        if (isApiKeyError(apiError) && nazu && ownerNumber) {
+          await notifyOwnerAboutApiKey(nazu, ownerNumber, apiError.message);
+          
+          return { 
+            resp: [], 
+            erro: 'Sistema de IA temporariamente desativado',
+            apiKeyInvalid: true,
+            message: '🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.'
+          };
+        }
+        
+        // Para outros erros, retorna mensagem genérica
+        return { 
+          resp: [], 
+          erro: 'Erro temporário na IA',
+          message: '🤖 Ops! Estou com um probleminha técnico. Tente novamente em instantes!'
+        };
       }
     }
 
@@ -574,5 +739,8 @@ export default {
   makeCognimaImageRequest,
   Shazam,
   getHistoricoStats,
-  clearOldHistorico
+  clearOldHistorico,
+  getApiKeyStatus,
+  updateApiKeyStatus,
+  notifyOwnerAboutApiKey
 };

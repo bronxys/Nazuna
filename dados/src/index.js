@@ -19,6 +19,7 @@ import * as crypto from 'crypto';
 import WaLib from '@cognima/walib';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
 const packageJson = JSON.parse(fs.readFileSync(pathz.join(__dirname, '..', '..', 'package.json'), 'utf-8'));
 const botVersion = packageJson.version;
 const DATABASE_DIR = __dirname + '/../database';
@@ -2625,58 +2626,67 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     if (budy2.match(/^(\d+)d(\d+)$/)) reply(+budy2.match(/^(\d+)d(\d+)$/)[1] > 50 || +budy2.match(/^(\d+)d(\d+)$/)[2] > 100 ? "❌ Limite: max 50 dados e 100 lados" : "🎲 Rolando " + budy2.match(/^(\d+)d(\d+)$/)[1] + "d" + budy2.match(/^(\d+)d(\d+)$/)[2] + "...\n🎯 Resultados: " + (r = [...Array(+budy2.match(/^(\d+)d(\d+)$/)[1])].map(_ => 1 + Math.floor(Math.random() * +budy2.match(/^(\d+)d(\d+)$/)[2]))).join(", ") + "\n📊 Total: " + r.reduce((a, b) => a + b, 0));
     if (!info.key.fromMe && isAssistente && !isCmd && (budy2.includes('@' + nazu.user.id.split(':')[0]) || menc_os2 && menc_os2 == nazu.user.id.split(':')[0] + '@s.whatsapp.net') && KeyCog) {
       if (budy2.replaceAll('@' + nazu.user.id.split(':')[0], '').length > 2) {
-        const jSoNzIn = {
-          texto: budy2.replaceAll('@' + nazu.user.id.split(':')[0], '').trim(),
-          id_enviou: sender,
-          nome_enviou: pushname,
-          id_grupo: isGroup ? from : false,
-          nome_grupo: isGroup ? groupName : false,
-          tem_midia: isMedia,
-          marcou_mensagem: false,
-          marcou_sua_mensagem: false,
-          mensagem_marcada: false,
-          id_enviou_marcada: false,
-          tem_midia_marcada: false,
-          id_mensagem: info.key.id,
-          data_atual: new Date().toLocaleString('pt-BR', {
-            timeZone: 'America/Sao_Paulo'
-          }),
-          data_mensagem: new Date(info.messageTimestamp * 1000).toLocaleString('pt-BR', {
-            timeZone: 'America/Sao_Paulo'
-          })
-        };
-        let {
-          participant,
-          quotedMessage
-        } = info.message?.extendedTextMessage?.contextInfo || {};
-        let jsonO = {
-          participant,
-          quotedMessage,
-          texto: quotedMessage?.conversation || quotedMessage?.extendedTextMessage?.text || quotedMessage?.imageMessage?.caption || quotedMessage?.videoMessage?.caption || quotedMessage?.documentMessage?.caption || ""
-        };
-        if (jsonO && jsonO.participant && jsonO.texto && jsonO.texto.length > 0) {
-          jSoNzIn.marcou_mensagem = true;
-          jSoNzIn.mensagem_marcada = jsonO.texto;
-          jSoNzIn.id_enviou_marcada = jsonO.participant;
-          jSoNzIn.marcou_sua_mensagem = jsonO.participant == nazu.user.id.split(':')[0] + '@s.whatsapp.net';
-        }
-        ;
-        const respAssist = await ia.makeAssistentRequest({
-          mensagens: [jSoNzIn]
-        }, pathz.join(__dirname, 'index.js'), KeyCog || null);
-        if (respAssist.resp && respAssist.resp.length > 0) {
-          for (const msgza of respAssist.resp) {
-            if (msgza.react) await nazu.react(msgza.react.replaceAll(' ', '').replaceAll('\n', ''), {
-              key: info.key
-            });
-            if (msgza.resp && msgza.resp.length > 0) await reply(msgza.resp);
-            if (msgza.actions) {
-              if (msgza.actions.comando) var command = msgza.actions.comando;
-              if (msgza.actions.params) {
-                if (Array.isArray(msgza.actions.params)) {
-                  var q = msgza.actions.params.join(' ');
-                } else if (msgza.actions.params.length > 0) {
-                  var q = msgza.actions.params;
+        try {
+          const jSoNzIn = {
+            texto: budy2.replaceAll('@' + nazu.user.id.split(':')[0], '').trim(),
+            id_enviou: sender,
+            nome_enviou: pushname,
+            id_grupo: isGroup ? from : false,
+            nome_grupo: isGroup ? groupName : false,
+            tem_midia: isMedia,
+            marcou_mensagem: false,
+            marcou_sua_mensagem: false,
+            mensagem_marcada: false,
+            id_enviou_marcada: false,
+            tem_midia_marcada: false,
+            id_mensagem: info.key.id,
+            data_atual: new Date().toLocaleString('pt-BR', {
+              timeZone: 'America/Sao_Paulo'
+            }),
+            data_mensagem: new Date(info.messageTimestamp * 1000).toLocaleString('pt-BR', {
+              timeZone: 'America/Sao_Paulo'
+            })
+          };
+          let {
+            participant,
+            quotedMessage
+          } = info.message?.extendedTextMessage?.contextInfo || {};
+          let jsonO = {
+            participant,
+            quotedMessage,
+            texto: quotedMessage?.conversation || quotedMessage?.extendedTextMessage?.text || quotedMessage?.imageMessage?.caption || quotedMessage?.videoMessage?.caption || quotedMessage?.documentMessage?.caption || ""
+          };
+          if (jsonO && jsonO.participant && jsonO.texto && jsonO.texto.length > 0) {
+            jSoNzIn.marcou_mensagem = true;
+            jSoNzIn.mensagem_marcada = jsonO.texto;
+            jSoNzIn.id_enviou_marcada = jsonO.participant;
+            jSoNzIn.marcou_sua_mensagem = jsonO.participant == nazu.user.id.split(':')[0] + '@s.whatsapp.net';
+          }
+          ;
+          const respAssist = await ia.makeAssistentRequest({
+            mensagens: [jSoNzIn]
+          }, pathz.join(__dirname, 'index.js'), KeyCog || null, nazu, numerodono);
+          
+          if (respAssist.apiKeyInvalid) {
+            await reply(respAssist.message || '🤖 Sistema de IA temporariamente indisponível. Tente novamente mais tarde.');
+            return;
+          }
+          
+          if (respAssist.resp && respAssist.resp.length > 0) {
+            for (const msgza of respAssist.resp) {
+              if (msgza.react) await nazu.react(msgza.react.replaceAll(' ', '').replaceAll('\n', ''), {
+                key: info.key
+              });
+              if (msgza.resp && msgza.resp.length > 0) await reply(msgza.resp);
+              if (msgza.actions) {
+                if (msgza.actions.comando) var command = msgza.actions.comando;
+                if (msgza.actions.params) {
+                  if (Array.isArray(msgza.actions.params)) {
+                    var q = msgza.actions.params.join(' ');
+                  } else if (msgza.actions.params.length > 0) {
+                    var q = msgza.actions.params;
+                  }
+                  ;
                 }
                 ;
               }
@@ -2684,7 +2694,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             }
             ;
           }
-          ;
+        } catch (assistentError) {
+          console.error('Erro no assistente virtual:', assistentError.message);
+          await reply('🤖 Ops! Estou com um probleminha técnico. Tente novamente em instantes!');
         }
         ;
       }
@@ -3785,7 +3797,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           });
         } catch (e) {
           console.error("Erro no DeepIMG", e);
-          await reply('😓 Poxa, algo deu errado aqui');
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply('😓 Poxa, algo deu errado aqui');
+          }
         }
         break;
       case 'gemma':
@@ -3802,7 +3820,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Gemma:', e);
-          await reply(`😓 Poxa, algo deu errado com o Gemma! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Gemma! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'phi':
@@ -3820,7 +3844,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Phi:', e);
-          await reply(`😓 Poxa, algo deu errado com o Phi! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Phi! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'qwen2':
@@ -3837,7 +3867,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Qwen2:', e);
-          await reply(`😓 Poxa, algo deu errado com o Qwen2! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Qwen2! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'qwen':
@@ -3855,7 +3891,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Qwen:', e);
-          await reply(`😓 Poxa, algo deu errado com o Qwen! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Qwen! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'llama':
@@ -3873,7 +3915,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Llama:', e);
-          await reply(`😓 Poxa, algo deu errado com o Llama! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Llama! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'baichuan':
@@ -3891,7 +3939,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Baichuan:', e);
-          await reply(`😓 Poxa, algo deu errado com o Baichuan! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Baichuan! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'marin':
@@ -3908,7 +3962,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Marin:', e);
-          await reply(`😓 Poxa, algo deu errado com o Marin! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Marin! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'kimi':
@@ -3926,7 +3986,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Kimi:', e);
-          await reply(`😓 Poxa, algo deu errado com o Kimi! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Kimi! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'mistral':
@@ -3943,7 +4009,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Mistral:', e);
-          await reply(`😓 Poxa, algo deu errado com o Mistral! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Mistral! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'magistral':
@@ -3960,7 +4032,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Magistral:', e);
-          await reply(`😓 Poxa, algo deu errado com o Magistral! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Magistral! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'rakutenai':
@@ -3978,7 +4056,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API RakutenAI:', e);
-          await reply(`😓 Poxa, algo deu errado com o RakutenAI! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o RakutenAI! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'yi':
@@ -3995,7 +4079,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Yi:', e);
-          await reply(`😓 Poxa, algo deu errado com o Yi! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Yi! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'gemma2':
@@ -4012,7 +4102,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Gemma2:', e);
-          await reply(`😓 Poxa, algo deu errado com o Gemma2! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Gemma2! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'swallow':
@@ -4029,7 +4125,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Swallow:', e);
-          await reply(`😓 Poxa, algo deu errado com o Swallow! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Swallow! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'falcon':
@@ -4046,7 +4148,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Falcon:', e);
-          await reply(`😓 Poxa, algo deu errado com o Falcon! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Falcon! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'qwencoder':
@@ -4063,7 +4171,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API Qwencoder:', e);
-          await reply(`😓 Poxa, algo deu errado com o Qwencoder! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o Qwencoder! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'codegemma':
@@ -4080,7 +4194,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro na API CodeGemma:', e);
-          await reply(`😓 Poxa, algo deu errado com o CodeGemma! Tente novamente em alguns instantes, tá? 🌈`);
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply(`😓 Poxa, algo deu errado com o CodeGemma! Tente novamente em alguns instantes, tá? 🌈`);
+          }
         }
         break;
       case 'resumir':
@@ -4098,7 +4218,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro ao resumir texto:', e);
-          await reply('😓 Ops, não consegui resumir agora! Que tal tentar de novo? 🌟');
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply('😓 Ops, não consegui resumir agora! Que tal tentar de novo? 🌟');
+          }
         }
         break;
       case 'resumirurl':
@@ -4133,7 +4259,11 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(iaResponse.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro ao resumir URL:', e.message);
-          if (e.code === 'ECONNABORTED') {
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else if (e.code === 'ECONNABORTED') {
             await reply('😓 Ops, a página demorou muito para responder! Tente outra URL. 🌐');
           } else if (e.response) {
             await reply(`😓 Não consegui acessar a página (código ${e.response.status}). Verifique a URL e tente novamente, tá? 🌟`);
@@ -4158,7 +4288,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro ao gerar ideias:', e);
-          await reply('😓 Poxa, não consegui gerar ideias agora! Tente de novo em breve, tá? 🌈');
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply('😓 Poxa, não consegui gerar ideias agora! Tente de novo em breve, tá? 🌈');
+          }
         }
         break;
       case 'explicar':
@@ -4177,7 +4313,13 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           await reply(response.data.choices[0].message.content);
         } catch (e) {
           console.error('Erro ao explicar conceito:', e);
-          await reply('😓 Vixe, não consegui explicar agora! Tente de novo em alguns instantes, tá? 🌈');
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply('😓 Vixe, não consegui explicar agora! Tente de novo em alguns instantes, tá? 🌈');
+          }
         }
         break;
       case 'corrigir':
@@ -5532,7 +5674,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           ;
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          
+          if (e.message && e.message.includes('API key inválida')) {
+            await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
+            await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
+          } else {
+            await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          }
         }
         ;
         break;
@@ -7359,6 +7507,74 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
         }
         ;
+        break;
+      case 'iastatus':
+      case 'apikeyinfo':
+      case 'statusia':
+        if (!isOwnerOrSub) return reply("🚫 Apenas donos e subdonos podem verificar o status da API key!");
+        try {
+          const apiStatus = ia.getApiKeyStatus();
+          const historicoStats = ia.getHistoricoStats();
+          
+          let statusEmoji = '✅';
+          let statusText = 'Válida e funcionando';
+          let statusColor = '🟢';
+          
+          if (!apiStatus.isValid) {
+            statusEmoji = '❌';
+            statusText = 'Inválida ou com problemas';
+            statusColor = '🔴';
+          }
+          
+          const lastCheckTime = new Date(apiStatus.lastCheck).toLocaleString('pt-BR');
+          const keyPreview = KeyCog ? `${KeyCog.substring(0, 8)}...` : 'Não configurada';
+          
+          const statusMessage = [
+            "╭───🔑 STATUS API COGNIMA ───╮",
+            `┊ ${statusColor} Status: ${statusEmoji} ${statusText}`,
+            `┊ 🗝️ Key: ${keyPreview}`,
+            `┊ 🕐 Última verificação: ${lastCheckTime}`,
+            apiStatus.lastError ? `┊ ⚠️ Último erro: ${apiStatus.lastError}` : '',
+            `┊ 📧 Notificação enviada: ${apiStatus.notificationSent ? 'Sim' : 'Não'}`,
+            "┊",
+            "┊ 📊 *Estatísticas do Assistente:*",
+            `┊ • 💬 Conversas ativas: ${historicoStats.conversasAtivas}`,
+            `┊ • 📈 Total conversas: ${historicoStats.totalConversas}`,
+            `┊ • 💭 Total mensagens: ${historicoStats.totalMensagens}`,
+            "┊",
+            "┊ 🛠️ *Comandos úteis:*",
+            `┊ • ${prefix}iarecovery - Forçar reset da API`,
+            `┊ • ${prefix}iaclear - Limpar histórico antigo`,
+            "╰─────────────────╯"
+          ].filter(line => line !== '').join('\n');
+          
+          await reply(statusMessage);
+        } catch (e) {
+          console.error("Erro em iastatus:", e);
+          await reply("❌ Erro ao verificar status da API key.");
+        }
+        break;
+      case 'iarecovery':
+      case 'resetapikey':
+        if (!isOwnerOrSub) return reply("🚫 Apenas donos e subdonos podem fazer reset da API key!");
+        try {
+          ia.updateApiKeyStatus();
+          await reply("✅ *Reset da API key realizado!*\n\n🔄 O sistema de IA foi reativado e irá tentar usar a API key novamente.\n\n⚠️ Certifique-se de que a key no config.json está correta e válida!");
+        } catch (e) {
+          console.error("Erro em iarecovery:", e);
+          await reply("❌ Erro ao fazer reset da API key.");
+        }
+        break;
+      case 'iaclear':
+      case 'limparhist':
+        if (!isOwnerOrSub) return reply("🚫 Apenas donos e subdonos podem limpar o histórico!");
+        try {
+          ia.clearOldHistorico(0);
+          await reply("✅ *Histórico do assistente limpo!*\n\n🗑️ Todas as conversas antigas foram removidas da memória.");
+        } catch (e) {
+          console.error("Erro em iaclear:", e);
+          await reply("❌ Erro ao limpar histórico.");
+        }
         break;
       case 'topcmd':
       case 'topcmds':

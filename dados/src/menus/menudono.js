@@ -134,6 +134,9 @@ ${middleBorder}${menuItemIcon}${prefix}tm
 ${middleBorder}${menuItemIcon}${prefix}cases
 ${middleBorder}${menuItemIcon}${prefix}getcase
 ${middleBorder}${menuItemIcon}${prefix}modoliteglobal
+${middleBorder}${menuItemIcon}${prefix}iastatus
+${middleBorder}${menuItemIcon}${prefix}iarecovery
+${middleBorder}${menuItemIcon}${prefix}iaclear
 ${middleBorder}${menuItemIcon}${prefix}limpardb
 ${middleBorder}${menuItemIcon}${prefix}limparrankg
 ${middleBorder}${menuItemIcon}${prefix}reviverqr
