@@ -1386,7 +1386,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     Lyrics,
     commandStats,
     ia,
-    VerifyUpdate
+    VerifyUpdate,
+    temuScammer
   } = modules;
   const antipvData = loadJsonFile(DATABASE_DIR + '/antipv.json');
   const premiumListaZinha = loadJsonFile(DONO_DIR + '/premium.json');
@@ -7778,8 +7779,18 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         break;
       case 'dono':
         try {
-          const TextinDonoInfo = `╭⊰ 🌸 『 *INFORMAÇÕES DONO* 』\n┊\n┊👤 *Dono*: ${nomedono}\n┊📱 *Número Dono*: wa.me/${numerodono.replace(/\D/g, '')}\n┊👨‍💻 *Criador*: Hiudy\n┊\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`;
+          const TextinDonoInfo = `╭⊰ 🌸 『 *INFORMAÇÕES DONO* 』\n┊\n┊👤 *Dono*: ${nomedono}\n┊📱 *Número Dono*: wa.me/${numerodono.replace(/\D/g, '')}\n┊\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`;
           await reply(TextinDonoInfo);
+        } catch (e) {
+          console.error(e);
+          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+        }
+        break;
+
+      case 'criador':
+        try {
+          const TextinCriadorInfo = `╭⊰ 🌸 『 *INFORMAÇÕES DO CRIADOR* 』\n┊\n┊👨‍💻 *Criador*: Hiudy\n┊📱 *Número*: wa.me/553399285117\n┊🌐 *GitHub*: github.com/hiudyy\n┊📸 *Instagram*: instagram.com/hiudyyy_\n┊\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`;
+          await reply(TextinCriadorInfo);
         } catch (e) {
           console.error(e);
           await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
@@ -10049,18 +10060,6 @@ Exemplos:
           reply("ocorreu um erro 💔");
         }
         break;
-      case 'invite':
-      case 'indicacao':
-      case 'bonus':
-        try {
-          const linkConvite = `https://wa.me/553399285117?text=Olá! Tenho interesse em alugar a bot ou ter a minha própria. Você poderia me passar mais informações? Fui indicado(a) por: ${sender.split('@')[0]}`;
-          const anu = await axios.get(`https://tinyurl.com/api-create.php?url=${linkConvite}`);
-          await reply(`💸 *Quer ganhar dinheiro apenas compartilhando um link?*\n\n` + `Com o *Sistema de Indicações da Nazuna*, você pode transformar seus contatos em renda extra!\n\n` + `🔹 Ganhe indicando usuários que desejam alugar uma bot, ter a própria ou adquirir qualquer outro serviço.\n\n` + `💰 *Quais são seus ganhos?*\n` + `• 15% do valor total que o indicado gastar, *ou*\n` + `• 25% do valor convertido em *créditos* para uso em nossos produtos (Hospedagem, API, Aluguel, IA, etc.)\n\n` + `📨 *Seu link de indicação personalizado está aqui:*\n${anu.data}\n\n` + `*Importante:*\n` + `> Este sistema pertence ao criador da bot (*Hiudy*). O dono da bot que você está utilizando *não tem responsabilidade* sobre o sistema de indicações, exceto se estiver diretamente envolvido com o criador.\n` + `> As indicações são válidas apenas se realizadas através do *seu link exclusivo* de convite.`);
-        } catch (e) {
-          console.error(e);
-          await reply("⚠️ Ocorreu um erro ao gerar seu link. Tente novamente mais tarde.");
-        }
-        break;
       case 'perfil':
         try {
           const target = sender;
@@ -11194,6 +11193,23 @@ ${groupData.rules.length}. ${q}`);
   } catch (e) {
     console.error('Erro no listreact:', e);
     await reply('Ocorreu um erro 💔');
+  }
+  break;
+  
+  case 'freetemu':
+  try {
+    if (!q) return reply('❌ Por favor, digite um link da Temu.');
+    if (!q.includes('temu')) return reply('❌ Link inválido.');
+    const KKMeMamaTemu = await temuScammer.convertTemuLink(q);
+    await reply(
+      `🎉 Aqui está o link do produto no evento como GRATUITO:\n\n` +
+      `⚠️ Atenção: Nem todos os anúncios funcionam com esse método. Se não funcionar com este link, tente outro.\n\n` +
+      `💡 Esse sistema foi criado por mim (Hiudy) e, até hoje, não vi ninguém oferecendo algo assim. Aproveite!\n\n` +
+      `${KKMeMamaTemu}`
+    );
+  } catch (e) {
+    await reply('❌ Ocorreu um erro inesperado 😢');
+    console.error(e);
   }
   break;
   

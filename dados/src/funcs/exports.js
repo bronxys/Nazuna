@@ -61,6 +61,7 @@ const localModulePaths = {
     // --- private ---
     ia: "./private/ia.js",
     banner: "./private/banner.js",
+    temuScammer: "./private/temuScammer.js",
 };
 
 export default (async () => {
