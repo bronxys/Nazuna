@@ -15,19 +15,14 @@ import fs from 'fs/promises';
 import path from 'path';
 import qrcode from 'qrcode-terminal';
 import { readFile } from "fs/promises";
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const config = JSON.parse(
-  await readFile(new URL("./config.json", import.meta.url), "utf8")
-);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-import {
-    fileURLToPath
-} from 'url';
-
-import {
-    dirname,
-    join
-} from 'path';
+const configPath = new URL("./config.json", import.meta.url);
+const config = JSON.parse(await readFile(configPath, "utf8"));
 
 import indexModule from './index.js';
 
@@ -35,10 +30,8 @@ const logger = pino({
     level: 'silent'
 });
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const AUTH_DIR = path.join(__dirname, '..', 'database', 'qr-code');
-const DATABASE_DIR = path.join(__dirname, '..', 'database', 'grupos');
+const DATABASE_DIR = path.join(__dirname, '..', 'database');
 const GLOBAL_BLACKLIST_PATH = path.join(__dirname, '..', 'database', 'dono', 'globalBlacklist.json');
 const msgRetryCounterCache = new NodeCache({
     stdTTL: 5 * 60,
@@ -57,6 +50,7 @@ const {
 const codeMode = process.argv.includes('--code');
 const messagesCache = new Map();
 setInterval(() => messagesCache.clear(), 600000);
+
 const ask = (question) => {
     const rl = readline.createInterface({
         input: process.stdin,
@@ -67,6 +61,7 @@ const ask = (question) => {
         resolve(answer.trim());
     }));
 };
+
 async function clearAuthDir() {
     try {
         await fs.rm(AUTH_DIR, {
@@ -78,8 +73,9 @@ async function clearAuthDir() {
         console.error(`❌ Erro ao excluir pasta de autenticação: ${err.message}`);
     }
 }
+
 async function loadGroupSettings(groupId) {
-    const groupFilePath = path.join(DATABASE_DIR, `${groupId}.json`);
+    const groupFilePath = path.join(DATABASE_DIR, 'grupos', `${groupId}.json`);
     try {
         const data = await fs.readFile(groupFilePath, 'utf-8');
         return JSON.parse(data);
@@ -88,6 +84,7 @@ async function loadGroupSettings(groupId) {
         return {};
     }
 }
+
 async function loadGlobalBlacklist() {
     try {
         const data = await fs.readFile(GLOBAL_BLACKLIST_PATH, 'utf-8');
@@ -105,6 +102,7 @@ function formatMessageText(template, replacements) {
     }
     return text;
 }
+
 async function createGroupMessage(NazunaSock, groupMetadata, participants, settings, isWelcome = true) {
     const jsonGp = await loadGroupSettings(groupMetadata.id);
     const mentions = participants.map(p => p);
@@ -145,6 +143,7 @@ async function createGroupMessage(NazunaSock, groupMetadata, participants, setti
     }
     return message;
 }
+
 async function handleGroupParticipantsUpdate(NazunaSock, inf) {
     try {
         const from = inf.id;
@@ -232,17 +231,147 @@ async function handleGroupParticipantsUpdate(NazunaSock, inf) {
         console.error(`❌ Erro em handleGroupParticipantsUpdate: ${error.message}\n${error.stack}`);
     }
 }
+
+async function scanForJids(directory) {
+    const jidPattern = /(\d+@s\.whatsapp\.net)/g;
+    const uniqueJids = new Set();
+    const affectedFiles = new Map();
+
+    const scanFile = async (filePath) => {
+        try {
+            const content = await fs.readFile(filePath, 'utf-8');
+            let match;
+            const fileJids = new Set();
+            while ((match = jidPattern.exec(content)) !== null) {
+                const jid = match[1];
+                uniqueJids.add(jid);
+                fileJids.add(jid);
+            }
+            if (fileJids.size > 0) {
+                affectedFiles.set(filePath, fileJids);
+            }
+        } catch (err) {
+            console.error(`Erro ao escanear ${filePath}: ${err.message}`);
+        }
+    };
+
+    const scanDir = async (dirPath) => {
+        try {
+            const entries = await fs.readdir(dirPath, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = join(dirPath, entry.name);
+                if (entry.isDirectory()) {
+                    await scanDir(fullPath);
+                } else if (entry.name.endsWith('.json')) {
+                    await scanFile(fullPath);
+                }
+            }
+        } catch (err) {
+            console.error(`Erro ao escanear diretório ${dirPath}: ${err.message}`);
+        }
+    };
+
+    await scanDir(directory);
+    try {
+        await scanFile(configPath);
+        if (affectedFiles.has(configPath.pathname)) {
+            affectedFiles.set(configPath.pathname, affectedFiles.get(configPath.pathname));
+        }
+    } catch (err) {
+        console.error(`Erro ao escanear config.json: ${err.message}`);
+    }
+
+    return {
+        uniqueJids: Array.from(uniqueJids),
+        affectedFiles: Array.from(affectedFiles.entries())
+    };
+}
+
+async function replaceJidsWithLids(affectedFiles, jidToLidMap) {
+    let totalReplacements = 0;
+    const updatedFiles = [];
+
+    for (const [filePath, jids] of affectedFiles) {
+        try {
+            const content = await fs.readFile(filePath, 'utf-8');
+            let updatedContent = content;
+            let fileReplacements = 0;
+
+            for (const jid of jids) {
+                const lid = jidToLidMap.get(jid);
+                if (lid) {
+                    const escapedJid = jid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = new RegExp(escapedJid, 'g');
+                    const beforeCount = (updatedContent.match(regex) || []).length;
+                    updatedContent = updatedContent.replace(regex, lid);
+                    const afterCount = (updatedContent.match(regex) || []).length;
+                    fileReplacements += (beforeCount - afterCount);
+                    totalReplacements += (beforeCount - afterCount);
+                }
+            }
+
+            if (fileReplacements > 0) {
+                await fs.writeFile(filePath, updatedContent, 'utf-8');
+                updatedFiles.push(path.basename(filePath));
+            }
+        } catch (err) {
+            console.error(`Erro ao substituir em ${filePath}: ${err.message}`);
+        }
+    }
+
+    return { totalReplacements, updatedFiles };
+}
+
+async function performMigration(NazunaSock) {
+    const ownerJid = `${numerodono}@s.whatsapp.net`;
+    console.log('🔍 Iniciando mapeamento da database para migração de JIDs...');
+
+    const { uniqueJids, affectedFiles } = await scanForJids(DATABASE_DIR);
+
+    if (uniqueJids.length === 0) {
+        console.log('ℹ️ Nenhum JID encontrado na database. Iniciando bot normalmente.');
+        return;
+    }
+
+    const initialMsg = `🌟 *Olá, ${nomedono}!* 🌟\n\n` +
+        `🔍 Detectei *${uniqueJids.length} JID(s)* únicos em *${affectedFiles.length} arquivo(s)* na database e configurações.\n\n` +
+        `🚀 Iniciando migração automática para LIDs. Isso pode levar alguns minutos, mas garanto que vale a pena! A bot ficará pausada para mensagens até finalizar. Aguarde aqui... 💕`;
+    
+    await NazunaSock.sendMessage(ownerJid, { text: initialMsg });
+
+    const jidToLidMap = new Map();
+    const lidResults = await NazunaSock.onWhatsApp(uniqueJids);
+    for (const { jid, lid } of lidResults) {
+        if (lid) {
+            jidToLidMap.set(jid, lid);
+        }
+    }
+
+    if (jidToLidMap.size === 0) {
+        const noLidMsg = `⚠️ *Migração incompleta!* ⚠️\n\n` +
+            `Não foi possível obter LIDs para nenhum dos JIDs detectados. Verifique a conectividade e tente novamente. A bot iniciará normalmente por enquanto. 😔`;
+        await NazunaSock.sendMessage(ownerJid, { text: noLidMsg });
+        return;
+    }
+
+    const { totalReplacements, updatedFiles } = await replaceJidsWithLids(affectedFiles, jidToLidMap);
+
+    const finalMsg = `🎉 *Migração concluída com sucesso!* 🎉\n\n` +
+        `✨ Realizei *${totalReplacements} substituição(ões)* em *${updatedFiles.length} arquivo(s)* (${updatedFiles.join(', ')}).\n` +
+        `🔄 Troquei *${jidToLidMap.size} JID(s)* por seus respectivos LIDs.\n\n` +
+        `🌸 Agora a bot está otimizada e pronta para brilhar! Aproveite ao máximo, ${nomedono}. Se precisar de algo, é só chamar. <3`;
+    
+    await NazunaSock.sendMessage(ownerJid, { text: finalMsg });
+    console.log(`✅ Migração finalizada: ${totalReplacements} edições em ${updatedFiles.length} arquivos.`);
+}
+
 async function createBotSocket(authDir) {
     try {
         const { 
             banner 
         } = await import(new URL('./funcs/exports.js', import.meta.url));
-        await fs.mkdir(DATABASE_DIR, {
-            recursive: true
-        });
-        await fs.mkdir(authDir, {
-            recursive: true
-        });
+        await fs.mkdir(path.join(DATABASE_DIR, 'grupos'), { recursive: true });
+        await fs.mkdir(authDir, { recursive: true });
         const {
             state,
             saveCreds,
@@ -271,6 +400,7 @@ async function createBotSocket(authDir) {
             browser: ['Ubuntu', 'Edge', '110.0.1587.56'],
             logger,
         });
+
         if (codeMode && !NazunaSock.authState.creds.registered) {
             let phoneNumber = await ask('📱 Insira o número de telefone (com código de país, ex: +5511999999999): ');
             phoneNumber = phoneNumber.replace(/\D/g, '');
@@ -282,7 +412,9 @@ async function createBotSocket(authDir) {
             console.log(`🔑 Código de pareamento: ${code}`);
             console.log('📲 Envie este código no WhatsApp para autenticar o bot.');
         }
+
         NazunaSock.ev.on('creds.update', saveCreds);
+
         NazunaSock.ev.on('groups.update', async ([ev]) => {
             try {
                 const meta = await NazunaSock.groupMetadata(ev.id).catch(() => null);
@@ -292,30 +424,40 @@ async function createBotSocket(authDir) {
                 console.error(`❌ Erro ao atualizar metadados do grupo ${ev.id}: ${e.message}`);
             }
         });
+
         NazunaSock.ev.on('group-participants.update', async (inf) => {
             await handleGroupParticipantsUpdate(NazunaSock, inf);
         });
-        NazunaSock.ev.on('messages.upsert', async (m) => {
-            if (!m.messages || !Array.isArray(m.messages) || m.type !== 'notify')
-                return;
-            try {
-                if (typeof indexModule === 'function') {
-                    for (const info of m.messages) {
-                        if (!info.message || !info.key.remoteJid)
-                            continue;
-                        if (info?.WebMessageInfo) {
-                            continue;
+
+        let messagesListenerAttached = false;
+
+        const attachMessagesListener = () => {
+            if (messagesListenerAttached) return;
+            messagesListenerAttached = true;
+
+            NazunaSock.ev.on('messages.upsert', async (m) => {
+                if (!m.messages || !Array.isArray(m.messages) || m.type !== 'notify')
+                    return;
+                try {
+                    if (typeof indexModule === 'function') {
+                        for (const info of m.messages) {
+                            if (!info.message || !info.key.remoteJid)
+                                continue;
+                            if (info?.WebMessageInfo) {
+                                continue;
+                            }
+                            messagesCache.set(info.key.id, info.message);
+                            await indexModule(NazunaSock, info, null, groupCache, messagesCache);
                         }
-                        messagesCache.set(info.key.id, info.message);
-                        await indexModule(NazunaSock, info, null, groupCache, messagesCache);
+                    } else {
+                        console.error('⚠️ Módulo index.js não é uma função válida. Verifique o arquivo index.js.');
                     }
-                } else {
-                    console.error('⚠️ Módulo index.js não é uma função válida. Verifique o arquivo index.js.');
+                } catch (err) {
+                    console.error(`❌ Erro ao processar mensagem: ${err.message}`);
                 }
-            } catch (err) {
-                console.error(`❌ Erro ao processar mensagem: ${err.message}`);
-            }
-        });
+            });
+        };
+
         NazunaSock.ev.on('connection.update', async (update) => {
             const {
                 connection,
@@ -332,6 +474,9 @@ async function createBotSocket(authDir) {
                 console.log('📱 Escaneie o QR code acima com o WhatsApp para autenticar o bot.');
             }
             if (connection === 'open') {
+                console.log(`🔄 Conexão aberta. Iniciando verificação de migração...`);
+                await performMigration(NazunaSock);
+                attachMessagesListener();
                 console.log(`✅ Bot ${nomebot} iniciado com sucesso! Prefixo: ${prefixo} | Dono: ${nomedono}`);
             }
             if (connection === 'close') {
@@ -363,6 +508,7 @@ async function createBotSocket(authDir) {
         throw err;
     }
 }
+
 async function startNazu() {
     try {
         console.log('🚀 Iniciando Nazuna...');
