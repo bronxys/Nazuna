@@ -407,7 +407,9 @@ async function handleJidFiles(jidFiles, jidToLidMap) {
 async function fetchLidWithRetry(NazunaSock, jid, maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
+            console.log(jid);
             const result = await NazunaSock.onWhatsApp(jid);
+            console.log(result);
             if (result && result.lid) {
                 return { jid, lid: result.lid };
             }
