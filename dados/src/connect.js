@@ -22,7 +22,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const configPath = new URL("./config.json", import.meta.url);
-const config = JSON.parse(await readFile(configPath, "utf8"));
+let config = JSON.parse(await readFile(configPath, "utf8"));
 
 import indexModule from './index.js';
 
@@ -245,23 +245,35 @@ function collectJidsFromJson(obj, jidsSet = new Set()) {
     return jidsSet;
 }
 
-function replaceJidsInJson(obj, jidToLidMap, replacementsCount = { count: 0 }) {
+function replaceJidsInJson(obj, jidToLidMap, orphanJidsSet, replacementsCount = { count: 0 }, removalsCount = { count: 0 }) {
     if (Array.isArray(obj)) {
         obj.forEach((item, index) => {
-            const newItem = replaceJidsInJson(item, jidToLidMap, replacementsCount);
+            const newItem = replaceJidsInJson(item, jidToLidMap, orphanJidsSet, replacementsCount, removalsCount);
             if (newItem !== item) obj[index] = newItem;
         });
-    } else if (obj && typeof obj === 'object') {
+    } else if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
         Object.keys(obj).forEach(key => {
             const value = obj[key];
-            const newValue = replaceJidsInJson(value, jidToLidMap, replacementsCount);
-            if (newValue !== value) obj[key] = newValue;
+            if (typeof value === 'string' && isValidJid(value)) {
+                if (jidToLidMap.has(value)) {
+                    obj[key] = jidToLidMap.get(value);
+                    replacementsCount.count++;
+                } else if (orphanJidsSet.has(value)) {
+                    delete obj[key];
+                    removalsCount.count++;
+                }
+            } else {
+                const newValue = replaceJidsInJson(value, jidToLidMap, orphanJidsSet, replacementsCount, removalsCount);
+                if (newValue !== value) obj[key] = newValue;
+            }
         });
     } else if (typeof obj === 'string' && isValidJid(obj)) {
-        const lid = jidToLidMap.get(obj);
-        if (lid) {
+        if (jidToLidMap.has(obj)) {
             replacementsCount.count++;
-            return lid;
+            return jidToLidMap.get(obj);
+        } else if (orphanJidsSet.has(obj)) {
+            removalsCount.count++;
+            return null;
         }
     }
     return obj;
@@ -355,8 +367,9 @@ async function scanForJids(directory) {
     };
 }
 
-async function replaceJidsInContent(affectedFiles, jidToLidMap) {
+async function replaceJidsInContent(affectedFiles, jidToLidMap, orphanJidsSet) {
     let totalReplacements = 0;
+    let totalRemovals = 0;
     const updatedFiles = [];
 
     for (const [filePath, jids] of affectedFiles) {
@@ -364,28 +377,44 @@ async function replaceJidsInContent(affectedFiles, jidToLidMap) {
             const content = await fs.readFile(filePath, 'utf-8');
             let jsonObj = JSON.parse(content);
             const replacementsCount = { count: 0 };
-            replaceJidsInJson(jsonObj, jidToLidMap, replacementsCount);
-            if (replacementsCount.count > 0) {
+            const removalsCount = { count: 0 };
+            replaceJidsInJson(jsonObj, jidToLidMap, orphanJidsSet, replacementsCount, removalsCount);
+            if (replacementsCount.count > 0 || removalsCount.count > 0) {
                 const updatedContent = JSON.stringify(jsonObj, null, 2);
                 await fs.writeFile(filePath, updatedContent, 'utf-8');
                 totalReplacements += replacementsCount.count;
+                totalRemovals += removalsCount.count;
                 updatedFiles.push(path.basename(filePath));
-                console.log(`✅ Substituídas ${replacementsCount.count} ocorrências em ${path.basename(filePath)}.`);
+                console.log(`✅ Substituídas ${replacementsCount.count} ocorrências e removidas ${removalsCount.count} JIDs órfãos em ${path.basename(filePath)}.`);
             }
         } catch (err) {
             console.error(`Erro ao substituir em ${filePath}: ${err.message}`);
         }
     }
 
-    return { totalReplacements, updatedFiles };
+    return { totalReplacements, totalRemovals, updatedFiles };
 }
 
-async function handleJidFiles(jidFiles, jidToLidMap) {
+async function handleJidFiles(jidFiles, jidToLidMap, orphanJidsSet) {
     let totalReplacements = 0;
+    let totalRemovals = 0;
     const updatedFiles = [];
     const renamedFiles = [];
+    const deletedFiles = [];
 
     for (const [jid, oldPath] of jidFiles) {
+        if (orphanJidsSet.has(jid)) {
+            try {
+                await fs.unlink(oldPath);
+                deletedFiles.push(path.basename(oldPath));
+                totalRemovals++;
+                console.log(`🗑️ Arquivo órfão ${path.basename(oldPath)} excluído.`);
+                continue;
+            } catch (err) {
+                console.error(`Erro ao excluir arquivo órfão ${oldPath}: ${err.message}`);
+            }
+        }
+
         const lid = jidToLidMap.get(jid);
         if (!lid) {
             console.warn(`LID não encontrado para JID ${jid} em ${oldPath}. Pulando renomeação.`);
@@ -396,8 +425,10 @@ async function handleJidFiles(jidFiles, jidToLidMap) {
             const content = await fs.readFile(oldPath, 'utf-8');
             let jsonObj = JSON.parse(content);
             const replacementsCount = { count: 0 };
-            replaceJidsInJson(jsonObj, jidToLidMap, replacementsCount);
+            const removalsCount = { count: 0 };
+            replaceJidsInJson(jsonObj, jidToLidMap, orphanJidsSet, replacementsCount, removalsCount);
             totalReplacements += replacementsCount.count;
+            totalRemovals += removalsCount.count;
 
             const dir = path.dirname(oldPath);
             const newPath = join(dir, `${lid}.json`);
@@ -415,15 +446,15 @@ async function handleJidFiles(jidFiles, jidToLidMap) {
             updatedFiles.push(path.basename(newPath));
             renamedFiles.push({ old: path.basename(oldPath), new: path.basename(newPath) });
 
-            if (replacementsCount.count > 0) {
-                console.log(`Substituídas ${replacementsCount.count} ocorrências no conteúdo de ${path.basename(oldPath)}.`);
+            if (replacementsCount.count > 0 || removalsCount.count > 0) {
+                console.log(`Substituídas ${replacementsCount.count} ocorrências e removidas ${removalsCount.count} JIDs órfãos no conteúdo de ${path.basename(oldPath)}.`);
             }
         } catch (err) {
             console.error(`Erro ao processar renomeação de ${oldPath}: ${err.message}`);
         }
     }
 
-    return { totalReplacements, updatedFiles, renamedFiles };
+    return { totalReplacements, totalRemovals, updatedFiles, renamedFiles, deletedFiles };
 }
 
 async function fetchLidWithRetry(NazunaSock, jid, maxRetries = 3) {
@@ -468,11 +499,27 @@ async function fetchLidsInBatches(NazunaSock, uniqueJids, batchSize = 5) {
         });
 
         if (i + batchSize < uniqueJids.length) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 200));
         }
     }
 
     return { lidResults, jidToLidMap, successfulFetches };
+}
+
+async function updateOwnerLid(NazunaSock) {
+    const ownerJid = `${numerodono}@s.whatsapp.net`;
+    try {
+        const result = await fetchLidWithRetry(NazunaSock, ownerJid);
+        if (result) {
+            config.lidowner = result.lid;
+            await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+            console.log(`✅ LID do dono atualizado no config.json: ${result.lid}`);
+        } else {
+            console.warn(`⚠️ Falha ao obter LID do dono. Config não atualizado.`);
+        }
+    } catch (err) {
+        console.error(`❌ Erro ao atualizar LID do dono: ${err.message}`);
+    }
 }
 
 async function performMigration(NazunaSock) {
@@ -506,6 +553,7 @@ async function performMigration(NazunaSock) {
     }
 
     const { jidToLidMap, successfulFetches } = await fetchLidsInBatches(NazunaSock, uniqueJids);
+    const orphanJidsSet = new Set(uniqueJids.filter(jid => !jidToLidMap.has(jid)));
 
     if (jidToLidMap.size === 0) {
         const noLidMsg = `⚠️ *Migração incompleta!* ⚠️\n\nNão foi possível obter LIDs para nenhum dos JIDs detectados. Verifique a conectividade e tente novamente. A bot iniciará normalmente por enquanto. 😔`;
@@ -515,21 +563,26 @@ async function performMigration(NazunaSock) {
         return;
     }
 
-    console.log(`✅ Obtidos LIDs para ${successfulFetches}/${uniqueJids.length} JIDs.`);
+    console.log(`✅ Obtidos LIDs para ${successfulFetches}/${uniqueJids.length} JIDs. ${orphanJidsSet.size} JIDs órfãos identificados.`);
 
     let totalReplacements = 0;
+    let totalRemovals = 0;
     const allUpdatedFiles = [];
     const renamedDetails = [];
+    const deletedDetails = [];
 
     try {
-        const renameResult = await handleJidFiles(jidFiles, jidToLidMap);
+        const renameResult = await handleJidFiles(jidFiles, jidToLidMap, orphanJidsSet);
         totalReplacements += renameResult.totalReplacements;
+        totalRemovals += renameResult.totalRemovals;
         allUpdatedFiles.push(...renameResult.updatedFiles);
         renamedDetails.push(...renameResult.renamedFiles);
+        deletedDetails.push(...renameResult.deletedFiles);
 
         const filteredAffected = affectedFiles.filter(([filePath]) => !jidFiles.some(([, jidPath]) => jidPath === filePath));
-        const contentResult = await replaceJidsInContent(filteredAffected, jidToLidMap);
+        const contentResult = await replaceJidsInContent(filteredAffected, jidToLidMap, orphanJidsSet);
         totalReplacements += contentResult.totalReplacements;
+        totalRemovals += contentResult.totalRemovals;
         allUpdatedFiles.push(...contentResult.updatedFiles);
     } catch (processErr) {
         console.error(`Erro no processamento de substituições: ${processErr.message}`);
@@ -542,12 +595,21 @@ async function performMigration(NazunaSock) {
 
     let finalMsg = `🎉 *Migração concluída com sucesso!* 🎉\n\n` +
         `✨ Realizei *${totalReplacements} substituição(ões)* em *${allUpdatedFiles.length} arquivo(s)*.\n` +
+        `🗑️ Removidas *${totalRemovals} ocorrências* de JIDs órfãos.\n` +
         `🔄 Troquei *${jidToLidMap.size} JID(s)* por seus respectivos LIDs (sucesso em ${successfulFetches}/${uniqueJids.length}).\n\n`;
 
     if (renamedDetails.length > 0) {
         finalMsg += `📁 Renomeei *${renamedDetails.length} arquivo(s)*:\n`;
         renamedDetails.forEach(({ old: oldName, new: newName }) => {
             finalMsg += `• ${oldName} → ${newName}\n`;
+        });
+        finalMsg += `\n`;
+    }
+
+    if (deletedDetails.length > 0) {
+        finalMsg += `🗑️ Excluí *${deletedDetails.length} arquivo(s)* órfão(s):\n`;
+        deletedDetails.forEach(oldName => {
+            finalMsg += `• ${oldName}\n`;
         });
         finalMsg += `\n`;
     }
@@ -559,7 +621,7 @@ async function performMigration(NazunaSock) {
     } catch (sendErr) {
         console.error(`Erro ao enviar mensagem final: ${sendErr.message}`);
     }
-    console.log(`✅ Migração finalizada: ${totalReplacements} edições em ${allUpdatedFiles.length} arquivos.`);
+    console.log(`✅ Migração finalizada: ${totalReplacements} edições e ${totalRemovals} remoções em ${allUpdatedFiles.length} arquivos.`);
 }
 
 async function createBotSocket(authDir) {
@@ -671,7 +733,8 @@ async function createBotSocket(authDir) {
                 console.log('📱 Escaneie o QR code acima com o WhatsApp para autenticar o bot.');
             }
             if (connection === 'open') {
-                console.log(`🔄 Conexão aberta. Iniciando verificação de migração...`);
+                console.log(`🔄 Conexão aberta. Atualizando LID do dono e iniciando verificação de migração...`);
+                await updateOwnerLid(NazunaSock);
                 await performMigration(NazunaSock);
                 attachMessagesListener();
                 console.log(`✅ Bot ${nomebot} iniciado com sucesso! Prefixo: ${prefixo} | Dono: ${nomedono}`);

@@ -1358,7 +1358,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     nomedono,
     nomebot,
     prefixo,
-    debug
+    debug,
+    lidowner
   } = config;
   var KeyCog = config.apikey || false;
   const menusModule = await import(new URL('./menus/index.js', import.meta.url));
@@ -1444,7 +1445,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const nmrdn = numerodono.replace(/[^\d]/g, "") + '@s.whatsapp.net';
     const subDonoList = loadSubdonos();
     const isSubOwner = isSubdono(sender);
-    const isOwner = nmrdn === sender || info.key.fromMe || isSubOwner;
+    const isOwner = nmrdn === sender || lidowner === sender || info.key.fromMe || isSubOwner;
     const isOwnerOrSub = isOwner || isSubOwner;
     const type = getContentType(info.message);
     const isMedia = ["imageMessage", "videoMessage", "audioMessage"].includes(type);
