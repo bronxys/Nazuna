@@ -232,18 +232,58 @@ async function handleGroupParticipantsUpdate(NazunaSock, inf) {
     }
 }
 
-function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const isValidJid = (str) => /^\d+@s\.whatsapp\.net$/.test(str);
+
+function collectJidsFromJson(obj, jidsSet = new Set()) {
+    if (Array.isArray(obj)) {
+        obj.forEach(item => collectJidsFromJson(item, jidsSet));
+    } else if (obj && typeof obj === 'object') {
+        Object.values(obj).forEach(value => collectJidsFromJson(value, jidsSet));
+    } else if (typeof obj === 'string' && isValidJid(obj)) {
+        jidsSet.add(obj);
+    }
+    return jidsSet;
+}
+
+function replaceJidsInJson(obj, jidToLidMap, replacementsCount = { count: 0 }) {
+    if (Array.isArray(obj)) {
+        obj.forEach((item, index) => {
+            const newItem = replaceJidsInJson(item, jidToLidMap, replacementsCount);
+            if (newItem !== item) obj[index] = newItem;
+        });
+    } else if (obj && typeof obj === 'object') {
+        Object.keys(obj).forEach(key => {
+            const value = obj[key];
+            const newValue = replaceJidsInJson(value, jidToLidMap, replacementsCount);
+            if (newValue !== value) obj[key] = newValue;
+        });
+    } else if (typeof obj === 'string' && isValidJid(obj)) {
+        const lid = jidToLidMap.get(obj);
+        if (lid) {
+            replacementsCount.count++;
+            return lid;
+        }
+    }
+    return obj;
 }
 
 async function scanForJids(directory) {
-    const jidPattern = /(\d+@s\.whatsapp\.net)/g;
     const uniqueJids = new Set();
     const affectedFiles = new Map();
     const jidFiles = new Map();
 
     const scanFileContent = async (filePath) => {
         try {
+            const content = await fs.readFile(filePath, 'utf-8');
+            const jsonObj = JSON.parse(content);
+            const fileJids = collectJidsFromJson(jsonObj);
+            if (fileJids.size > 0) {
+                affectedFiles.set(filePath, Array.from(fileJids));
+                fileJids.forEach(jid => uniqueJids.add(jid));
+            }
+        } catch (parseErr) {
+            console.warn(`⚠️ Arquivo ${filePath} não é JSON válido. Usando fallback regex.`);
+            const jidPattern = /(\d+@s\.whatsapp\.net)/g;
             const content = await fs.readFile(filePath, 'utf-8');
             let match;
             const fileJids = new Set();
@@ -253,25 +293,23 @@ async function scanForJids(directory) {
                 fileJids.add(jid);
             }
             if (fileJids.size > 0) {
-                affectedFiles.set(filePath, fileJids);
+                affectedFiles.set(filePath, Array.from(fileJids));
             }
-        } catch (err) {
-            console.error(`Erro ao escanear conteúdo de ${filePath}: ${err.message}`);
         }
     };
 
     const checkAndScanFilename = async (fullPath) => {
         try {
             const basename = path.basename(fullPath, '.json');
-            const filenameMatch = basename.match(jidPattern);
+            const filenameMatch = basename.match(/(\d+@s\.whatsapp\.net)/);
             if (filenameMatch) {
-                const jidFromName = filenameMatch[0];
-                uniqueJids.add(jidFromName);
-                jidFiles.set(jidFromName, fullPath);
-                await scanFileContent(fullPath);
-            } else {
-                await scanFileContent(fullPath);
+                const jidFromName = filenameMatch[1];
+                if (isValidJid(jidFromName)) {
+                    uniqueJids.add(jidFromName);
+                    jidFiles.set(jidFromName, fullPath);
+                }
             }
+            await scanFileContent(fullPath);
         } catch (err) {
             console.error(`Erro ao processar ${fullPath}: ${err.message}`);
         }
@@ -296,13 +334,15 @@ async function scanForJids(directory) {
     await scanDir(directory);
 
     try {
-        const configContentPath = configPath.pathname;
-        await scanFileContent(configContentPath);
-        const configBasename = path.basename(configContentPath, '.json');
-        if (configBasename.match(jidPattern)) {
-            const jidFromName = configBasename.match(jidPattern)[0];
-            uniqueJids.add(jidFromName);
-            jidFiles.set(jidFromName, configContentPath);
+        await scanFileContent(configPath.pathname);
+        const configBasename = path.basename(configPath.pathname, '.json');
+        const filenameMatch = configBasename.match(/(\d+@s\.whatsapp\.net)/);
+        if (filenameMatch) {
+            const jidFromName = filenameMatch[1];
+            if (isValidJid(jidFromName)) {
+                uniqueJids.add(jidFromName);
+                jidFiles.set(jidFromName, configPath.pathname);
+            }
         }
     } catch (err) {
         console.error(`Erro ao escanear config.json: ${err.message}`);
@@ -322,25 +362,15 @@ async function replaceJidsInContent(affectedFiles, jidToLidMap) {
     for (const [filePath, jids] of affectedFiles) {
         try {
             const content = await fs.readFile(filePath, 'utf-8');
-            let updatedContent = content;
-            let fileReplacements = 0;
-
-            for (const jid of jids) {
-                const lid = jidToLidMap.get(jid);
-                if (lid) {
-                    const escapedJid = escapeRegExp(jid);
-                    const regex = new RegExp(escapedJid, 'g');
-                    const beforeCount = (updatedContent.match(regex) || []).length;
-                    updatedContent = updatedContent.replace(regex, lid);
-                    const afterCount = (updatedContent.match(regex) || []).length;
-                    fileReplacements += (beforeCount - afterCount);
-                    totalReplacements += (beforeCount - afterCount);
-                }
-            }
-
-            if (fileReplacements > 0) {
+            let jsonObj = JSON.parse(content);
+            const replacementsCount = { count: 0 };
+            replaceJidsInJson(jsonObj, jidToLidMap, replacementsCount);
+            if (replacementsCount.count > 0) {
+                const updatedContent = JSON.stringify(jsonObj, null, 2);
                 await fs.writeFile(filePath, updatedContent, 'utf-8');
+                totalReplacements += replacementsCount.count;
                 updatedFiles.push(path.basename(filePath));
+                console.log(`✅ Substituídas ${replacementsCount.count} ocorrências em ${path.basename(filePath)}.`);
             }
         } catch (err) {
             console.error(`Erro ao substituir em ${filePath}: ${err.message}`);
@@ -364,18 +394,10 @@ async function handleJidFiles(jidFiles, jidToLidMap) {
 
         try {
             const content = await fs.readFile(oldPath, 'utf-8');
-            let updatedContent = content;
-            let fileReplacements = 0;
-
-            for (const [oldJid, newLid] of jidToLidMap) {
-                const escapedOldJid = escapeRegExp(oldJid);
-                const regex = new RegExp(escapedOldJid, 'g');
-                const beforeCount = (updatedContent.match(regex) || []).length;
-                updatedContent = updatedContent.replace(regex, newLid);
-                const afterCount = (updatedContent.match(regex) || []).length;
-                fileReplacements += (beforeCount - afterCount);
-            }
-            totalReplacements += fileReplacements;
+            let jsonObj = JSON.parse(content);
+            const replacementsCount = { count: 0 };
+            replaceJidsInJson(jsonObj, jidToLidMap, replacementsCount);
+            totalReplacements += replacementsCount.count;
 
             const dir = path.dirname(oldPath);
             const newPath = join(dir, `${lid}.json`);
@@ -386,15 +408,15 @@ async function handleJidFiles(jidFiles, jidToLidMap) {
                 continue;
             } catch {}
 
+            const updatedContent = JSON.stringify(jsonObj, null, 2);
             await fs.writeFile(newPath, updatedContent, 'utf-8');
-
             await fs.unlink(oldPath);
 
             updatedFiles.push(path.basename(newPath));
             renamedFiles.push({ old: path.basename(oldPath), new: path.basename(newPath) });
 
-            if (fileReplacements > 0) {
-                console.log(`Substituídas ${fileReplacements} ocorrências no conteúdo de ${path.basename(oldPath)}.`);
+            if (replacementsCount.count > 0) {
+                console.log(`Substituídas ${replacementsCount.count} ocorrências no conteúdo de ${path.basename(oldPath)}.`);
             }
         } catch (err) {
             console.error(`Erro ao processar renomeação de ${oldPath}: ${err.message}`);
@@ -409,7 +431,7 @@ async function fetchLidWithRetry(NazunaSock, jid, maxRetries = 3) {
         try {
             const result = await NazunaSock.onWhatsApp(jid);
             if (result && result[0] && result[0].lid) {
-                return { jid, lid: result.lid };
+                return { jid, lid: result[0].lid };
             }
             console.warn(`Tentativa ${attempt} falhou para JID ${jid}: LID não encontrado.`);
             return null;
@@ -422,6 +444,35 @@ async function fetchLidWithRetry(NazunaSock, jid, maxRetries = 3) {
     }
     console.warn(`Falha após ${maxRetries} tentativas para JID ${jid}. Pulando.`);
     return null;
+}
+
+async function fetchLidsInBatches(NazunaSock, uniqueJids, batchSize = 5) {
+    const lidResults = [];
+    const jidToLidMap = new Map();
+    let successfulFetches = 0;
+
+    for (let i = 0; i < uniqueJids.length; i += batchSize) {
+        const batch = uniqueJids.slice(i, i + batchSize);
+        console.log(`🔄 Processando lote ${Math.floor(i / batchSize) + 1}: ${batch.length} JIDs.`);
+        
+        const batchPromises = batch.map(jid => fetchLidWithRetry(NazunaSock, jid));
+        const batchResults = await Promise.allSettled(batchPromises);
+        
+        batchResults.forEach((result, index) => {
+            if (result.status === 'fulfilled' && result.value) {
+                const { jid, lid } = result.value;
+                lidResults.push({ jid, lid });
+                jidToLidMap.set(jid, lid);
+                successfulFetches++;
+            }
+        });
+
+        if (i + batchSize < uniqueJids.length) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+
+    return { lidResults, jidToLidMap, successfulFetches };
 }
 
 async function performMigration(NazunaSock) {
@@ -454,19 +505,7 @@ async function performMigration(NazunaSock) {
         console.error(`Erro ao enviar mensagem inicial: ${sendErr.message}`);
     }
 
-    const lidResults = [];
-    const jidToLidMap = new Map();
-    let successfulFetches = 0;
-
-    for (const jid of uniqueJids) {
-        const jidStr = String(jid);
-        const result = await fetchLidWithRetry(NazunaSock, jidStr);
-        if (result) {
-            lidResults.push(result);
-            jidToLidMap.set(result.jid, result.lid);
-            successfulFetches++;
-        }
-    }
+    const { jidToLidMap, successfulFetches } = await fetchLidsInBatches(NazunaSock, uniqueJids);
 
     if (jidToLidMap.size === 0) {
         const noLidMsg = `⚠️ *Migração incompleta!* ⚠️\n\nNão foi possível obter LIDs para nenhum dos JIDs detectados. Verifique a conectividade e tente novamente. A bot iniciará normalmente por enquanto. 😔`;
