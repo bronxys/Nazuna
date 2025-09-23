@@ -1439,9 +1439,15 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const from = info.key.remoteJid;
     const isGroup = from?.endsWith('@g.us') || false;
     if (!info.key.participant && !info.key.remoteJid) return;
-    const sender = isGroup ? info.key.participant?.includes('whatsapp.net') ? info.key.participant : info.key.participantPn ? info.key.participantPn : info.key.participantLid : info.key.remoteJid;
-    console.log(sender);
-    console.log(info);
+    let sender;
+    if (isGroup) {
+      const participants = Object.keys(info.key).filter(k => k.startsWith("participant")).map(k => info.key[k]).filter(Boolean);
+      if (participants.length) {
+        sender = participants.find(p => p.includes("lid")) || participants[0];
+      };
+    } else {
+      sender = info.key.remoteJid;
+    };
     const pushname = info.pushName || '';
     const isStatus = from?.endsWith('@broadcast') || false;
     const nmrdn = numerodono.replace(/[^\d]/g, "") + '@s.whatsapp.net';
