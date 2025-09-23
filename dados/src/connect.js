@@ -232,12 +232,17 @@ async function handleGroupParticipantsUpdate(NazunaSock, inf) {
     }
 }
 
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function scanForJids(directory) {
     const jidPattern = /(\d+@s\.whatsapp\.net)/g;
     const uniqueJids = new Set();
     const affectedFiles = new Map();
+    const jidFiles = new Map();
 
-    const scanFile = async (filePath) => {
+    const scanFileContent = async (filePath) => {
         try {
             const content = await fs.readFile(filePath, 'utf-8');
             let match;
@@ -251,7 +256,24 @@ async function scanForJids(directory) {
                 affectedFiles.set(filePath, fileJids);
             }
         } catch (err) {
-            console.error(`Erro ao escanear ${filePath}: ${err.message}`);
+            console.error(`Erro ao escanear conteúdo de ${filePath}: ${err.message}`);
+        }
+    };
+
+    const checkAndScanFilename = async (fullPath) => {
+        try {
+            const basename = path.basename(fullPath, '.json');
+            const filenameMatch = basename.match(jidPattern);
+            if (filenameMatch) {
+                const jidFromName = filenameMatch[0];
+                uniqueJids.add(jidFromName);
+                jidFiles.set(jidFromName, fullPath);
+                await scanFileContent(fullPath);
+            } else {
+                await scanFileContent(fullPath);
+            }
+        } catch (err) {
+            console.error(`Erro ao processar ${fullPath}: ${err.message}`);
         }
     };
 
@@ -263,7 +285,7 @@ async function scanForJids(directory) {
                 if (entry.isDirectory()) {
                     await scanDir(fullPath);
                 } else if (entry.name.endsWith('.json')) {
-                    await scanFile(fullPath);
+                    await checkAndScanFilename(fullPath);
                 }
             }
         } catch (err) {
@@ -272,10 +294,15 @@ async function scanForJids(directory) {
     };
 
     await scanDir(directory);
+
     try {
-        await scanFile(configPath);
-        if (affectedFiles.has(configPath.pathname)) {
-            affectedFiles.set(configPath.pathname, affectedFiles.get(configPath.pathname));
+        const configContentPath = configPath.pathname;
+        await scanFileContent(configContentPath);
+        const configBasename = path.basename(configContentPath, '.json');
+        if (configBasename.match(jidPattern)) {
+            const jidFromName = configBasename.match(jidPattern)[0];
+            uniqueJids.add(jidFromName);
+            jidFiles.set(jidFromName, configContentPath);
         }
     } catch (err) {
         console.error(`Erro ao escanear config.json: ${err.message}`);
@@ -283,11 +310,12 @@ async function scanForJids(directory) {
 
     return {
         uniqueJids: Array.from(uniqueJids),
-        affectedFiles: Array.from(affectedFiles.entries())
+        affectedFiles: Array.from(affectedFiles.entries()),
+        jidFiles: Array.from(jidFiles.entries())
     };
 }
 
-async function replaceJidsWithLids(affectedFiles, jidToLidMap) {
+async function replaceJidsInContent(affectedFiles, jidToLidMap) {
     let totalReplacements = 0;
     const updatedFiles = [];
 
@@ -300,7 +328,7 @@ async function replaceJidsWithLids(affectedFiles, jidToLidMap) {
             for (const jid of jids) {
                 const lid = jidToLidMap.get(jid);
                 if (lid) {
-                    const escapedJid = jid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const escapedJid = escapeRegExp(jid);
                     const regex = new RegExp(escapedJid, 'g');
                     const beforeCount = (updatedContent.match(regex) || []).length;
                     updatedContent = updatedContent.replace(regex, lid);
@@ -322,11 +350,74 @@ async function replaceJidsWithLids(affectedFiles, jidToLidMap) {
     return { totalReplacements, updatedFiles };
 }
 
+async function handleJidFiles(jidFiles, jidToLidMap) {
+    let totalReplacements = 0;
+    const updatedFiles = [];
+    const renamedFiles = [];
+
+    for (const [jid, oldPath] of jidFiles) {
+        const lid = jidToLidMap.get(jid);
+        if (!lid) {
+            console.warn(`LID não encontrado para JID ${jid} em ${oldPath}. Pulando renomeação.`);
+            continue;
+        }
+
+        try {
+            const content = await fs.readFile(oldPath, 'utf-8');
+            let updatedContent = content;
+            let fileReplacements = 0;
+
+            for (const [oldJid, newLid] of jidToLidMap) {
+                const escapedOldJid = escapeRegExp(oldJid);
+                const regex = new RegExp(escapedOldJid, 'g');
+                const beforeCount = (updatedContent.match(regex) || []).length;
+                updatedContent = updatedContent.replace(regex, newLid);
+                const afterCount = (updatedContent.match(regex) || []).length;
+                fileReplacements += (beforeCount - afterCount);
+            }
+            totalReplacements += fileReplacements;
+
+            const dir = path.dirname(oldPath);
+            const newPath = join(dir, `${lid}.json`);
+
+            try {
+                await fs.access(newPath);
+                console.warn(`Arquivo ${newPath} já existe. Pulando renomeação para ${oldPath}.`);
+                continue;
+            } catch {}
+
+            await fs.writeFile(newPath, updatedContent, 'utf-8');
+
+            await fs.unlink(oldPath);
+
+            updatedFiles.push(path.basename(newPath));
+            renamedFiles.push({ old: path.basename(oldPath), new: path.basename(newPath) });
+
+            if (fileReplacements > 0) {
+                console.log(`Substituídas ${fileReplacements} ocorrências no conteúdo de ${path.basename(oldPath)}.`);
+            }
+        } catch (err) {
+            console.error(`Erro ao processar renomeação de ${oldPath}: ${err.message}`);
+        }
+    }
+
+    return { totalReplacements, updatedFiles, renamedFiles };
+}
+
 async function performMigration(NazunaSock) {
     const ownerJid = `${numerodono}@s.whatsapp.net`;
     console.log('🔍 Iniciando mapeamento da database para migração de JIDs...');
 
-    const { uniqueJids, affectedFiles } = await scanForJids(DATABASE_DIR);
+    let scanResult;
+    try {
+        scanResult = await scanForJids(DATABASE_DIR);
+    } catch (err) {
+        console.error(`Erro crítico no scan: ${err.message}`);
+        await NazunaSock.sendMessage(ownerJid, { text: `❌ Erro ao escanear database: ${err.message}. Iniciando bot sem migração.` });
+        return;
+    }
+
+    const { uniqueJids, affectedFiles, jidFiles } = scanResult;
 
     if (uniqueJids.length === 0) {
         console.log('ℹ️ Nenhum JID encontrado na database. Iniciando bot normalmente.');
@@ -334,35 +425,88 @@ async function performMigration(NazunaSock) {
     }
 
     const initialMsg = `🌟 *Olá, ${nomedono}!* 🌟\n\n` +
-        `🔍 Detectei *${uniqueJids.length} JID(s)* únicos em *${affectedFiles.length} arquivo(s)* na database e configurações.\n\n` +
+        `🔍 Detectei *${uniqueJids.length} JID(s)* únicos em *${affectedFiles.length + jidFiles.length} fonte(s)* (arquivos e nomes).\n\n` +
         `🚀 Iniciando migração automática para LIDs. Isso pode levar alguns minutos, mas garanto que vale a pena! A bot ficará pausada para mensagens até finalizar. Aguarde aqui... 💕`;
     
-    await NazunaSock.sendMessage(ownerJid, { text: initialMsg });
+    try {
+        await NazunaSock.sendMessage(ownerJid, { text: initialMsg });
+    } catch (sendErr) {
+        console.error(`Erro ao enviar mensagem inicial: ${sendErr.message}`);
+    }
+
+    let lidResults;
+    try {
+        const jidStrings = uniqueJids.map(jid => String(jid));
+        lidResults = await NazunaSock.onWhatsApp(jidStrings);
+    } catch (fetchErr) {
+        console.error(`Erro ao buscar LIDs: ${fetchErr.message}`);
+        const fetchErrMsg = `⚠️ *Erro na migração!* ⚠️\n\nFalha ao obter LIDs: ${fetchErr.message}. Verifique a conexão e reinicie a bot. Iniciando normalmente por enquanto. 😔`;
+        try {
+            await NazunaSock.sendMessage(ownerJid, { text: fetchErrMsg });
+        } catch {}
+        return;
+    }
 
     const jidToLidMap = new Map();
-    const lidResults = await NazunaSock.onWhatsApp(uniqueJids);
     for (const { jid, lid } of lidResults) {
         if (lid) {
             jidToLidMap.set(jid, lid);
+        } else {
+            console.warn(`LID não encontrado para JID: ${jid}`);
         }
     }
 
     if (jidToLidMap.size === 0) {
-        const noLidMsg = `⚠️ *Migração incompleta!* ⚠️\n\n` +
-            `Não foi possível obter LIDs para nenhum dos JIDs detectados. Verifique a conectividade e tente novamente. A bot iniciará normalmente por enquanto. 😔`;
-        await NazunaSock.sendMessage(ownerJid, { text: noLidMsg });
+        const noLidMsg = `⚠️ *Migração incompleta!* ⚠️\n\nNão foi possível obter LIDs para nenhum dos JIDs detectados. Verifique a conectividade e tente novamente. A bot iniciará normalmente por enquanto. 😔`;
+        try {
+            await NazunaSock.sendMessage(ownerJid, { text: noLidMsg });
+        } catch {}
         return;
     }
 
-    const { totalReplacements, updatedFiles } = await replaceJidsWithLids(affectedFiles, jidToLidMap);
+    let totalReplacements = 0;
+    const allUpdatedFiles = [];
+    const renamedDetails = [];
 
-    const finalMsg = `🎉 *Migração concluída com sucesso!* 🎉\n\n` +
-        `✨ Realizei *${totalReplacements} substituição(ões)* em *${updatedFiles.length} arquivo(s)* (${updatedFiles.join(', ')}).\n` +
-        `🔄 Troquei *${jidToLidMap.size} JID(s)* por seus respectivos LIDs.\n\n` +
-        `🌸 Agora a bot está otimizada e pronta para brilhar! Aproveite ao máximo, ${nomedono}. Se precisar de algo, é só chamar. <3`;
+    try {
+        const renameResult = await handleJidFiles(jidFiles, jidToLidMap);
+        totalReplacements += renameResult.totalReplacements;
+        allUpdatedFiles.push(...renameResult.updatedFiles);
+        renamedDetails.push(...renameResult.renamedFiles);
+
+        const filteredAffected = affectedFiles.filter(([filePath]) => !jidFiles.some(([, jidPath]) => jidPath === filePath));
+        const contentResult = await replaceJidsInContent(filteredAffected, jidToLidMap);
+        totalReplacements += contentResult.totalReplacements;
+        allUpdatedFiles.push(...contentResult.updatedFiles);
+    } catch (processErr) {
+        console.error(`Erro no processamento de substituições: ${processErr.message}`);
+        const procErrMsg = `⚠️ *Erro parcial na migração!* ⚠️\n\nProblema durante substituições: ${processErr.message}. Alguns arquivos podem não ter sido atualizados. Reiniciar a bot para tentar novamente.`;
+        try {
+            await NazunaSock.sendMessage(ownerJid, { text: procErrMsg });
+        } catch {}
+        return;
+    }
+
+    let finalMsg = `🎉 *Migração concluída com sucesso!* 🎉\n\n` +
+        `✨ Realizei *${totalReplacements} substituição(ões)* em *${allUpdatedFiles.length} arquivo(s)*.\n` +
+        `🔄 Troquei *${jidToLidMap.size} JID(s)* por seus respectivos LIDs.\n\n`;
+
+    if (renamedDetails.length > 0) {
+        finalMsg += `📁 Renomeei *${renamedDetails.length} arquivo(s)*:\n`;
+        renamedDetails.forEach(({ old: oldName, new: newName }) => {
+            finalMsg += `• ${oldName} → ${newName}\n`;
+        });
+        finalMsg += `\n`;
+    }
+
+    finalMsg += `🌸 Agora a bot está otimizada e pronta para brilhar! Aproveite ao máximo, ${nomedono}. Se precisar de algo, é só chamar. <3`;
     
-    await NazunaSock.sendMessage(ownerJid, { text: finalMsg });
-    console.log(`✅ Migração finalizada: ${totalReplacements} edições em ${updatedFiles.length} arquivos.`);
+    try {
+        await NazunaSock.sendMessage(ownerJid, { text: finalMsg });
+    } catch (sendErr) {
+        console.error(`Erro ao enviar mensagem final: ${sendErr.message}`);
+    }
+    console.log(`✅ Migração finalizada: ${totalReplacements} edições em ${allUpdatedFiles.length} arquivos.`);
 }
 
 async function createBotSocket(authDir) {
