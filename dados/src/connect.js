@@ -404,7 +404,7 @@ async function handleJidFiles(jidFiles, jidToLidMap) {
     return { totalReplacements, updatedFiles, renamedFiles };
 }
 
-async function fetchLidWithRetry(NazunaSock, jid, maxRetries = 5) {
+async function fetchLidWithRetry(NazunaSock, jid, maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const result = await NazunaSock.onWhatsApp(jid);
@@ -416,7 +416,7 @@ async function fetchLidWithRetry(NazunaSock, jid, maxRetries = 5) {
             console.warn(`Tentativa ${attempt} falhou para JID ${jid}: ${err.message}`);
         }
         if (attempt < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            await new Promise(resolve => setTimeout(resolve, 100 * attempt));
         }
     }
     console.warn(`Falha após ${maxRetries} tentativas para JID ${jid}. Pulando.`);
