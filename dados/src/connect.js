@@ -412,6 +412,7 @@ async function fetchLidWithRetry(NazunaSock, jid, maxRetries = 3) {
                 return { jid, lid: result.lid };
             }
             console.warn(`Tentativa ${attempt} falhou para JID ${jid}: LID não encontrado.`);
+            return null;
         } catch (err) {
             console.warn(`Tentativa ${attempt} falhou para JID ${jid}: ${err.message}`);
         }
