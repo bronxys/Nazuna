@@ -1474,8 +1474,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const menc_prt = info.message?.extendedTextMessage?.contextInfo?.participant;
     const menc_jid = q.replace("@", "").split(' ')[0] + "@lid";
     const menc_jid2 = info.message?.extendedTextMessage?.contextInfo?.mentionedJid;
-    const menc_os2 = q.includes("@") ? menc_jid : menc_prt;
-    const sender_ou_n = q.includes("@") ? menc_jid : menc_prt || sender;
+    const menc_os2 = q.includes("@") ? menc_jid2 : menc_prt;
+    const sender_ou_n = q.includes("@") ? menc_jid2 : menc_prt || sender;
     const groupFile = pathz.join(__dirname, '..', 'database', 'grupos', `${from}.json`);
     let groupData = {};
     const groupMetadata = !isGroup ? {} : await nazu.groupMetadata(from).catch(() => ({}));
