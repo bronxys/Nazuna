@@ -1472,7 +1472,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     var q = args.join(' ');
     const budy2 = normalizar(body);
     const menc_prt = info.message?.extendedTextMessage?.contextInfo?.participant;
-    const menc_jid = q.replace("@", "").split(' ')[0] + "@s.whatsapp.net";
+    const menc_jid = q.replace("@", "").split(' ')[0] + "@lid";
     const menc_jid2 = info.message?.extendedTextMessage?.contextInfo?.mentionedJid;
     const menc_os2 = q.includes("@") ? menc_jid : menc_prt;
     const sender_ou_n = q.includes("@") ? menc_jid : menc_prt || sender;
