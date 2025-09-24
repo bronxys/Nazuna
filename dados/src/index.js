@@ -1542,7 +1542,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     };
     const AllgroupMembers = !isGroup ? [] : groupMetadata.participants?.map(p => p.lid || p.id) || [];
     const groupAdmins = !isGroup ? [] : groupMetadata.participants?.filter(p => p.admin).map(p => p.lid || p.id) || [];
-    const botNumber = nazu.user.id.split(':')[0] + '@s.whatsapp.net';
+    const botNumber = nazu.user.lid.split(':')[0] + '@lid';
     const isBotAdmin = !isGroup ? false : groupAdmins.includes(botNumber);
     let isGroupAdmin = false;
     if (isGroup) {
