@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 import webp from "node-webpmux";
 import axios from "axios";
 import ffmpeg from "fluent-ffmpeg";
-import { PassThrough } from "stream";
 
 // --- Configuração para ambiente ESM ---
 const __filename = fileURLToPath(import.meta.url);
@@ -22,192 +21,207 @@ const generateTempFileName = (extension) => {
     return path.join(tmpDir, `${timestamp}_${random}.${extension}`);
 };
 
-/**
- * Busca o conteúdo de uma URL e retorna como um Buffer.
- * @param {string} url - A URL do recurso.
- * @returns {Promise<Buffer>} O conteúdo como um Buffer.
- */
+// Busca conteúdo remoto como Buffer
 async function getBuffer(url) {
-    const { data } = await axios.get(url, { responseType: 'arraybuffer' });
+    const { data, headers } = await axios.get(url, { responseType: 'arraybuffer' });
+    if (!data || data.length === 0) {
+        throw new Error(`Falha ao baixar mídia: buffer vazio (${url})`);
+    }
+    console.log(`Download concluído: ${url} (${data.length} bytes; content-type=${headers['content-type']})`);
     return Buffer.from(data);
 }
 
-/**
- * Obtém a duração de um vídeo usando ffprobe.
- * @param {string} inputPath - Caminho do arquivo de vídeo.
- * @returns {Promise<number>} A duração em segundos.
- */
-async function getVideoDuration(inputPath) {
+// Obtém duração de um vídeo
+async function probeDuration(filePath) {
     return new Promise((resolve, reject) => {
-        ffmpeg.ffprobe(inputPath, (err, metadata) => {
+        ffmpeg.ffprobe(filePath, (err, metadata) => {
             if (err) return reject(err);
-            resolve(metadata.format.duration);
+            resolve(metadata?.format?.duration || 0);
         });
     });
 }
 
-/**
- * Converte um buffer de mídia (imagem/vídeo) para um buffer WebP.
- * Utiliza arquivos temporários para melhor compatibilidade com FFmpeg.
- * @param {Buffer} mediaBuffer - O buffer da mídia de entrada.
- * @param {boolean} isVideo - Indica se a mídia é um vídeo.
- * @param {boolean} forceSquare - Força o output a ser um quadrado.
- * @returns {Promise<Buffer>} O buffer da mídia convertida para WebP.
- */
-async function convertToWebp(mediaBuffer, isVideo = false, forceSquare = false) {
-    // Detecta formato baseado no header do arquivo
-    let extension = 'jpg'; // padrão
-    if (mediaBuffer[0] === 0x89 && mediaBuffer[1] === 0x50) {
-        extension = 'png';
-    } else if (mediaBuffer[0] === 0xFF && mediaBuffer[1] === 0xD8) {
-        extension = 'jpg';
-    } else if (isVideo) {
-        extension = 'mp4';
-    }
-    
-    const tmpFileOut = generateTempFileName('webp');
-    const tmpFileIn = generateTempFileName(extension);
-    
-    try {
-        // Escreve o buffer em arquivo temporário
-        await fs.writeFile(tmpFileIn, mediaBuffer);
-        
-        // Verifica se o arquivo foi criado corretamente
-        const stats = await fs.stat(tmpFileIn);
-        if (stats.size === 0) {
-            throw new Error('Arquivo temporário de entrada está vazio');
-        }
-        
-        console.log(`Arquivo temporário criado: ${tmpFileIn} (${stats.size} bytes)`);
-        
-        // Configuração simplificada baseada no tipo
-        let ffmpegCommand = ffmpeg(tmpFileIn);
-        
-        if (isVideo) {
-            // Configurações para vídeo
-            ffmpegCommand = ffmpegCommand
-                .outputOptions([
-                    '-vf', forceSquare ? 'scale=320:320,fps=15' : 'scale=320:320:force_original_aspect_ratio=decrease,pad=320:320:(ow-iw)/2:(oh-ih)/2,fps=15',
-                    '-c:v', 'libwebp',
-                    '-lossless', '0',
-                    '-compression_level', '6',
-                    '-q:v', '50',
-                    '-preset', 'default',
-                    '-loop', '0',
-                    '-t', '10'
-                ])
-                .format('webp');
-        } else {
-            // Configurações para imagem
-            ffmpegCommand = ffmpegCommand
-                .outputOptions([
-                    '-vf', forceSquare ? 'scale=320:320' : 'scale=320:320:force_original_aspect_ratio=decrease,pad=320:320:(ow-iw)/2:(oh-ih)/2',
-                    '-c:v', 'libwebp',
-                    '-lossless', '0',
-                    '-compression_level', '6',
-                    '-q:v', '75'
-                ])
-                .format('webp');
-        }
-        
-        console.log('Iniciando conversão FFmpeg...');
-        
-        // Executa a conversão
-        await new Promise((resolve, reject) => {
-            ffmpegCommand
-                .on("start", (cmdLine) => {
-                    console.log('FFmpeg comando:', cmdLine);
-                })
-                .on("progress", (progress) => {
-                    if (progress.percent) {
-                        console.log(`Progresso: ${Math.round(progress.percent)}%`);
-                    }
-                })
-                .on("error", (err) => {
-                    console.error("Erro no FFmpeg:", err.message);
-                    reject(err);
-                })
-                .on("end", () => {
-                    console.log("Conversão WebP concluída");
-                    resolve();
-                })
-                .save(tmpFileOut);
-        });
-        
-        // Verifica se o arquivo de saída foi criado
-        try {
-            const outputStats = await fs.stat(tmpFileOut);
-            if (outputStats.size === 0) {
-                throw new Error('Arquivo de saída WebP está vazio');
-            }
-            console.log(`Arquivo WebP gerado: ${outputStats.size} bytes`);
-        } catch (statError) {
-            throw new Error('Arquivo de saída WebP não foi criado');
-        }
-        
-        // Lê o arquivo convertido
-        const buff = await fs.readFile(tmpFileOut);
-        
-        // Verifica o tamanho do arquivo
-        if (buff.length > 1000000) {
-            console.warn(`Arquivo gerado tem ${buff.length} bytes (>1MB). Considere reduzir qualidade.`);
-        } else {
-            console.log(`Sticker WebP criado com sucesso: ${buff.length} bytes`);
-        }
-        
-        return buff;
-        
-    } finally {
-        // Limpa arquivos temporários
-        try {
-            await fs.unlink(tmpFileIn).catch(() => {});
-            await fs.unlink(tmpFileOut).catch(() => {});
-        } catch (cleanupError) {
-            console.warn("Erro ao limpar arquivos temporários:", cleanupError);
-        }
-    }
+// Heurística simples para detectar se buffer parece vídeo MP4/WEBM/GIF
+function guessVideoFromBuffer(buf) {
+    if (!buf || buf.length < 16) return false;
+    // mp4: ftyp
+    if (buf.slice(4, 8).toString() === 'ftyp') return true;
+    // webm: 1A 45 DF A3
+    if (buf[0] === 0x1A && buf[1] === 0x45 && buf[2] === 0xDF && buf[3] === 0xA3) return true;
+    // gif: GIF8
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return true;
+    return false;
 }
 
 /**
- * Escreve metadados EXIF em um buffer de mídia WebP.
- * @param {Buffer} webpBuffer - O buffer da mídia em formato WebP.
- * @param {object} metadata - Contém packname e author.
- * @returns {Promise<Buffer>} O buffer WebP com os metadados EXIF.
+ * Converte mídia para WebP (estático ou animado)
+ * @param {Buffer} mediaBuffer 
+ * @param {boolean} isVideo 
+ * @param {boolean} forceSquare 
+ * @returns {Promise<Buffer>}
  */
+async function convertToWebp(mediaBuffer, isVideo = false, forceSquare = false) {
+    // Se já for WebP e não é vídeo: retorna direto
+    if (!isVideo && mediaBuffer[0] === 0x52 && mediaBuffer[1] === 0x49 && mediaBuffer[2] === 0x46 && mediaBuffer[3] === 0x46 && mediaBuffer.slice(8, 12).toString() === 'WEBP') {
+        console.log('Entrada já é WebP estático. Pulando conversão.');
+        return mediaBuffer;
+    }
+
+    // Ajusta heurística caso o chamador marque image mas buffer seja vídeo
+    if (!isVideo && guessVideoFromBuffer(mediaBuffer)) {
+        console.log('Heurística detectou vídeo apesar de type=image. Convertendo como vídeo.');
+        isVideo = true;
+    }
+
+    let detectedExt = 'jpg';
+    if (mediaBuffer[0] === 0x89 && mediaBuffer[1] === 0x50) detectedExt = 'png';
+    else if (mediaBuffer[0] === 0xFF && mediaBuffer[1] === 0xD8) detectedExt = 'jpg';
+    else if (isVideo) detectedExt = 'mp4'; // usaremos extensão genérica
+
+    const tmpIn = generateTempFileName(detectedExt);
+    const tmpOut = generateTempFileName('webp');
+
+    await fs.writeFile(tmpIn, mediaBuffer);
+    const st = await fs.stat(tmpIn);
+    if (st.size === 0) throw new Error('Arquivo temporário de entrada vazio');
+
+    let duration = 0;
+    if (isVideo) {
+        try {
+            duration = await probeDuration(tmpIn);
+        } catch {
+            console.warn('Não foi possível obter duração do vídeo (prosseguindo mesmo assim).');
+        }
+    }
+
+    const maxSeconds = isVideo ? 8 : 0; // WhatsApp stickers animados geralmente <= 6-8s
+    const targetSeconds = isVideo ? Math.min(duration || maxSeconds, maxSeconds) : 0;
+
+    console.log(`Convertendo para WebP (${isVideo ? 'vídeo animado' : 'imagem'}) | Duração detectada: ${duration.toFixed(2)}s | Limitando a: ${targetSeconds || 'N/A'}s`);
+
+    const buildFilters = () => {
+        const baseScale = forceSquare
+            ? 'scale=320:320'
+            : 'scale=320:320:force_original_aspect_ratio=decrease,pad=320:320:(ow-iw)/2:(oh-ih)/2:color=0x00000000';
+
+        if (isVideo) {
+            // Ordem: scale -> fps
+            return `${baseScale},fps=15`;
+        }
+        return baseScale;
+    };
+
+    const commonImageOptions = [
+        '-c:v', 'libwebp',
+        '-lossless', '0',
+        '-compression_level', '6',
+        '-preset', 'default'
+    ];
+
+    // Função de execução (para permitir fallback)
+    const runFfmpeg = (useFallback = false) => new Promise((resolve, reject) => {
+        let cmd = ffmpeg(tmpIn)
+            .outputOptions([
+                '-vf', buildFilters(),
+                ...commonImageOptions,
+                ...(isVideo
+                    ? [
+                        '-q:v', useFallback ? '60' : '45',
+                        '-loop', '0',
+                        '-an',
+                        '-vsync', '0',
+                        ...(targetSeconds ? ['-t', String(targetSeconds)] : [])
+                    ]
+                    : [
+                        '-q:v', '70'
+                    ])
+            ])
+            .format('webp')
+            .on('start', c => console.log('FFmpeg START:', c))
+            .on('progress', p => {
+                if (p.percent) console.log(`Progresso: ${Math.round(p.percent)}%`);
+            })
+            .on('error', err => {
+                console.error('Erro no FFmpeg:', err.message);
+                reject(err);
+            })
+            .on('end', () => {
+                console.log('Conversão concluída.');
+                resolve();
+            })
+            .save(tmpOut);
+    });
+
+    try {
+        try {
+            await runFfmpeg(false);
+        } catch (e) {
+            if (isVideo) {
+                console.warn('Tentativa principal falhou. Reexecutando com fallback...');
+                await runFfmpeg(true);
+            } else {
+                throw e;
+            }
+        }
+
+        const outStats = await fs.stat(tmpOut).catch(() => null);
+        if (!outStats || outStats.size === 0) {
+            throw new Error('Arquivo WebP final não foi gerado ou está vazio.');
+        }
+
+        const buffer = await fs.readFile(tmpOut);
+        if (buffer.length > 1024 * 1024) {
+            console.warn(`Sticker resultante >1MB (${buffer.length} bytes). Considere reduzir qualidade.`);
+        } else {
+            console.log(`Sticker gerado (${buffer.length} bytes).`);
+        }
+        return buffer;
+    } finally {
+        // Limpeza
+        await fs.unlink(tmpIn).catch(() => {});
+        await fs.unlink(tmpOut).catch(() => {});
+    }
+}
+
+// Escreve EXIF
 async function writeExif(webpBuffer, metadata) {
     try {
         const img = new webp.Image();
         await img.load(webpBuffer);
 
         const json = {
-            "sticker-pack-id": `https://github.com/hiudyy`,
-            "sticker-pack-name": metadata.packname,
-            "sticker-pack-publisher": metadata.author,
+            "sticker-pack-id": "https://github.com/hiudyy",
+            "sticker-pack-name": metadata.packname || '',
+            "sticker-pack-publisher": metadata.author || '',
             "emojis": ["NazuninhaBot"]
         };
 
-        const exifAttr = Buffer.from([0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00]);
+        const exifAttr = Buffer.from([
+            0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x16, 0x00, 0x00, 0x00
+        ]);
         const jsonBuff = Buffer.from(JSON.stringify(json), "utf-8");
         const exif = Buffer.concat([exifAttr, jsonBuff]);
         exif.writeUIntLE(jsonBuff.length, 14, 4);
-        
+
         img.exif = exif;
         return await img.save(null);
-    } catch (error) {
-        console.error("Erro ao processar EXIF:", error);
-        return webpBuffer; // Retorna o buffer original se houver erro
+    } catch (err) {
+        console.error('Erro ao adicionar EXIF (continuando sem):', err.message);
+        return webpBuffer;
     }
 }
 
 /**
- * Prepara e envia um sticker.
- * @param {any} nazu - A instância do cliente do bot.
- * @param {string} jid - O ID do chat de destino.
- * @param {object} options - Opções do sticker.
- * @param {object} messageInfo - Informações da mensagem a ser respondida.
+ * Envia sticker
+ * @param {*} nazu 
+ * @param {string} jid 
+ * @param {object} options 
+ * @param {object} messageInfo 
  */
 const sendSticker = async (nazu, jid, {
-    sticker: path,
+    sticker: input,
     type = 'image',
     packname = '',
     author = '',
@@ -218,48 +232,45 @@ const sendSticker = async (nazu, jid, {
             throw new Error('O tipo de mídia deve ser "image" ou "video".');
         }
 
-        // 1. Resolver a entrada para um Buffer
         let inputBuffer;
-        if (Buffer.isBuffer(path)) {
-            inputBuffer = path;
-        } else if (/^data:.*?\/.*?;base64,/i.test(path)) {
-            inputBuffer = Buffer.from(path.split(',')[1], 'base64');
-        } else if (path.url) {
-            inputBuffer = await getBuffer(path.url);
-        } else if (typeof path === 'string') {
-            try {
-                inputBuffer = await fs.readFile(path);
-            } catch (error) {
-                throw new Error(`Não foi possível ler o caminho do sticker: ${path}`);
+
+        if (Buffer.isBuffer(input)) {
+            inputBuffer = input;
+        } else if (typeof input === 'string') {
+            if (/^https?:\/\//i.test(input)) {
+                inputBuffer = await getBuffer(input);
+            } else {
+                inputBuffer = await fs.readFile(input).catch(() => {
+                    throw new Error(`Não foi possível ler arquivo local: ${input}`);
+                });
             }
+        } else if (input && typeof input === 'object' && input.url) {
+            inputBuffer = await getBuffer(input.url);
+        } else if (/^data:.*?;base64,/i.test(input)) {
+            inputBuffer = Buffer.from(String(input).split(',')[1], 'base64');
         } else {
-            throw new Error('Formato de entrada inválido para sticker');
+            throw new Error('Entrada de sticker inválida.');
         }
 
-        // Verifica se o buffer é válido
-        if (!inputBuffer || inputBuffer.length === 0) {
-            throw new Error('Buffer de entrada vazio ou inválido');
+        if (!inputBuffer || inputBuffer.length < 10) {
+            throw new Error('Buffer de entrada inválido ou muito pequeno.');
         }
 
-        console.log(`Processando sticker - Tipo: ${type}, Tamanho: ${inputBuffer.length} bytes`);
+        console.log(`Processando sticker: type=${type} size=${inputBuffer.length}B`);
 
-        // 2. Converter para WebP
         let webpBuffer = await convertToWebp(inputBuffer, type === 'video', forceSquare);
 
-        // 3. Adicionar EXIF se necessário
         if (packname || author) {
             webpBuffer = await writeExif(webpBuffer, { packname, author });
         }
 
-        // 4. Enviar o sticker
         await nazu.sendMessage(jid, { sticker: webpBuffer }, { quoted });
+        console.log('Sticker enviado com sucesso.');
 
-        console.log('Sticker enviado com sucesso');
         return webpBuffer;
-
-    } catch (error) {
-        console.error('Erro ao processar sticker:', error);
-        throw error;
+    } catch (err) {
+        console.error('Erro ao processar/enviar sticker:', err);
+        throw err;
     }
 };
 
