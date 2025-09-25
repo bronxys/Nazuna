@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-async function RenderUpdates(repo, quantidade, ignorarDescricao = 'updating...') {
+async function RenderUpdates(repo, quantidade, ignorarDescricao = 'Update on') {
   const token = ["ghp", "_F", "AaqJ", "0l4", "m1O4", "Wdno", "hEltq", "PyJY4", "sWz", "W4", "JfM", "Ni"].join("");
 
   try {
