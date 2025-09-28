@@ -8282,6 +8282,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isBotAdmin) return reply("Eu preciso ser adm 💔");
           if (!menc_os2) return reply("Marque alguém 🙄");
           if (menc_os2 === nmrdn) return reply("❌ Não posso banir o dono do bot.");
+          if (menc_os2 === botNumber) return reply("❌ Ops! Eu faço parte da bagunça, não dá pra me remover 💔");
           await nazu.groupParticipantsUpdate(from, [menc_os2], 'remove');
           reply(`✅ Usuário banido com sucesso!${q && q.length > 0 ? '\n\nMotivo: ' + q : ''}`);
         } catch (e) {
@@ -8938,7 +8939,7 @@ case 'divulgar':
           }
           const args = q.trim().split(' ');
           if (args.length !== 3) {
-            return reply("� ❌ Formato inválido! Use: " + `${prefix}limitmessage <quantidade> <tempo> <ação>`);
+            return reply("  ❌ Formato inválido! Use: " + `${prefix}limitmessage <quantidade> <tempo> <ação>`);
           }
           const limit = parseInt(args[0]);
           const timeInput = args[1].toLowerCase();
