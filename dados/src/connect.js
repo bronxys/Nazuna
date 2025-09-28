@@ -531,7 +531,6 @@ async function performMigration(NazunaSock) {
         scanResult = await scanForJids(DATABASE_DIR);
     } catch (err) {
         console.error(`Erro crítico no scan: ${err.message}`);
-        await NazunaSock.sendMessage(ownerJid, { text: `❌ Erro ao escanear database: ${err.message}. Iniciando bot sem migração.` });
         return;
     }
 
@@ -546,20 +545,11 @@ async function performMigration(NazunaSock) {
         `🔍 Detectei *${uniqueJids.length} JID(s)* únicos em *${affectedFiles.length + jidFiles.length} fonte(s)* (arquivos e nomes).\n\n` +
         `🚀 Iniciando migração automática para LIDs. Isso pode levar alguns minutos, mas garanto que vale a pena! A bot ficará pausada para mensagens até finalizar. Aguarde aqui... 💕`;
     
-    try {
-        await NazunaSock.sendMessage(ownerJid, { text: initialMsg });
-    } catch (sendErr) {
-        console.error(`Erro ao enviar mensagem inicial: ${sendErr.message}`);
-    }
-
     const { jidToLidMap, successfulFetches } = await fetchLidsInBatches(NazunaSock, uniqueJids);
     const orphanJidsSet = new Set(uniqueJids.filter(jid => !jidToLidMap.has(jid)));
 
     if (jidToLidMap.size === 0) {
         const noLidMsg = `⚠️ *Migração incompleta!* ⚠️\n\nNão foi possível obter LIDs para nenhum dos JIDs detectados. Verifique a conectividade e tente novamente. A bot iniciará normalmente por enquanto. 😔`;
-        try {
-            await NazunaSock.sendMessage(ownerJid, { text: noLidMsg });
-        } catch {}
         return;
     }
 
@@ -587,9 +577,6 @@ async function performMigration(NazunaSock) {
     } catch (processErr) {
         console.error(`Erro no processamento de substituições: ${processErr.message}`);
         const procErrMsg = `⚠️ *Erro parcial na migração!* ⚠️\n\nProblema durante substituições: ${processErr.message}. Alguns arquivos podem não ter sido atualizados. Reiniciar a bot para tentar novamente.`;
-        try {
-            await NazunaSock.sendMessage(ownerJid, { text: procErrMsg });
-        } catch {}
         return;
     }
 
@@ -616,11 +603,6 @@ async function performMigration(NazunaSock) {
 
     finalMsg += `🌸 Agora a bot está otimizada e pronta para brilhar! Aproveite ao máximo, ${nomedono}. Se precisar de algo, é só chamar. <3`;
     
-    try {
-        await NazunaSock.sendMessage(ownerJid, { text: finalMsg });
-    } catch (sendErr) {
-        console.error(`Erro ao enviar mensagem final: ${sendErr.message}`);
-    }
     console.log(`✅ Migração finalizada: ${totalReplacements} edições e ${totalRemovals} remoções em ${allUpdatedFiles.length} arquivos.`);
 }
 
