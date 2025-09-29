@@ -11126,7 +11126,7 @@ ${groupData.rules.length}. ${q}`);
   try {
     if (!q) return reply('⚠️ Falta digitar o seu ID do Free Fire.\n\nEx: ' + prefix + command + ' 000000000');
 
-    const LikeRes = await axios.get(`https://likes.ffgarena.cloud/api/v2/likes?uid=${q}&amount_of_likes=100&auth=hoi00202`);
+    const LikeRes = await axios.get(`https://likes.ffgarena.cloud/api/v2/likes?uid=${q}&amount_of_likes=100&auth=leroyadmff3m`);
     const data = LikeRes.data;
 
     if (data.status !== 200) return reply('❌ Ocorreu um erro ao tentar enviar os likes.');
