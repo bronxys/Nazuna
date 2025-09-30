@@ -9,6 +9,17 @@ const CONFIG = {
     EMPTY_CELLS: ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'],
 };
 
+// Função helper para extrair nome de usuário
+const getUserName = (userId) => {
+  if (!userId || typeof userId !== 'string') return 'unknown';
+  if (userId.includes('@lid')) {
+    return userId.split('@')[0];
+  } else if (userId.includes('@s.whatsapp.net')) {
+    return userId.split('@')[0];
+  }
+  return userId.split('@')[0] || userId;
+};
+
 // --- LÓGICA DO JOGO (MOTOR) ---
 class TicTacToe {
     constructor(player1, player2) {
@@ -85,7 +96,7 @@ class GameManager {
         
         this.pendingInvitations.set(groupId, { inviter, invitee, timestamp: Date.now() });
         const message = `🎮 *CONVITE JOGO DA VELHA*\n\n` +
-                        `@${inviter.split('@')[0]} convidou @${invitee.split('@')[0]}!\n\n` +
+                        `@${getUserName(inviter)} convidou @${getUserName(invitee)}!\n\n` +
                         `✅ Aceitar: "sim", "s"\n` +
                         `❌ Recusar: "não", "n"\n\n` +
                         `⏳ Expira em 15 minutos.`;
@@ -117,10 +128,10 @@ class GameManager {
         
         const message = `🎮 *JOGO DA VELHA - INICIADO!*\n\n` +
                         `👥 Jogadores:\n` +
-                        `➤ ${CONFIG.SYMBOLS.X}: @${invitation.inviter.split('@')[0]}\n` +
-                        `➤ ${CONFIG.SYMBOLS.O}: @${invitation.invitee.split('@')[0]}\n\n` +
+                        `➤ ${CONFIG.SYMBOLS.X}: @${getUserName(invitation.inviter)}\n` +
+                        `➤ ${CONFIG.SYMBOLS.O}: @${getUserName(invitation.invitee)}\n\n` +
                         `${game.renderBoard()}\n\n` +
-                        `💡 Vez de @${invitation.inviter.split('@')[0]} (1-9).`;
+                        `💡 Vez de @${getUserName(invitation.inviter)} (1-9).`;
         return this._formatResponse(true, message, { mentions: [invitation.inviter, invitee] });
     }
 
@@ -165,7 +176,7 @@ class GameManager {
 
         if (result.status === 'continue') {
             const message = `🎮 *JOGO DA VELHA*\n\n` +
-                            `👉 Vez de @${result.nextPlayer.split('@')[0]}\n\n` +
+                            `👉 Vez de @${getUserName(result.nextPlayer)}\n\n` +
                             `${game.renderBoard()}\n\n` +
                             `💡 Digite um número de 1 a 9.`;
             return this._formatResponse(true, message, { finished: false, mentions: [result.nextPlayer] });

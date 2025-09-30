@@ -1,10 +1,3 @@
-/*
-═════════════════════════════
-  Nazuna - Index principal
-  Autor: Hiudy
-  Revisão: 31/08/2025
-═════════════════════════════
-*/
 import { downloadContentFromMessage, generateWAMessageFromContent, generateWAMessage, isJidNewsletter, getContentType } from '@cognima/walib';
 import { exec, execSync } from 'child_process';
 import { parseHTML } from 'linkedom';
@@ -74,6 +67,17 @@ const isGroupId = (id) => id && typeof id === 'string' && id.endsWith('@g.us');
 const isUserId = (id) => id && typeof id === 'string' && (id.includes('@lid') || id.includes('@s.whatsapp.net'));
 const isValidLid = (str) => /^[a-zA-Z0-9_]+@lid$/.test(str);
 const isValidJid = (str) => /^\d+@s\.whatsapp\.net$/.test(str);
+
+// Função para extrair nome de usuário de LID/JID de forma compatível
+const getUserName = (userId) => {
+  if (!userId || typeof userId !== 'string') return 'unknown';
+  if (userId.includes('@lid')) {
+    return userId.split('@')[0];
+  } else if (userId.includes('@s.whatsapp.net')) {
+    return userId.split('@')[0];
+  }
+  return userId.split('@')[0] || userId;
+};
 
 // Função para obter LID a partir de JID (quando necessário para compatibilidade)
 const getLidFromJid = async (nazu, jid) => {
@@ -668,7 +672,7 @@ const validateActivationCode = code => {
   if (codeInfo.used) {
     return {
       valid: false,
-      message: `😕 Este código já foi usado em ${new Date(codeInfo.usedAt).toLocaleDateString('pt-BR')} por ${codeInfo.usedBy?.split('@')[0] || 'alguém'}!`
+      message: `😕 Este código já foi usado em ${new Date(codeInfo.usedAt).toLocaleDateString('pt-BR')} por ${getUserName(codeInfo.usedBy) || 'alguém'}!`
     };
   }
   return {
@@ -1015,7 +1019,7 @@ function checkLevelUp(userId, userData, levelingData, nazu, from) {
     userData.patent = getPatent(userData.level, levelingData.patents);
     fs.writeFileSync(LEVELING_FILE, JSON.stringify(levelingData, null, 2));
     nazu.sendMessage(from, {
-      text: `🎉 @${userId.split('@')[0]} subiu para o nível ${userData.level}!\n🔹 XP atual: ${userData.xp}\n🎖️ Nova patente: ${userData.patent}`,
+      text: `🎉 @${getUserName(userId)} subiu para o nível ${userData.level}!\n🔹 XP atual: ${userData.xp}\n🎖️ Nova patente: ${userData.patent}`,
       mentions: [userId]
     });
   }
@@ -1273,7 +1277,7 @@ const addGlobalBlacklist = (userId, reason, addedBy) => {
   if (blacklistData.users[userId]) {
     return {
       success: false,
-      message: `✨ Usuário @${userId.split('@')[0]} já está na blacklist global!`
+      message: `✨ Usuário @${getUserName(userId)} já está na blacklist global!`
     };
   }
   blacklistData.users[userId] = {
@@ -1284,7 +1288,7 @@ const addGlobalBlacklist = (userId, reason, addedBy) => {
   if (saveGlobalBlacklist(blacklistData)) {
     return {
       success: true,
-      message: `🎉 Usuário @${userId.split('@')[0]} adicionado à blacklist global com sucesso! Motivo: ${reason || 'Não especificado'}`
+      message: `🎉 Usuário @${getUserName(userId)} adicionado à blacklist global com sucesso! Motivo: ${reason || 'Não especificado'}`
     };
   } else {
     return {
@@ -1304,14 +1308,14 @@ const removeGlobalBlacklist = userId => {
   if (!blacklistData.users[userId]) {
     return {
       success: false,
-      message: `🤔 Usuário @${userId.split('@')[0]} não está na blacklist global.`
+      message: `🤔 Usuário @${getUserName(userId)} não está na blacklist global.`
     };
   }
   delete blacklistData.users[userId];
   if (saveGlobalBlacklist(blacklistData)) {
     return {
       success: true,
-      message: `👋 Usuário @${userId.split('@')[0]} removido da blacklist global com sucesso!`
+      message: `👋 Usuário @${getUserName(userId)} removido da blacklist global com sucesso!`
     };
   } else {
     return {
@@ -1508,8 +1512,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const menc_prt = info.message?.extendedTextMessage?.contextInfo?.participant;
     const menc_jid = q.replace("@", "").split(' ')[0] + "@lid";
     const menc_jid2 = info.message?.extendedTextMessage?.contextInfo?.mentionedJid;
-    const menc_os2 = q.includes("@") ? menc_jid2[0] : menc_prt;
-    const sender_ou_n = q.includes("@") ? menc_jid2[0] : menc_prt || sender;
+    const menc_os2 = (menc_jid2 && menc_jid2.length > 0) ? menc_jid2[0] : menc_prt;
+    const sender_ou_n = (menc_jid2 && menc_jid2.length > 0) ? menc_jid2[0] : menc_prt || sender;
     const groupFile = pathz.join(__dirname, '..', 'database', 'grupos', `${from}.json`);
     let groupData = {};
     const groupMetadata = !isGroup ? {} : await nazu.groupMetadata(from).catch(() => ({}));
@@ -2217,7 +2221,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             const afkSince = new Date(afkData.since).toLocaleString('pt-BR', {
               timeZone: 'America/Sao_Paulo'
             });
-            let afkMsg = `😴 @${jid.split('@')[0]} está AFK desde ${afkSince}.`;
+            let afkMsg = `😴 @${getUserName(jid)} está AFK desde ${afkSince}.`;
             if (afkData.reason) {
               afkMsg += `\nMotivo: ${afkData.reason}`;
             }
@@ -2269,18 +2273,18 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     delete: info.key
                   });
                   await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-                  await reply(`🔞 Oops! @${sender.split('@')[0]}, conteúdo impróprio não é permitido e você foi removido(a).`, {
+                  await reply(`🔞 Oops! @${getUserName(sender)}, conteúdo impróprio não é permitido e você foi removido(a).`, {
                     mentions: [sender]
                   });
                 } catch (adminError) {
                   console.error(`Erro ao remover usuário por anti-porn: ${adminError}`);
-                  await reply(`⚠️ Não consegui remover @${sender.split('@')[0]} automaticamente após detectar conteúdo impróprio. Admins, por favor, verifiquem!`, {
+                  await reply(`⚠️ Não consegui remover @${getUserName(sender)} automaticamente após detectar conteúdo impróprio. Admins, por favor, verifiquem!`, {
                     mentions: [sender]
                   });
                 }
                 ;
               } else {
-                await reply(`@${sender.split('@')[0]} enviou conteúdo impróprio (${reason}), mas não posso removê-lo sem ser admin.`, {
+                await reply(`@${getUserName(sender)} enviou conteúdo impróprio (${reason}), mas não posso removê-lo sem ser admin.`, {
                   mentions: [sender]
                 });
               }
@@ -2306,7 +2310,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         }
       });
       await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-      await reply(`🗺️ Ops! @${sender.split('@')[0]}, parece que localizações não são permitidas aqui e você foi removido(a).`, {
+      await reply(`🗺️ Ops! @${getUserName(sender)}, parece que localizações não são permitidas aqui e você foi removido(a).`, {
         mentions: [sender]
       });
     }
@@ -2336,7 +2340,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         }
       });
       await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-      await reply(`📄 Oops! @${sender.split('@')[0]}, parece que documentos não são permitidos aqui e você foi removido(a).`, {
+      await reply(`📄 Oops! @${getUserName(sender)}, parece que documentos não são permitidos aqui e você foi removido(a).`, {
         mentions: [sender]
       });
     }
@@ -2445,11 +2449,11 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         });
         if (isBotAdmin) {
           await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-          await reply(`🔗 Ops! @${sender.split('@')[0]}, links não são permitidos aqui e você foi removido(a).`, {
+          await reply(`🔗 Ops! @${getUserName(sender)}, links não são permitidos aqui e você foi removido(a).`, {
             mentions: [sender]
           });
         } else {
-          await reply(`🔗 Atenção, @${sender.split('@')[0]}! Links não são permitidos aqui. Não consigo remover você, mas por favor, evite enviar links. 😉`, {
+          await reply(`🔗 Atenção, @${getUserName(sender)}! Links não são permitidos aqui. Não consigo remover você, mas por favor, evite enviar links. 😉`, {
             mentions: [sender]
           });
         }
@@ -2572,11 +2576,11 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           if (!AllgroupMembers.includes(sender)) return;
           if (isBotAdmin) {
             await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-            await reply(`🔗 Ops! @${sender.split('@')[0]}, links de outros grupos não são permitidos aqui e você foi removido(a).`, {
+            await reply(`🔗 Ops! @${getUserName(sender)}, links de outros grupos não são permitidos aqui e você foi removido(a).`, {
               mentions: [sender]
             });
           } else {
-            await reply(`🔗 Atenção, @${sender.split('@')[0]}! Links de outros grupos não são permitidos. Não consigo remover você, mas por favor, evite compartilhar esses links. 😉`, {
+            await reply(`🔗 Atenção, @${getUserName(sender)}! Links de outros grupos não são permitidos. Não consigo remover você, mas por favor, evite compartilhar esses links. 😉`, {
               mentions: [sender]
             });
           }
@@ -2607,7 +2611,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           console.log(`┃ 👤 Usuário: ${(pushname || 'Sem Nome').padEnd(28)}`);
         } else {
           console.log(`┃ 👤 Usuário: ${(pushname || 'Sem Nome').padEnd(28)}`);
-          console.log(`┃ 📱 Número: ${sender.split('@')[0].padEnd(28)}`);
+          console.log(`┃ 📱 Número: ${getUserName(sender).padEnd(28)}`);
         }
         console.log('┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫');
         console.log(`┃ 🕒 Data/Hora: ${timestamp.padEnd(27)}`);
@@ -2668,10 +2672,21 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     ;
     if (isGroup && groupData.blockedUsers && (groupData.blockedUsers[sender] || groupData.blockedUsers[sender.split('@')[0]]) && isCmd) {
       return reply(`🚫 Oops! Parece que você não pode usar comandos neste grupo.\nMotivo: ${groupData.blockedUsers[sender] ? groupData.blockedUsers[sender].reason : groupData.blockedUsers[sender.split('@')[0]].reason}`);
+    };
+
+    const globalBlacklist = loadGlobalBlacklist();
+    if (isCmd && sender && globalBlacklist.users && (globalBlacklist.users[sender] || globalBlacklist.users[getUserName(sender)])) {
+      const blacklistEntry = globalBlacklist.users[sender] || globalBlacklist.users[getUserName(sender)];
+      return reply(`🚫 Você está na blacklist global e não pode usar comandos.\nMotivo: ${blacklistEntry.reason}\nAdicionado por: ${blacklistEntry.addedBy}\nData: ${new Date(blacklistEntry.addedAt).toLocaleString('pt-BR')}`);
+    };
+    
+    if (isGroup && isCmd && groupData.blacklist && (groupData.blacklist[sender] || groupData.blacklist[getUserName(sender)])) {
+      const blacklistEntry = groupData.blacklist[sender] || groupData.blacklist[getUserName(sender)];
+      return reply(`🚫 Você está na blacklist deste grupo e não pode usar comandos.\nMotivo: ${blacklistEntry.reason}\nData: ${new Date(blacklistEntry.timestamp).toLocaleString('pt-BR')}`);
     }
     ;
-    if (sender && sender.includes('@') && globalBlocks.users && (globalBlocks.users[sender.split('@')[0]] || globalBlocks.users[sender]) && isCmd) {
-      return reply(`🚫 Parece que você está bloqueado de usar meus comandos globalmente.\nMotivo: ${globalBlocks.users[sender] ? globalBlocks.users[sender].reason : globalBlocks.users[sender.split('@')[0]].reason}`);
+    if (sender && sender.includes('@') && globalBlocks.users && (globalBlocks.users[getUserName(sender)] || globalBlocks.users[sender]) && isCmd) {
+      return reply(`🚫 Parece que você está bloqueado de usar meus comandos globalmente.\nMotivo: ${globalBlocks.users[sender] ? globalBlocks.users[sender].reason : globalBlocks.users[getUserName(sender)].reason}`);
     }
     ;
     if (isCmd && globalBlocks.commands && globalBlocks.commands[command]) {
@@ -2782,7 +2797,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         if (userData.count > groupData.messageLimit.limit) {
           if (groupData.messageLimit.action === 'ban' && isBotAdmin) {
             await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-            await reply(`🚨 @${sender.split('@')[0]} foi banido por exceder o limite de ${groupData.messageLimit.limit} mensagens em ${groupData.messageLimit.interval}s!`, {
+            await reply(`🚨 @${getUserName(sender)} foi banido por exceder o limite de ${groupData.messageLimit.limit} mensagens em ${groupData.messageLimit.interval}s!`, {
               mentions: [sender]
             });
             delete groupData.messageLimit.users[sender];
@@ -2791,13 +2806,13 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             const warnings = groupData.messageLimit.warnings[sender];
             if (warnings >= 3 && isBotAdmin) {
               await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-              await reply(`🚨 @${sender.split('@')[0]} foi banido por exceder o limite de mensagens (${groupData.messageLimit.limit} em ${groupData.messageLimit.interval}s) 3 vezes!`, {
+              await reply(`🚨 @${getUserName(sender)} foi banido por exceder o limite de mensagens (${groupData.messageLimit.limit} em ${groupData.messageLimit.interval}s) 3 vezes!`, {
                 mentions: [sender]
               });
               delete groupData.messageLimit.warnings[sender];
               delete groupData.messageLimit.users[sender];
             } else {
-              await reply(`⚠️ @${sender.split('@')[0]}, você excedeu o limite de ${groupData.messageLimit.limit} mensagens em ${groupData.messageLimit.interval}s! Advertência ${warnings}/3.`, {
+              await reply(`⚠️ @${getUserName(sender)}, você excedeu o limite de ${groupData.messageLimit.limit} mensagens em ${groupData.messageLimit.interval}s! Advertência ${warnings}/3.`, {
                 mentions: [sender]
               });
             }
@@ -2819,7 +2834,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           await nazu.sendMessage(from, {
             delete: info.key
           });
-          await reply(`@${sender.split('@')[0]}, você atingiu o limite de ${partnerData.limit} links de grupos.`, {
+          await reply(`@${getUserName(sender)}, você atingiu o limite de ${partnerData.limit} links de grupos.`, {
             mentions: [sender]
           });
         }
@@ -2827,7 +2842,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         await nazu.sendMessage(from, {
           delete: info.key
         });
-        await reply(`@${sender.split('@')[0]}, você não é um parceiro e não pode enviar links de grupos.`, {
+        await reply(`@${getUserName(sender)}, você não é um parceiro e não pode enviar links de grupos.`, {
           mentions: [sender]
         });
       }
@@ -2854,7 +2869,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         groupData.warnings[sender].lastWarned = new Date().toISOString();
         const warnCount = groupData.warnings[sender].count;
         const warnLimit = groupData.antifig.warnLimit || 3;
-        let warnMessage = `🚫 @${sender.split('@')[0]}, figurinhas não são permitidas neste grupo! Advertência ${warnCount}/${warnLimit}.`;
+        let warnMessage = `🚫 @${getUserName(sender)}, figurinhas não são permitidas neste grupo! Advertência ${warnCount}/${warnLimit}.`;
         if (warnCount >= warnLimit && isBotAdmin) {
           warnMessage += `\n⚠️ Você atingiu o limite de advertências e será removido.`;
           await nazu.groupParticipantsUpdate(from, [sender], 'remove');
@@ -2867,7 +2882,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
       } catch (error) {
         console.error("Erro no sistema antifig:", error);
-        await reply(`⚠️ Erro ao processar antifig para @${sender.split('@')[0]}. Admins, por favor, verifiquem!`, {
+        await reply(`⚠️ Erro ao processar antifig para @${getUserName(sender)}. Admins, por favor, verifiquem!`, {
           mentions: [sender]
         });
       }
@@ -3052,7 +3067,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           if (!target) return reply('Marque um usuário para resetar ou use "all".');
           delete econ.users[target];
           saveEconomy(econ);
-          return reply(`✅ Gold resetado para @${target.split('@')[0]}.`, { mentions:[target] });
+          return reply(`✅ Gold resetado para @${getUserName(target)}.`, { mentions:[target] });
         }
 
         if (sub === 'perfilrpg' || sub === 'carteira') {
@@ -3102,7 +3117,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           if (mentioned === sender) return reply('Você não pode transferir para si mesmo.');
           me.wallet -= amount; other.wallet += amount;
           saveEconomy(econ);
-          return reply(`💸 Transferido ${fmt(amount)} para @${mentioned.split('@')[0]}.`, { mentions:[mentioned] });
+          return reply(`💸 Transferido ${fmt(amount)} para @${getUserName(mentioned)}.`, { mentions:[mentioned] });
         }
 
         if (sub === 'loja' || sub === 'lojagold') {
@@ -3578,14 +3593,14 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
             target.wallet -= amt; me.wallet += amt;
             me.cooldowns.rob = Date.now() + 10*60*1000;
             saveEconomy(econ);
-            return reply(`🦹 Sucesso! Você roubou ${fmt(amt)} de @${mentioned.split('@')[0]}.`, { mentions:[mentioned] });
+            return reply(`🦹 Sucesso! Você roubou ${fmt(amt)} de @${getUserName(mentioned)}.`, { mentions:[mentioned] });
           } else {
             const multa = 80 + Math.floor(Math.random()*121); // 80-200
             const pay = Math.min(me.wallet, multa);
             me.wallet -= pay; target.wallet += pay;
             me.cooldowns.rob = Date.now() + 10*60*1000;
             saveEconomy(econ);
-            return reply(`🚨 Você foi pego! Pagou ${fmt(pay)} de multa para @${mentioned.split('@')[0]}.`, { mentions:[mentioned] });
+            return reply(`🚨 Você foi pego! Pagou ${fmt(pay)} de multa para @${getUserName(mentioned)}.`, { mentions:[mentioned] });
           }
         }
 
@@ -3832,9 +3847,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           let styleKey = command === 'genrealism' ? 'default' : command.slice(3);
           if (!KeyCog) {
             await nazu.sendMessage(nmrdn, {
-              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
             });
-            return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+            return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
           }
           if (!q) return reply(`Falta o prompt.\nEx: ${prefix}${command} Black Cat`);
           await reply('⏳ Só um segundinho, estou gerando a imagem... ✨');
@@ -3869,9 +3884,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Gemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Gemma... ✨`);
@@ -3893,9 +3908,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Phi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Phi... ✨`);
@@ -3916,9 +3931,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Qwen2? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Qwen2... ✨`);
@@ -3940,9 +3955,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Qwen? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Qwen... ✨`);
@@ -3964,9 +3979,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Llama? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Llama... ✨`);
@@ -3988,9 +4003,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Baichuan? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Baichuan... ✨`);
@@ -4011,9 +4026,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Marin? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Marin... ✨`);
@@ -4035,9 +4050,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Kimi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Kimi... ✨`);
@@ -4058,9 +4073,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Mistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Mistral... ✨`);
@@ -4081,9 +4096,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Magistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Magistral... ✨`);
@@ -4105,9 +4120,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o RakutenAI? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o RakutenAI... ✨`);
@@ -4128,9 +4143,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Yi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Yi... ✨`);
@@ -4151,9 +4166,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Gemma2? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Gemma2... ✨`);
@@ -4174,9 +4189,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Swallow? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Swallow... ✨`);
@@ -4197,9 +4212,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Falcon? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Falcon... ✨`);
@@ -4220,9 +4235,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Qwencoder? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o Qwencoder... ✨`);
@@ -4243,9 +4258,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o CodeGemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply(`⏳ Só um segundinho, estou consultando o CodeGemma... ✨`);
@@ -4266,9 +4281,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`📝 Quer um resumo? Envie o texto logo após o comando ${prefix}resumir! Exemplo: ${prefix}resumir [seu texto aqui] 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply('⏳ Aguarde enquanto preparo um resumo bem caprichado... ✨');
@@ -4290,9 +4305,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🌐 Quer resumir uma página? Envie a URL após o comando ${prefix}resumirurl! Exemplo: ${prefix}resumirurl https://exemplo.com/artigo 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           if (!q.startsWith('http://') && !q.startsWith('https://')) {
@@ -4336,9 +4351,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`💡 Quer ideias criativas? Diga o tema após o comando ${prefix}ideias! Exemplo: ${prefix}ideias nomes para um aplicativo de receitas 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply('⏳ Um segundinho, estou pensando em ideias incríveis... ✨');
@@ -4361,9 +4376,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤓 Quer entender algo? Diga o que deseja explicar após o comando ${prefix}explicar! Exemplo: ${prefix}explicar o que é inteligência artificial 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply('⏳ Um momentinho, estou preparando uma explicação bem clara... ✨');
@@ -4386,9 +4401,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`✍️ Quer corrigir um texto? Envie o texto após o comando ${prefix}corrigir! Exemplo: ${prefix}corrigir Eu foi no mercado e comprei frutas. 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply('⏳ Aguarde enquanto dou um polimento no seu texto... ✨');
@@ -4404,9 +4419,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`📢 Ei, falta a pergunta! Me diga o que quer saber após o comando ${prefix}cog! 😴`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply('⏳ Um momentinho, estou pensando na melhor resposta... 🌟');
@@ -4423,9 +4438,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
 Exemplo: ${prefix}tradutor inglês | Bom dia! 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           await reply('Aguarde um momentinho... ☀️');
@@ -4550,9 +4565,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         if (!q) return reply(`📔 Qual palavra você quer procurar no dicionário? Me diga após o comando ${prefix}${command}! 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         reply("📔 Procurando no dicionário... Aguarde um pouquinho! ⏳");
         try {
@@ -4629,7 +4644,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!targetUserJid) {
             return reply("🤔 Você precisa marcar o usuário ou fornecer o número completo (ex: 5511999998888) para adicionar como subdono.");
           }
-          const normalizedJid = (isUserId(targetUserJid) || isValidJid(targetUserJid)) ? targetUserJid : (targetUserJid.replace(/\D/g, '') + '@s.whatsapp.net');
+          const normalizedJid = (isUserId(targetUserJid) || isValidJid(targetUserJid)) ? targetUserJid : buildUserId(targetUserJid);
           const result = addSubdono(normalizedJid, numerodono);
           await reply(result.message);
         } catch (e) {
@@ -4641,11 +4656,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'rmsubdono':
         if (!isOwner || isOwner && isSubOwner) return reply("🚫 Apenas o Dono principal pode remover subdonos!");
         try {
-          const targetUserJid = menc_jid2 && menc_jid2.length > 0 ? menc_jid2[0] : q.includes('@') ? q.split(' ')[0].replace('@', '') + '@s.whatsapp.net' : null;
+          const targetUserJid = menc_jid2 && menc_jid2.length > 0 ? menc_jid2[0] : q.includes('@') ? buildUserId(q.split(' ')[0].replace('@', '')) : null;
           if (!targetUserJid) {
             return reply("🤔 Você precisa marcar o usuário ou fornecer o número completo (ex: 5511999998888) para remover como subdono.");
           }
-          const normalizedJid = targetUserJid.includes('@') ? targetUserJid : targetUserJid.replace(/\D/g, '') + '@s.whatsapp.net';
+          const normalizedJid = isUserId(targetUserJid) ? targetUserJid : buildUserId(targetUserJid);
           const result = removeSubdono(normalizedJid);
           await reply(result.message);
         } catch (e) {
@@ -4825,7 +4840,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         userDataAdd.xp += xpToAdd;
         checkLevelUp(menc_os2, userDataAdd, levelingDataAdd, nazu, from);
         fs.writeFileSync(LEVELING_FILE, JSON.stringify(levelingDataAdd, null, 2));
-        await reply(`✅ Adicionado ${xpToAdd} XP para @${menc_os2.split('@')[0]}`, {
+        await reply(`✅ Adicionado ${xpToAdd} XP para @${getUserName(menc_os2)}`, {
           mentions: [menc_os2]
         });
         break;
@@ -5506,7 +5521,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isOwner) return reply("Apenas o dono pode adicionar usuários à blacklist global.");
           if (!menc_os2 && !q) return reply(`Marque o usuário ou forneça o número (ex: ${prefix}addblackglobal @usuario motivo).`);
           const reason = args.length > 1 ? args.slice(1).join(' ') : 'Não especificado';
-          const targetUser = menc_os2 || q.split(' ')[0].replace(/\D/g, '') + '@s.whatsapp.net';
+          const targetUser = menc_os2 || (q.split(' ')[0].includes('@') ? q.split(' ')[0] : (isValidJid(q.split(' ')[0]) || isValidLid(q.split(' ')[0])) ? q.split(' ')[0] : q.split(' ')[0].replace(/\D/g, '') + '@s.whatsapp.net');
           const result = addGlobalBlacklist(targetUser, reason, pushname);
           await reply(result.message, {
             mentions: [targetUser]
@@ -5520,7 +5535,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isOwner) return reply("Apenas o dono pode remover usuários da blacklist global.");
           if (!menc_os2 && !q) return reply(`Marque o usuário ou forneça o número (ex: ${prefix}remblackglobal @usuario).`);
-          const targetUser = menc_os2 || q.split(' ')[0].replace(/\D/g, '') + '@s.whatsapp.net';
+          const targetUser = menc_os2 || (q.split(' ')[0].includes('@') ? q.split(' ')[0] : (isValidJid(q.split(' ')[0]) || isValidLid(q.split(' ')[0])) ? q.split(' ')[0] : q.split(' ')[0].replace(/\D/g, '') + '@s.whatsapp.net');
           const result = removeGlobalBlacklist(targetUser);
           await reply(result.message, {
             mentions: [targetUser]
@@ -5676,9 +5691,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'shazam':
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
           });
-          return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+          return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
         try {
           if (isMedia && !info.message.imageMessage && !info.message.videoMessage || isQuotedAudio) {
@@ -6457,11 +6472,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'blockuserg':
         if (!isOwner) return reply("Este comando é apenas para o meu dono");
         try {
+          if (!menc_os2) return reply("Marque alguém 🙄");
           var reason;
           reason = q ? q.includes('@') ? q.includes(' ') ? q.split(' ').slice(1).join(' ') : "Não informado" : q : 'Não informado';
           var menc_os3;
-          menc_os3 = menc_os2.includes(' ') ? menc_os2.split(' ')[0] : menc_os2;
-          if (!menc_os3) return reply("Marque alguém 🙄");
+          menc_os3 = (menc_os2 && menc_os2.includes(' ')) ? menc_os2.split(' ')[0] : menc_os2;
+          if (!menc_os3) return reply("Erro ao processar usuário mencionado");
           const blockFile = __dirname + '/../database/globalBlocks.json';
           globalBlocks.users = globalBlocks.users || {};
           globalBlocks.users[menc_os3] = {
@@ -6482,16 +6498,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!menc_os2) return reply("Marque alguém 🙄");
           const blockFile = __dirname + '/../database/globalBlocks.json';
-          if (!globalBlocks.users || !globalBlocks.users[menc_os2] && !globalBlocks.users[menc_os2.split('@')[0]]) {
-            return reply(`❌ O usuário @${menc_os2.split('@')[0]} não está bloqueado!`, {
+          if (!globalBlocks.users) {
+            return reply(`ℹ️ Não há usuários bloqueados globalmente.`);
+          }
+          const userToUnblock = globalBlocks.users[menc_os2] ? menc_os2 : 
+                               globalBlocks.users[menc_os2.split('@')[0]] ? menc_os2.split('@')[0] : null;
+          if (!userToUnblock) {
+            return reply(`❌ O usuário @${menc_os2.split('@')[0]} não está bloqueado globalmente!`, {
               mentions: [menc_os2]
             });
           }
-          if (globalBlocks.users[menc_os2]) {
-            delete globalBlocks.users[menc_os2];
-          } else if (globalBlocks.users[menc_os2.split('@')[0]]) {
-            delete globalBlocks.users[menc_os2.split('@')[0]];
-          }
+          delete globalBlocks.users[userToUnblock];
           fs.writeFileSync(blockFile, JSON.stringify(globalBlocks, null, 2));
           await reply(`✅ Usuário @${menc_os2.split('@')[0]} desbloqueado globalmente!`, {
             mentions: [menc_os2]
@@ -6971,7 +6988,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isOwner) return reply('⛔ Desculpe, este comando é exclusivo para o meu dono!');
           const premiumList = premiumListaZinha || {};
-          const usersPremium = Object.keys(premiumList).filter(id => id.includes('@s.whatsapp.net'));
+          const usersPremium = Object.keys(premiumList).filter(id => isUserId(id));
           const groupsPremium = Object.keys(premiumList).filter(id => id.includes('@g.us'));
           let teks = `✨ *Lista de Membros Premium* ✨\n\n`;
           
@@ -7108,7 +7125,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`🧹 Limpeza do rank de atividade concluída!\n\nRemovidos ${removedCount} usuários ausentes:\n${removedUsers.map(name => `• @${name}`).join('\n') || 'Nenhum usuário ausente encontrado.'}`, {
-            mentions: removedUsers.map(name => `${name}@s.whatsapp.net`)
+            mentions: removedUsers.map(name => buildUserId(name))
           });
         } catch (e) {
           console.error('Erro no comando limparrank:', e);
@@ -7552,7 +7569,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           } catch (e) {
             totalCommands = 'N/A';
           }
-          const premiumUsers = Object.keys(premiumListaZinha).filter(key => key.includes('@s.whatsapp.net')).length;
+          const premiumUsers = Object.keys(premiumListaZinha).filter(key => isUserId(key)).length;
           const premiumGroups = Object.keys(premiumListaZinha).filter(key => key.includes('@g.us')).length;
           const blockedUsers = Object.keys(globalBlocks.users || {}).length;
           const blockedCommands = Object.keys(globalBlocks.commands || {}).length;
@@ -7692,7 +7709,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const subject = meta.subject || "—";
           const desc = meta.desc?.toString() || "Sem descrição";
           const createdAt = meta.creation ? new Date(meta.creation * 1000).toLocaleString('pt-BR') : "Desconhecida";
-          const ownerJid = meta.owner || meta.participants.find(p => p.admin && p.isCreator)?.lid || meta.participants.find(p => p.admin && p.isCreator)?.id || "unknown@s.whatsapp.net";
+          const ownerJid = meta.owner || meta.participants.find(p => p.admin && p.isCreator)?.lid || meta.participants.find(p => p.admin && p.isCreator)?.id || buildUserId("unknown");
           const ownerTag = `@${ownerJid.split('@')[0]}`;
           const totalMembers = meta.participants.length;
           const totalAdmins = groupAdmins.length;
@@ -8257,7 +8274,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           var reason;
           reason = q ? q.includes('@') ? q.includes(' ') ? q.split(' ').slice(1).join(' ') : "Não informado" : q : 'Não informado';
           var menc_os3;
-          menc_os3 = menc_os2.includes(' ') ? menc_os2.split(' ')[0] : menc_os2;
+          menc_os3 = (menc_os2 && menc_os2.includes(' ')) ? menc_os2.split(' ')[0] : menc_os2;
+          if (!menc_os3) return reply("Erro ao processar usuário mencionado");
           groupData.blockedUsers = groupData.blockedUsers || {};
           groupData.blockedUsers[menc_os3] = {
             reason,
@@ -8278,12 +8296,17 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         if (!isGroupAdmin) return reply("você precisa ser adm 💔");
         try {
           if (!menc_os2) return reply("Marque alguém 🙄");
-          if (!groupData.blockedUsers || !groupData.blockedUsers[menc_os2] && !groupData.blockedUsers[menc_os2.split('@')[0]]) return reply(`❌ O usuário @${menc_os2.split('@')[0]} não está bloqueado no grupo!`, {
-            mentions: [menc_os2]
-          });
-          if (!delete groupData.blockedUsers[menc_os2]) {
-            delete groupData.blockedUsers[menc_os2.split('@')[0]];
+          if (!groupData.blockedUsers) {
+            return reply(`ℹ️ Não há usuários bloqueados neste grupo.`);
           }
+          const userToUnblock = groupData.blockedUsers[menc_os2] ? menc_os2 : 
+                               groupData.blockedUsers[menc_os2.split('@')[0]] ? menc_os2.split('@')[0] : null;
+          if (!userToUnblock) {
+            return reply(`❌ O usuário @${menc_os2.split('@')[0]} não está bloqueado no grupo!`, {
+              mentions: [menc_os2]
+            });
+          }
+          delete groupData.blockedUsers[userToUnblock];
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
           await reply(`✅ Usuário @${menc_os2.split('@')[0]} desbloqueado no grupo!`, {
             mentions: [menc_os2]
@@ -9848,9 +9871,9 @@ Exemplos:
         try {
           if (!KeyCog) {
             await nazu.sendMessage(nmrdn, {
-              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API Key de IA ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$10/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
+              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada ou adquirida. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Os planos são super acessíveis (a partir de R$15/mês, sem limite de requisições). 🚀\nwa.me/553399285117`
             });
-            return reply('O sistema de IA está temporariamente desativado. Meu dono já foi notificado! 😺');
+            return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
           }
           if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
           if (!isGroupAdmin) return reply("Você precisa ser administrador 💔");
