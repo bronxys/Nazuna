@@ -2,6 +2,7 @@
 // O nome da chave será o nome no objeto final. O valor é o caminho do arquivo.
 const menuModules = {
     menu: "./menu.js",
+    menuButtons: "./menuButtons.js",
     menuAlterador: "./alteradores.js",
     menudown: "./menudown.js",
     menuadm: "./menuadm.js",

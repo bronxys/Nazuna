@@ -26,6 +26,7 @@ ${bottomBorder}
 ${menuTopBorder}${separatorIcon} *${othersMenuTitle}*
 ${middleBorder}
 ${middleBorder}${menuItemIcon}${prefix}figualetoria
+${middleBorder}${menuItemIcon}${prefix}figurinhas
 ${middleBorder}${menuItemIcon}${prefix}rename
 ${middleBorder}${menuItemIcon}${prefix}rgtake
 ${middleBorder}${menuItemIcon}${prefix}take

@@ -31,6 +31,7 @@ ${middleBorder}${menuItemIcon}${prefix}nomebot
 ${middleBorder}${menuItemIcon}${prefix}apikey
 ${middleBorder}${menuItemIcon}${prefix}fotomenu
 ${middleBorder}${menuItemIcon}${prefix}videomenu
+${middleBorder}${menuItemIcon}${prefix}botoes
 ${bottomBorder}
 
 ${menuTopBorder}${separatorIcon} *${designMenuTitle}*

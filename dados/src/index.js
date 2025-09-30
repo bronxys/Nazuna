@@ -1328,13 +1328,11 @@ const getGlobalBlacklist = () => {
   return loadGlobalBlacklist();
 };
 
-// Funções para gerenciar o design do menu
 const loadMenuDesign = () => {
   try {
     if (fs.existsSync(MENU_DESIGN_FILE)) {
       return JSON.parse(fs.readFileSync(MENU_DESIGN_FILE, 'utf-8'));
     } else {
-      // Design padrão caso o arquivo não exista
       return {
         header: `╭┈⊰ 🌸 『 *{botName}* 』\n┊Olá, {userName}!\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`,
         menuTopBorder: "╭┈",
@@ -1347,7 +1345,6 @@ const loadMenuDesign = () => {
     }
   } catch (error) {
     console.error(`❌ Erro ao carregar design do menu: ${error.message}`);
-    // Retorna design padrão em caso de erro
     return {
       header: `╭┈⊰ 🌸 『 *{botName}* 』\n┊Olá, {userName}!\n╰─┈┈┈┈┈◜❁◞┈┈┈┈┈─╯`,
       menuTopBorder: "╭┈",
@@ -1404,6 +1401,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
   const menus = await menusModule.default;
   const {
     menu,
+    menuButtons,
     menudown,
     menuadm,
     menubn,
@@ -1499,13 +1497,48 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const isVideo = type === 'videoMessage';
     const isVisuU2 = type === 'viewOnceMessageV2';
     const isVisuU = type === 'viewOnceMessage';
-    const isButtonMessage = info.message.interactiveMessage || info.message.templateButtonReplyMessage || info.message.buttonsMessage ? true : false;
+    const isButtonMessage = info.message.interactiveMessage || info.message.templateButtonReplyMessage || info.message.buttonsMessage || info.message.interactiveResponseMessage || info.message.listResponseMessage || info.message.buttonsResponseMessage ? true : false;
     const isStatusMention = JSON.stringify(info.message).includes('groupStatusMentionMessage');
     const getMessageText = message => {
       if (!message) return '';
+      
+      if (message.interactiveResponseMessage) {
+        const interactiveResponse = message.interactiveResponseMessage;
+        
+        if (interactiveResponse.nativeFlowResponseMessage?.paramsJson) {
+          try {
+            const params = JSON.parse(interactiveResponse.nativeFlowResponseMessage.paramsJson);
+            return params.id || '';
+          } catch (error) {
+            console.error('Erro ao processar resposta de single_select:', error);
+          }
+        }
+        
+        if (interactiveResponse.body?.text) {
+          return interactiveResponse.body.text;
+        }
+        
+        if (interactiveResponse.selectedDisplayText) {
+          return interactiveResponse.selectedDisplayText;
+        }
+        
+        if (typeof interactiveResponse === 'string') {
+          return interactiveResponse;
+        }
+      }
+      
+      if (message.listResponseMessage?.singleSelectReply?.selectedRowId) {
+        return message.listResponseMessage.singleSelectReply.selectedRowId;
+      }
+      
+      if (message.buttonsResponseMessage?.selectedButtonId) {
+        return message.buttonsResponseMessage.selectedButtonId;
+      }
+      
       return message.conversation || message.extendedTextMessage?.text || message.imageMessage?.caption || message.videoMessage?.caption || message.documentWithCaptionMessage?.message?.documentMessage?.caption || message.viewOnceMessage?.message?.imageMessage?.caption || message.viewOnceMessage?.message?.videoMessage?.caption || message.viewOnceMessageV2?.message?.imageMessage?.caption || message.viewOnceMessageV2?.message?.videoMessage?.caption || message.editedMessage?.message?.protocolMessage?.editedMessage?.extendedTextMessage?.text || message.editedMessage?.message?.protocolMessage?.editedMessage?.imageMessage?.caption || '';
     };
     const body = getMessageText(info.message) || info?.text || '';
+
     const args = body.trim().split(/ +/).slice(1);
     var q = args.join(' ');
     const budy2 = normalizar(body);
@@ -2143,6 +2176,130 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       }
     };
     startGpScheduleWorker(nazu);
+
+    let autoHorariosWorkerStarted = global.autoHorariosWorkerStarted || false;
+    const startAutoHorariosWorker = (nazuInstance) => {
+      try {
+        if (autoHorariosWorkerStarted) return;
+        autoHorariosWorkerStarted = true;
+        global.autoHorariosWorkerStarted = true;
+        
+        setInterval(async () => {
+          try {
+            const now = new Date();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            
+            if (minutes !== 0 || seconds > 30) return;
+            
+            const autoSchedulesPath = './dados/database/autohorarios.json';
+            if (!fs.existsSync(autoSchedulesPath)) return;
+            
+            let autoSchedules = {};
+            try {
+              autoSchedules = JSON.parse(fs.readFileSync(autoSchedulesPath, 'utf8'));
+            } catch (e) {
+              return;
+            }
+            
+            const currentHour = now.getHours();
+            
+            for (const [chatId, config] of Object.entries(autoSchedules)) {
+              if (!config.enabled) continue;
+              if (!chatId.endsWith('@g.us')) continue;
+              
+              try {
+                const currentTime = new Date();
+                const currentBrazilTime = new Date(currentTime.getTime() - (3 * 60 * 60 * 1000));
+                
+                const games = [
+                  { name: "🎯 FORTUNE TIGER", hours: [9, 11, 14, 16, 18, 20, 22] },
+                  { name: "🐂 FORTUNE OX", hours: [8, 10, 13, 15, 17, 19, 21] },
+                  { name: "🐭 FORTUNE MOUSE", hours: [7, 12, 14, 16, 19, 21, 23] },
+                  { name: "🐰 FORTUNE RABBIT", hours: [6, 9, 11, 15, 18, 20, 22] },
+                  { name: "🐉 FORTUNE DRAGON", hours: [8, 10, 12, 16, 18, 21, 23] },
+                  { name: "💎 GATES OF OLYMPUS", hours: [7, 9, 13, 17, 19, 22, 0] },
+                  { name: "⚡ GATES OF AZTEC", hours: [6, 11, 14, 16, 20, 22, 1] },
+                  { name: "🍭 SWEET BONANZA", hours: [8, 12, 15, 17, 19, 21, 23] },
+                  { name: "🏺 HAND OF MIDAS", hours: [7, 10, 13, 16, 18, 20, 0] },
+                  { name: "🌟 STARLIGHT PRINCESS", hours: [6, 9, 12, 15, 19, 22, 1] },
+                  { name: "🔥 FIRE PORTALS", hours: [8, 11, 14, 17, 20, 23, 2] },
+                  { name: "⭐ STAR CLUSTERS", hours: [7, 10, 12, 16, 18, 21, 0] },
+                  { name: "🌊 AQUA MILLIONS", hours: [6, 9, 13, 15, 19, 22, 1] },
+                  { name: "🎪 CIRCUS LAUNCH", hours: [8, 11, 14, 16, 20, 23, 2] },
+                  { name: "🏖️ CASH PATROL", hours: [7, 10, 13, 17, 19, 21, 0] },
+                  { name: "🎊 PARTY FEVER", hours: [6, 12, 15, 18, 20, 22, 1] },
+                  { name: "🎭 MYSTERY JOKER", hours: [8, 10, 14, 16, 19, 23, 2] },
+                  { name: "🎰 SPIN PARTY", hours: [7, 9, 13, 15, 18, 21, 0] },
+                  { name: "💰 MONEY MAKER", hours: [6, 11, 12, 17, 20, 22, 1] }
+                ];
+                
+                let responseText = `┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n`;
+                responseText += `┃    🎰 *HORÁRIOS PAGANTES*   ┃\n`;
+                responseText += `┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n`;
+                responseText += `🕐 *Atualizado automaticamente:*\n`;
+                responseText += `📅 ${currentBrazilTime.toLocaleDateString('pt-BR')}\n`;
+                responseText += `⏰ ${currentBrazilTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}\n\n`;
+                
+                games.forEach(game => {
+                  const todayHours = game.hours.map(baseHour => {
+                    const variation = Math.floor(Math.random() * 21) - 10;
+                    const finalHour = baseHour + Math.floor(variation / 60);
+                    const finalMinutes = Math.abs(variation % 60);
+                    
+                    const displayHour = finalHour < 0 ? 24 + finalHour : finalHour > 23 ? finalHour - 24 : finalHour;
+                    return `${displayHour.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}`;
+                  });
+                  
+                  responseText += `${game.name}\n`;
+                  responseText += `🕐 ${todayHours.join(' • ')}\n\n`;
+                });
+                
+                if (config.link) {
+                  responseText += `┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n`;
+                  responseText += `┃      🔗 *LINK DE APOSTAS*     ┃\n`;
+                  responseText += `┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n`;
+                  responseText += `${config.link}\n\n`;
+                }
+                
+                responseText += `⚠️ *AVISOS IMPORTANTES:*\n`;
+                responseText += `🔞 *Conteúdo para maiores de 18 anos*\n`;
+                responseText += `📊 Estes são horários estimados\n`;
+                responseText += `🎯 Jogue com responsabilidade\n`;
+                responseText += `💰 Nunca aposte mais do que pode perder\n`;
+                responseText += `🆘 Procure ajuda se tiver vício em jogos\n`;
+                responseText += `⚖️ Apostas podem causar dependência\n\n`;
+                responseText += `┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n`;
+                responseText += `┃  🍀 *BOA SORTE E JOGUE*    ┃\n`;
+                responseText += `┃     *CONSCIENTEMENTE!* 🍀  ┃\n`;
+                responseText += `┗━━━━━━━━━━━━━━━━━━━━━━━━┛`;
+                
+                await nazuInstance.sendMessage(chatId, { text: responseText });
+                
+                config.lastSent = Date.now();
+                
+              } catch (e) {
+                console.error(`Erro ao enviar auto horários para ${chatId}:`, e);
+              }
+            }
+            
+            try {
+              fs.writeFileSync(autoSchedulesPath, JSON.stringify(autoSchedules, null, 2));
+            } catch (e) {
+              console.error('Erro ao salvar auto schedules:', e);
+            }
+            
+          } catch (err) {
+            console.error('Erro no auto horários worker:', err);
+          }
+        }, 60 * 1000);
+        
+      } catch (e) {
+        console.error('Erro ao iniciar auto horários worker:', e);
+      }
+    };
+    startAutoHorariosWorker(nazu);
+
     const getFileBuffer = async (mediakey, mediaType, options = {}) => {
       try {
         if (!mediakey) {
@@ -6053,27 +6210,59 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'comandos':
       case 'commands':
         try {
-          const menuVideoPath = __dirname + '/../midias/menu.mp4';
-          const menuImagePath = __dirname + '/../midias/menu.jpg';
-          const useVideo = fs.existsSync(menuVideoPath);
-          const mediaPath = useVideo ? menuVideoPath : menuImagePath;
-          const mediaBuffer = fs.readFileSync(mediaPath);
+          const BUTTONS_FILE = pathz.join(DATABASE_DIR, 'bottons.json');
+          ensureJsonFileExists(BUTTONS_FILE, { enabled: false });
+          const buttonsData = loadJsonFile(BUTTONS_FILE, { enabled: false });
           
-          // Obtém o design personalizado do menu
-          const customDesign = getMenuDesignWithDefaults(nomebot, pushname);
-          const menuText = await menu(prefix, nomebot, pushname, customDesign);
-          
-          await nazu.sendMessage(from, {
-            [useVideo ? 'video' : 'image']: mediaBuffer,
-            caption: menuText,
-            gifPlayback: useVideo,
-            mimetype: useVideo ? 'video/mp4' : 'image/jpeg'
-          }, {
-            quoted: info
-          });
+          if (buttonsData.enabled) {
+            const customDesign = getMenuDesignWithDefaults(nomebot, pushname);
+            const buttonMenuData = await menuButtons(prefix, nomebot, pushname, customDesign);
+            
+            const menuVideoPath = __dirname + '/../midias/menu.mp4';
+            const menuImagePath = __dirname + '/../midias/menu.jpg';
+            const useVideo = fs.existsSync(menuVideoPath);
+            const mediaPath = useVideo ? menuVideoPath : menuImagePath;
+            
+            if (fs.existsSync(mediaPath)) {
+              const mediaBuffer = fs.readFileSync(mediaPath);
+              
+              await nazu.sendMessage(from, {
+                [useVideo ? 'video' : 'image']: mediaBuffer,
+                caption: buttonMenuData.text,
+                title: buttonMenuData.title,
+                subtitle: buttonMenuData.subtitle,
+                footer: buttonMenuData.footer,
+                interactiveButtons: buttonMenuData.interactiveButtons,
+                gifPlayback: useVideo,
+                mimetype: useVideo ? 'video/mp4' : 'image/jpeg',
+                hasMediaAttachment: false
+              }, {
+                quoted: info
+              });
+            } else {
+              await nazu.sendMessage(from, buttonMenuData, { quoted: info });
+            }
+          } else {
+            const menuVideoPath = __dirname + '/../midias/menu.mp4';
+            const menuImagePath = __dirname + '/../midias/menu.jpg';
+            const useVideo = fs.existsSync(menuVideoPath);
+            const mediaPath = useVideo ? menuVideoPath : menuImagePath;
+            const mediaBuffer = fs.readFileSync(mediaPath);
+            
+            const customDesign = getMenuDesignWithDefaults(nomebot, pushname);
+            const menuText = await menu(prefix, nomebot, pushname, customDesign);
+            
+            await nazu.sendMessage(from, {
+              [useVideo ? 'video' : 'image']: mediaBuffer,
+              caption: menuText,
+              gifPlayback: useVideo,
+              mimetype: useVideo ? 'video/mp4' : 'image/jpeg'
+            }, {
+              quoted: info
+            });
+          }
         } catch (error) {
           console.error('Erro ao enviar menu:', error);
-          // Obtém o design personalizado mesmo em caso de erro
           const customDesign = getMenuDesignWithDefaults(nomebot, pushname);
           const menuText = await menu(prefix, nomebot, pushname, customDesign);
           await reply(`${menuText}\n\n⚠️ *Nota*: Ocorreu um erro ao carregar a mídia do menu.`);
@@ -8213,6 +8402,64 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         }
         ;
         break;
+
+      case 'figurinhas':
+      case 'stickerpack':
+      case 'packfig':
+        try {
+          if (!q) return reply(`🎨 *Pack de Figurinhas*\n\n📝 Use: ${prefix}figurinhas [1-30]\n\n💡 *Exemplo:* ${prefix}figurinhas 10\n\n🔢 Escolha quantas figurinhas você quer no pack (mínimo 1, máximo 30)`);
+          
+          const quantidade = parseInt(q);
+          
+          if (isNaN(quantidade) || quantidade < 1 || quantidade > 30) {
+            return reply('❌ Número inválido! Escolha entre 1 e 30 figurinhas.');
+          }
+          
+          await reply(`🎨 Criando pack com ${quantidade} figurinha${quantidade > 1 ? 's' : ''}...\n⏳ Aguarde um momento...`);
+          
+          const stickers = [];
+          const usedNumbers = new Set();
+          
+          for (let i = 0; i < quantidade; i++) {
+            let randomNum;
+            do {
+              randomNum = Math.floor(Math.random() * 8051);
+            } while (usedNumbers.has(randomNum));
+            
+            usedNumbers.add(randomNum);
+            
+            stickers.push({
+              sticker: { 
+                url: `https://raw.githubusercontent.com/badDevelopper/Testfigu/main/fig (${Math.floor(Math.random() * 8051)}).webp` 
+              }
+            });
+          }
+          
+          const coverStickerNum = Math.floor(Math.random() * 8051);
+          const coverResponse = await axios.get(`https://raw.githubusercontent.com/badDevelopper/Testfigu/main/fig (${Math.floor(Math.random() * 8051)}).webp`, {
+            responseType: 'arraybuffer'
+          });
+
+          const coverBuffer = Buffer.from(coverResponse.data);
+          
+          await nazu.sendMessage(from, {
+            stickerPack: {
+              name: `Pack Aleatório (${quantidade})`,
+              publisher: `By ${nomebot}`,
+              description: `Pack com ${quantidade} figurinhas aleatórias criado especialmente para você!`,
+              cover: coverBuffer,
+              stickers: stickers
+            }
+          }, {
+            quoted: info
+          });
+          
+        } catch (e) {
+          console.error('Erro no comando figurinhas:', e);
+          await reply("🐝 Oh não! Aconteceu um errinho ao criar o pack de figurinhas. Tente de novo daqui a pouquinho, por favor! 🥺");
+        }
+        break;
+
       case 'mention':
         try {
           if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
@@ -11296,6 +11543,233 @@ ${groupData.rules.length}. ${q}`);
     console.error(e);
   }
   break;
+
+  case 'horarios':
+  case 'horariopagante':
+  case 'sinais':
+    try {
+      const now = new Date();
+      const brasiliaTime = new Date(now.getTime() - (3 * 60 * 60 * 1000));
+      const currentHour = String(brasiliaTime.getHours()).padStart(2, '0');
+      const currentMinute = String(brasiliaTime.getMinutes()).padStart(2, '0');
+      
+      const games = [
+        { name: 'Fortune Tiger 🐯', emoji: '🐯', baseMinutes: [5, 15, 25, 35, 45, 55] },
+        { name: 'Fortune Mouse 🐭', emoji: '🐭', baseMinutes: [8, 18, 28, 38, 48, 58] },
+        { name: 'Double Fortune 💰', emoji: '💰', baseMinutes: [3, 13, 23, 33, 43, 53] },
+        { name: 'Fortune Rabbit 🐰', emoji: '🐰', baseMinutes: [7, 17, 27, 37, 47, 57] },
+        { name: 'Fortune Ox 🐂', emoji: '🐂', baseMinutes: [2, 12, 22, 32, 42, 52] },
+        { name: 'Wild Cash x9000 💸', emoji: '💸', baseMinutes: [4, 14, 24, 34, 44, 54] },
+        { name: 'Mines ⛏️', emoji: '⛏️', baseMinutes: [6, 16, 26, 36, 46, 56] },
+        { name: 'Aviator ✈️', emoji: '✈️', baseMinutes: [9, 19, 29, 39, 49, 59] },
+        { name: 'Dragon Luck 🐲', emoji: '🐲', baseMinutes: [1, 11, 21, 31, 41, 51] },
+        { name: 'Ganesha Gold 🕉️', emoji: '🕉️', baseMinutes: [10, 20, 30, 40, 50, 0] },
+        { name: 'Bikini Paradise 👙', emoji: '👙', baseMinutes: [14, 24, 34, 44, 54, 4] },
+        { name: 'Muay Thai Champion 🥊', emoji: '🥊', baseMinutes: [11, 21, 31, 41, 51, 1] },
+        { name: 'Circus Delight 🎪', emoji: '🎪', baseMinutes: [13, 23, 33, 43, 53, 3] },
+        { name: 'Piggy Gold 🐷', emoji: '🐷', baseMinutes: [16, 26, 36, 46, 56, 6] },
+        { name: 'Midas Fortune 👑', emoji: '👑', baseMinutes: [12, 22, 32, 42, 52, 2] },
+        { name: 'Sun & Moon ☀️🌙', emoji: '🌙', baseMinutes: [15, 25, 35, 45, 55, 5] },
+        { name: 'Wild Bandito 🤠', emoji: '🤠', baseMinutes: [17, 27, 37, 47, 57, 7] },
+        { name: 'Fortune Dragon 🐉', emoji: '🐉', baseMinutes: [19, 29, 39, 49, 59, 9] },
+        { name: 'Cash Patrol 🚔', emoji: '🚔', baseMinutes: [18, 28, 38, 48, 58, 8] }
+      ];
+
+      let responseText = `🎰✨ *HORÁRIOS PAGANTES* ✨🎰\n\n`;
+      responseText += `┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n`;
+      responseText += `┃  ⏰ *Horário (BR):* ${currentHour}:${currentMinute}  ┃\n`;
+      responseText += `┃  📅 *Data:* ${brasiliaTime.toLocaleDateString('pt-BR')}     ┃\n`;
+      responseText += `┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n`;
+
+      games.forEach(game => {
+        const gameMinutes = game.baseMinutes.map(minute => {
+          const variation = Math.floor(Math.random() * 7) - 3;
+          let adjustedMinute = minute + variation;
+          if (adjustedMinute < 0) adjustedMinute += 60;
+          if (adjustedMinute >= 60) adjustedMinute -= 60;
+          return String(adjustedMinute).padStart(2, '0');
+        }).sort((a, b) => parseInt(a) - parseInt(b));
+
+        responseText += `╭─────────────────────────╮\n`;
+        responseText += `│ ${game.emoji} *${game.name}*\n`;
+        
+        const nextTimes = [];
+        const currentMinuteInt = parseInt(currentMinute);
+        
+        for (let minute of gameMinutes) {
+          const minuteInt = parseInt(minute);
+          let hour = parseInt(currentHour);
+          
+          if (minuteInt <= currentMinuteInt) {
+            hour = (hour + 1) % 24;
+          }
+          
+          nextTimes.push(`${String(hour).padStart(2, '0')}:${minute}`);
+          
+          if (nextTimes.length >= 3) break;
+        }
+        
+        while (nextTimes.length < 3) {
+          for (let minute of gameMinutes) {
+            let hour = (parseInt(currentHour) + Math.ceil(nextTimes.length / gameMinutes.length) + 1) % 24;
+            nextTimes.push(`${String(hour).padStart(2, '0')}:${minute}`);
+            if (nextTimes.length >= 3) break;
+          }
+        }
+
+        responseText += `│ 🕐 ${nextTimes.slice(0, 3).join(' • ')}\n`;
+        responseText += `╰─────────────────────────╯\n\n`;
+      });
+
+      responseText += `┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n`;
+      responseText += `┃      ⚠️ *IMPORTANTE* ⚠️      ┃\n`;
+      responseText += `┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n`;
+      responseText += `🔞 *Conteúdo para maiores de 18 anos*\n`;
+      responseText += `📊 Estes são horários estimados\n`;
+      responseText += `🎯 Jogue com responsabilidade\n`;
+      responseText += `💰 Nunca aposte mais do que pode perder\n`;
+      responseText += `🆘 Procure ajuda se tiver vício em jogos\n`;
+      responseText += `⚖️ Apostas podem causar dependência\n\n`;
+      responseText += `┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n`;
+      responseText += `┃  🍀 *BOA SORTE E JOGUE*    ┃\n`;
+      responseText += `┃     *CONSCIENTEMENTE!* 🍀  ┃\n`;
+      responseText += `┗━━━━━━━━━━━━━━━━━━━━━━━━┛`;
+
+      await reply(responseText);
+    } catch (e) {
+      console.error('Erro no comando horarios:', e);
+      await reply('❌ Ocorreu um erro ao gerar os horários pagantes.');
+    }
+    break;
+
+  case 'autohorarios':
+    if (!isOwner && !isAdmins && !isGroupAdmins) return reply('⚠️ Este comando é apenas para administradores!');
+    
+    try {
+      const args = text.trim().split(' ');
+      const action = args[0]?.toLowerCase();
+      
+      if (!action || (action !== 'on' && action !== 'off' && action !== 'status' && action !== 'link')) {
+        const helpText = `┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n` +
+                        `┃   🤖 *AUTO HORÁRIOS*     ┃\n` +
+                        `┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n` +
+                        `📋 *Comandos disponíveis:*\n\n` +
+                        `🟢 \`${prefix}autohorarios on\`\n` +
+                        `   ▸ Liga o envio automático\n\n` +
+                        `🔴 \`${prefix}autohorarios off\`\n` +
+                        `   ▸ Desliga o envio automático\n\n` +
+                        `📊 \`${prefix}autohorarios status\`\n` +
+                        `   ▸ Verifica status atual\n\n` +
+                        `🔗 \`${prefix}autohorarios link [URL]\`\n` +
+                        `   ▸ Define link de apostas\n` +
+                        `   ▸ Sem URL remove o link\n\n` +
+                        `⏰ *Funcionamento:*\n` +
+                        `• Envia horários a cada hora\n` +
+                        `• Apenas em grupos\n` +
+                        `• Inclui link se configurado\n\n` +
+                        `🔒 *Restrito a administradores*`;
+        
+        await reply(helpText);
+        break;
+      }
+      
+      let autoSchedules = {};
+      const autoSchedulesPath = './dados/database/autohorarios.json';
+      try {
+        if (fs.existsSync(autoSchedulesPath)) {
+          autoSchedules = JSON.parse(fs.readFileSync(autoSchedulesPath, 'utf8'));
+        }
+      } catch (e) {
+        autoSchedules = {};
+      }
+      
+      if (!autoSchedules[from]) {
+        autoSchedules[from] = {
+          enabled: false,
+          link: null,
+          lastSent: 0
+        };
+      }
+      
+      switch (action) {
+        case 'on':
+          autoSchedules[from].enabled = true;
+          fs.writeFileSync(autoSchedulesPath, JSON.stringify(autoSchedules, null, 2));
+          await reply('✅ *Auto horários ativado!*\n\n📤 Os horários pagantes serão enviados automaticamente a cada hora.\n\n⚡ O primeiro envio será na próxima hora cheia.');
+          break;
+          
+        case 'off':
+          autoSchedules[from].enabled = false;
+          fs.writeFileSync(autoSchedulesPath, JSON.stringify(autoSchedules, null, 2));
+          await reply('🔴 *Auto horários desativado!*\n\n📴 Os envios automáticos foram interrompidos.');
+          break;
+          
+        case 'status':
+          const config = autoSchedules[from];
+          const statusEmoji = config.enabled ? '🟢' : '🔴';
+          const statusText = config.enabled ? 'ATIVO' : 'INATIVO';
+          const linkStatus = config.link ? `🔗 ${config.link}` : '🚫 Nenhum link configurado';
+          
+          const statusResponse = `┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n` +
+                               `┃   📊 *STATUS AUTO HORÁRIOS*  ┃\n` +
+                               `┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n` +
+                               `${statusEmoji} *Status:* ${statusText}\n\n` +
+                               `🔗 *Link:*\n${linkStatus}\n\n` +
+                               `⏰ *Próximo envio:*\n${config.enabled ? 'Na próxima hora cheia' : 'Desativado'}`;
+          
+          await reply(statusResponse);
+          break;
+          
+        case 'link':
+          const linkUrl = args.slice(1).join(' ').trim();
+          
+          if (!linkUrl) {
+            autoSchedules[from].link = null;
+            fs.writeFileSync(autoSchedulesPath, JSON.stringify(autoSchedules, null, 2));
+            await reply('🗑️ *Link removido!*\n\n📝 Os horários automáticos não incluirão mais link de apostas.');
+          } else {
+            autoSchedules[from].link = linkUrl;
+            fs.writeFileSync(autoSchedulesPath, JSON.stringify(autoSchedules, null, 2));
+            await reply(`✅ *Link configurado!*\n\n🔗 *URL:* ${linkUrl}\n\n📝 Este link será incluído nos horários automáticos.`);
+          }
+          break;
+      }
+      
+    } catch (e) {
+      console.error('Erro no comando autohorarios:', e);
+      await reply('❌ Ocorreu um erro ao configurar os horários automáticos.');
+    }
+    break;
+
+      case 'botoes':
+      case 'buttons':
+        if (!isOwner) return reply("🚫 Apenas o dono pode ativar/desativar botões!");
+        try {
+          const BUTTONS_FILE = pathz.join(DATABASE_DIR, 'bottons.json');
+          ensureJsonFileExists(BUTTONS_FILE, { enabled: false });
+          
+          let buttonsData = loadJsonFile(BUTTONS_FILE, { enabled: false });
+          
+          if (!q || !['on', 'off', 'ativar', 'desativar', '1', '0'].includes(q.toLowerCase())) {
+            const status = buttonsData.enabled ? 'Ativo' : 'Desativo';
+            const emoji = buttonsData.enabled ? '✅' : '❌';
+            return reply(`${emoji} *Status dos Botões: ${status}*\n\n📝 *Uso:*\n• ${prefix}botoes on - Ativar\n• ${prefix}botoes off - Desativar`);
+          }
+          
+          const shouldEnable = ['on', 'ativar', '1'].includes(q.toLowerCase());
+          buttonsData.enabled = shouldEnable;
+          
+          fs.writeFileSync(BUTTONS_FILE, JSON.stringify(buttonsData, null, 2));
+          
+          const statusText = shouldEnable ? 'ativados' : 'desativados';
+          const emoji = shouldEnable ? '✅' : '❌';
+          
+          await reply(`${emoji} *Botões ${statusText} com sucesso!*\n\n${shouldEnable ? '🔘 Agora os menus serão exibidos com botões interativos.' : '📝 Os menus voltarão ao formato tradicional de texto.'}`);
+        } catch (error) {
+          console.error('Erro no comando botões:', error);
+          await reply('❌ Erro ao alterar configuração dos botões.');
+        }
+        break;
   
       default:
         if (isCmd) await nazu.react('❌', {
