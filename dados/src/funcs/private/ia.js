@@ -79,7 +79,7 @@ function getApiKeyStatus() {
   return { ...apiKeyStatus };
 }
 
-async function notifyOwnerAboutApiKey(nazu, ownerNumber, error) {
+async function notifyOwnerAboutApiKey(nazu, ownerLid, error) {
   if (apiKeyStatus.notificationSent) return;
   
   try {
@@ -102,7 +102,7 @@ async function notifyOwnerAboutApiKey(nazu, ownerNumber, error) {
 
 Para reativar, corrija a key e use o comando *!ia status*`;
 
-    const ownerId = ownerNumber.replace(/[^\d]/g, '') + '@s.whatsapp.net';
+    const ownerId = ownerLid || (ownerNumber?.replace(/[^\d]/g, '') + '@s.whatsapp.net');
     await nazu.sendText(ownerId, message);
     
     apiKeyStatus.notificationSent = true;

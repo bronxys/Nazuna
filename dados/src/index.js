@@ -68,6 +68,40 @@ const normalizar = (texto, keepCase = false) => {
   const normalizedText = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return keepCase ? normalizedText : normalizedText.toLowerCase();
 };
+
+// Funções auxiliares para LID/JID
+const isGroupId = (id) => id && typeof id === 'string' && id.endsWith('@g.us');
+const isUserId = (id) => id && typeof id === 'string' && (id.includes('@lid') || id.includes('@s.whatsapp.net'));
+const isValidLid = (str) => /^[a-zA-Z0-9_]+@lid$/.test(str);
+const isValidJid = (str) => /^\d+@s\.whatsapp\.net$/.test(str);
+
+// Função para obter LID a partir de JID (quando necessário para compatibilidade)
+const getLidFromJid = async (nazu, jid) => {
+  if (!isValidJid(jid)) return jid; // Já é LID ou outro formato
+  try {
+    const result = await nazu.onWhatsApp(jid);
+    if (result && result[0] && result[0].lid) {
+      return result[0].lid;
+    }
+  } catch (error) {
+    console.warn(`Erro ao obter LID para ${jid}: ${error.message}`);
+  }
+  return jid; // Fallback para o JID original
+};
+
+// Função para construir ID do usuário (LID ou JID como fallback)
+const buildUserId = (numberString, config) => {
+  if (config.lidowner && numberString === config.numerodono) {
+    return config.lidowner;
+  }
+  return numberString.replace(/[^\d]/g, '') + '@s.whatsapp.net';
+};
+
+// Função para obter o ID do bot
+const getBotId = (nazu) => {
+  const botId = nazu.user.id.split(':')[0];
+  return botId.includes('@lid') ? botId : botId + '@s.whatsapp.net';
+};
 function ensureDirectoryExists(dirPath) {
   try {
     if (!fs.existsSync(dirPath)) {
@@ -368,10 +402,10 @@ const isSubdono = userId => {
   return currentSubdonos.includes(userId);
 };
 const addSubdono = (userId, numerodono) => {
-  if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
+  if (!userId || typeof userId !== 'string' || (!isUserId(userId) && !isValidJid(userId))) {
     return {
       success: false,
-      message: 'ID de usuário inválido. Use o formato completo (ex: 1234567890@s.whatsapp.net) ou marque o usuário.'
+      message: 'ID de usuário inválido. Use o LID ou marque o usuário.'
     };
   }
   ;
@@ -383,7 +417,7 @@ const addSubdono = (userId, numerodono) => {
     };
   }
   ;
-  const nmrdn_check = numerodono.replace(/[^\d]/g, "") + '@s.whatsapp.net';
+  const nmrdn_check = buildUserId(numerodono, config);
   if (userId === nmrdn_check) {
     return {
       success: false,
@@ -406,10 +440,10 @@ const addSubdono = (userId, numerodono) => {
   ;
 };
 const removeSubdono = userId => {
-  if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
+  if (!userId || typeof userId !== 'string' || (!isUserId(userId) && !isValidJid(userId))) {
     return {
       success: false,
-      message: 'ID de usuário inválido. Use o formato completo (ex: 1234567890@s.whatsapp.net) ou marque o usuário.'
+      message: 'ID de usuário inválido. Use o LID ou marque o usuário.'
     };
   }
   let currentSubdonos = loadSubdonos();
@@ -519,7 +553,7 @@ const getGroupRentalStatus = groupId => {
   };
 };
 const setGroupRental = (groupId, durationDays) => {
-  if (!groupId || typeof groupId !== 'string' || !groupId.endsWith('@g.us')) {
+  if (!groupId || typeof groupId !== 'string' || !isGroupId(groupId)) {
     return {
       success: false,
       message: '🤔 ID de grupo inválido! Verifique se o ID está correto (geralmente termina com @g.us).'
@@ -584,7 +618,7 @@ const generateActivationCode = (durationDays, targetGroupId = null) => {
       message: '🤔 Duração inválida para o código! Use um número de dias (ex: 7) ou "permanente".'
     };
   }
-  if (targetGroupId && (typeof targetGroupId !== 'string' || !targetGroupId.endsWith('@g.us'))) {
+  if (targetGroupId && (typeof targetGroupId !== 'string' || !isGroupId(targetGroupId))) {
     
     targetGroupId = null;
   }
@@ -686,7 +720,7 @@ const useActivationCode = (code, groupId, userId) => {
   }
 };
 const extendGroupRental = (groupId, extraDays) => {
-  if (!groupId || typeof groupId !== 'string' || !groupId.endsWith('@g.us')) {
+  if (!groupId || typeof groupId !== 'string' || !isGroupId(groupId)) {
     return {
       success: false,
       message: 'ID de grupo inválido.'
@@ -1229,10 +1263,10 @@ const saveGlobalBlacklist = data => {
   }
 };
 const addGlobalBlacklist = (userId, reason, addedBy) => {
-  if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
+  if (!userId || typeof userId !== 'string' || (!isUserId(userId) && !isValidJid(userId))) {
     return {
       success: false,
-      message: 'ID de usuário inválido. Use o formato completo (ex: 1234567890@s.whatsapp.net) ou marque o usuário.'
+      message: 'ID de usuário inválido. Use o LID ou marque o usuário.'
     };
   }
   let blacklistData = loadGlobalBlacklist();
@@ -1260,10 +1294,10 @@ const addGlobalBlacklist = (userId, reason, addedBy) => {
   }
 };
 const removeGlobalBlacklist = userId => {
-  if (!userId || typeof userId !== 'string' || !userId.includes('@s.whatsapp.net')) {
+  if (!userId || typeof userId !== 'string' || (!isUserId(userId) && !isValidJid(userId))) {
     return {
       success: false,
-      message: 'ID de usuário inválido. Use o formato completo (ex: 1234567890@s.whatsapp.net) ou marque o usuário.'
+      message: 'ID de usuário inválido. Use o LID ou marque o usuário.'
     };
   }
   let blacklistData = loadGlobalBlacklist();
@@ -1450,7 +1484,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     };
     const pushname = info.pushName || '';
     const isStatus = from?.endsWith('@broadcast') || false;
-    const nmrdn = numerodono.replace(/[^\d]/g, "") + '@s.whatsapp.net';
+    const nmrdn = buildUserId(numerodono, config);
     const subDonoList = loadSubdonos();
     const isSubOwner = isSubdono(sender);
     const isOwner = nmrdn === sender || lidowner === sender || info.key.fromMe || isSubOwner;
@@ -2649,7 +2683,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     }
     ;
     if (budy2.match(/^(\d+)d(\d+)$/)) reply(+budy2.match(/^(\d+)d(\d+)$/)[1] > 50 || +budy2.match(/^(\d+)d(\d+)$/)[2] > 100 ? "❌ Limite: max 50 dados e 100 lados" : "🎲 Rolando " + budy2.match(/^(\d+)d(\d+)$/)[1] + "d" + budy2.match(/^(\d+)d(\d+)$/)[2] + "...\n🎯 Resultados: " + (r = [...Array(+budy2.match(/^(\d+)d(\d+)$/)[1])].map(_ => 1 + Math.floor(Math.random() * +budy2.match(/^(\d+)d(\d+)$/)[2]))).join(", ") + "\n📊 Total: " + r.reduce((a, b) => a + b, 0));
-    if (!info.key.fromMe && isAssistente && !isCmd && (budy2.includes('@' + nazu.user.id.split(':')[0]) || menc_os2 && menc_os2 == nazu.user.id.split(':')[0] + '@s.whatsapp.net') && KeyCog) {
+    if (!info.key.fromMe && isAssistente && !isCmd && (budy2.includes('@' + nazu.user.id.split(':')[0]) || menc_os2 && menc_os2 == getBotId(nazu)) && KeyCog) {
       if (budy2.replaceAll('@' + nazu.user.id.split(':')[0], '').length > 2) {
         try {
           const jSoNzIn = {
@@ -2685,12 +2719,12 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             jSoNzIn.marcou_mensagem = true;
             jSoNzIn.mensagem_marcada = jsonO.texto;
             jSoNzIn.id_enviou_marcada = jsonO.participant;
-            jSoNzIn.marcou_sua_mensagem = jsonO.participant == nazu.user.id.split(':')[0] + '@s.whatsapp.net';
+            jSoNzIn.marcou_sua_mensagem = jsonO.participant == getBotId(nazu);
           }
           ;
           const respAssist = await ia.makeAssistentRequest({
             mensagens: [jSoNzIn]
-          }, pathz.join(__dirname, 'index.js'), KeyCog || null, nazu, numerodono);
+          }, pathz.join(__dirname, 'index.js'), KeyCog || null, nazu, nmrdn);
           
           if (respAssist.apiKeyInvalid) {
             await reply(respAssist.message || '🤖 Sistema de IA temporariamente indisponível. Tente novamente mais tarde.');
@@ -3001,7 +3035,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
   if (changedEconomy) saveEconomy(econ);
 
         const sub = command;
-        const mentioned = (menc_jid2 && menc_jid2[0]) || (q.includes('@') ? q.split(' ')[0].replace('@','')+"@s.whatsapp.net" : null);
+        const mentioned = (menc_jid2 && menc_jid2[0]) || (q.includes('@') ? q.split(' ')[0].replace('@','') : null);
 
         if (sub === 'resetgold') {
           if (!(isOwner && !isSubOwner && sender === nmrdn)) return reply('Apenas o Dono principal pode resetar usuários.');
@@ -4591,11 +4625,11 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'addsubdono':
         if (!isOwner || isOwner && isSubOwner) return reply("🚫 Apenas o Dono principal pode adicionar subdonos!");
         try {
-          const targetUserJid = menc_jid2 && menc_jid2.length > 0 ? menc_jid2[0] : q.includes('@') ? q.split(' ')[0].replace('@', '') + '@s.whatsapp.net' : null;
+          const targetUserJid = menc_jid2 && menc_jid2.length > 0 ? menc_jid2[0] : (q.includes('@') ? q.split(' ')[0].replace('@', '') : null);
           if (!targetUserJid) {
             return reply("🤔 Você precisa marcar o usuário ou fornecer o número completo (ex: 5511999998888) para adicionar como subdono.");
           }
-          const normalizedJid = targetUserJid.includes('@') ? targetUserJid : targetUserJid.replace(/\D/g, '') + '@s.whatsapp.net';
+          const normalizedJid = (isUserId(targetUserJid) || isValidJid(targetUserJid)) ? targetUserJid : (targetUserJid.replace(/\D/g, '') + '@s.whatsapp.net');
           const result = addSubdono(normalizedJid, numerodono);
           await reply(result.message);
         } catch (e) {

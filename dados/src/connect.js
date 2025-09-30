@@ -17,6 +17,7 @@ import qrcode from 'qrcode-terminal';
 import { readFile } from "fs/promises";
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -233,6 +234,8 @@ async function handleGroupParticipantsUpdate(NazunaSock, inf) {
 }
 
 const isValidJid = (str) => /^\d+@s\.whatsapp\.net$/.test(str);
+const isValidLid = (str) => /^[a-zA-Z0-9_]+@lid$/.test(str);
+const isValidUserId = (str) => isValidJid(str) || isValidLid(str);
 
 function collectJidsFromJson(obj, jidsSet = new Set()) {
     if (Array.isArray(obj)) {
@@ -523,8 +526,7 @@ async function updateOwnerLid(NazunaSock) {
 }
 
 async function performMigration(NazunaSock) {
-    const ownerJid = `${numerodono}@s.whatsapp.net`;
-    console.log('🔍 Iniciando mapeamento da database para migração de JIDs...');
+    console.log('🔍 Verificando se há dados antigos para migração...');
 
     let scanResult;
     try {
@@ -537,37 +539,31 @@ async function performMigration(NazunaSock) {
     const { uniqueJids, affectedFiles, jidFiles } = scanResult;
 
     if (uniqueJids.length === 0) {
-        console.log('ℹ️ Nenhum JID encontrado na database. Iniciando bot normalmente.');
+        console.log('ℹ️ Nenhum JID antigo encontrado. Bot pronto para usar LIDs nativamente.');
         return;
     }
 
-    const initialMsg = `🌟 *Olá, ${nomedono}!* 🌟\n\n` +
-        `🔍 Detectei *${uniqueJids.length} JID(s)* únicos em *${affectedFiles.length + jidFiles.length} fonte(s)* (arquivos e nomes).\n\n` +
-        `🚀 Iniciando migração automática para LIDs. Isso pode levar alguns minutos, mas garanto que vale a pena! A bot ficará pausada para mensagens até finalizar. Aguarde aqui... 💕`;
+    console.log(`� Detectados ${uniqueJids.length} JIDs antigos. Iniciando migração para LIDs...`);
     
     const { jidToLidMap, successfulFetches } = await fetchLidsInBatches(NazunaSock, uniqueJids);
     const orphanJidsSet = new Set(uniqueJids.filter(jid => !jidToLidMap.has(jid)));
 
     if (jidToLidMap.size === 0) {
-        const noLidMsg = `⚠️ *Migração incompleta!* ⚠️\n\nNão foi possível obter LIDs para nenhum dos JIDs detectados. Verifique a conectividade e tente novamente. A bot iniciará normalmente por enquanto. 😔`;
+        console.log('⚠️ Não foi possível obter LIDs. Bot continuará funcionando normalmente.');
         return;
     }
 
-    console.log(`✅ Obtidos LIDs para ${successfulFetches}/${uniqueJids.length} JIDs. ${orphanJidsSet.size} JIDs órfãos identificados.`);
+    console.log(`✅ Obtidos LIDs para ${successfulFetches}/${uniqueJids.length} JIDs.`);
 
     let totalReplacements = 0;
     let totalRemovals = 0;
     const allUpdatedFiles = [];
-    const renamedDetails = [];
-    const deletedDetails = [];
 
     try {
         const renameResult = await handleJidFiles(jidFiles, jidToLidMap, orphanJidsSet);
         totalReplacements += renameResult.totalReplacements;
         totalRemovals += renameResult.totalRemovals;
         allUpdatedFiles.push(...renameResult.updatedFiles);
-        renamedDetails.push(...renameResult.renamedFiles);
-        deletedDetails.push(...renameResult.deletedFiles);
 
         const filteredAffected = affectedFiles.filter(([filePath]) => !jidFiles.some(([, jidPath]) => jidPath === filePath));
         const contentResult = await replaceJidsInContent(filteredAffected, jidToLidMap, orphanJidsSet);
@@ -576,34 +572,11 @@ async function performMigration(NazunaSock) {
         allUpdatedFiles.push(...contentResult.updatedFiles);
     } catch (processErr) {
         console.error(`Erro no processamento de substituições: ${processErr.message}`);
-        const procErrMsg = `⚠️ *Erro parcial na migração!* ⚠️\n\nProblema durante substituições: ${processErr.message}. Alguns arquivos podem não ter sido atualizados. Reiniciar a bot para tentar novamente.`;
         return;
     }
 
-    let finalMsg = `🎉 *Migração concluída com sucesso!* 🎉\n\n` +
-        `✨ Realizei *${totalReplacements} substituição(ões)* em *${allUpdatedFiles.length} arquivo(s)*.\n` +
-        `🗑️ Removidas *${totalRemovals} ocorrências* de JIDs órfãos.\n` +
-        `🔄 Troquei *${jidToLidMap.size} JID(s)* por seus respectivos LIDs (sucesso em ${successfulFetches}/${uniqueJids.length}).\n\n`;
-
-    if (renamedDetails.length > 0) {
-        finalMsg += `📁 Renomeei *${renamedDetails.length} arquivo(s)*:\n`;
-        renamedDetails.forEach(({ old: oldName, new: newName }) => {
-            finalMsg += `• ${oldName} → ${newName}\n`;
-        });
-        finalMsg += `\n`;
-    }
-
-    if (deletedDetails.length > 0) {
-        finalMsg += `🗑️ Excluí *${deletedDetails.length} arquivo(s)* órfão(s):\n`;
-        deletedDetails.forEach(oldName => {
-            finalMsg += `• ${oldName}\n`;
-        });
-        finalMsg += `\n`;
-    }
-
-    finalMsg += `🌸 Agora a bot está otimizada e pronta para brilhar! Aproveite ao máximo, ${nomedono}. Se precisar de algo, é só chamar. <3`;
-    
-    console.log(`✅ Migração finalizada: ${totalReplacements} edições e ${totalRemovals} remoções em ${allUpdatedFiles.length} arquivos.`);
+    console.log(`✅ Migração finalizada: ${totalReplacements} substituições e ${totalRemovals} remoções em ${allUpdatedFiles.length} arquivos.`);
+    console.log('🌸 Bot agora está totalmente otimizado para LIDs!');
 }
 
 async function createBotSocket(authDir) {
