@@ -8040,7 +8040,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             sticker: buffer,
             author: `『${pushname}』\n『${nomebot}』\n『${nomedono}』\n『cognima.com.br』`,
             packname: '👤 Usuario(a)ᮀ۟❁’￫\n🤖 Botᮀ۟❁’￫\n👑 Donoᮀ۟❁’￫\n🌐 Siteᮀ۟❁’￫',
-            type: isVideo2 ? 'video' : 'image'
+            type: isVideo2 ? 'video' : 'image',
+            forceSquare: true
           }, {
             quoted: info
           });
@@ -8066,8 +8067,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             sticker: buffer,
             author: `『${pushname}』\n『${nomebot}』\n『${nomedono}』\n『cognima.com.br』`,
             packname: '👤 Usuario(a)ᮀ۟❁’￫\n🤖 Botᮀ۟❁’￫\n👑 Donoᮀ۟❁’￫\n🌐 Siteᮀ۟❁’￫',
-            type: isVideo2 ? 'video' : 'image',
-            forceSquare: true
+            type: isVideo2 ? 'video' : 'image'
           }, {
             quoted: info
           });
