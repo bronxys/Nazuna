@@ -5885,7 +5885,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             try {
               await nazu.sendMessage(from, {
                 audio: dlRes.buffer,
-                mimetype: 'audio/mpeg'
+                mimetype: 'audio/mp3'
               }, {
                 quoted: info
               });
@@ -5895,7 +5895,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 await nazu.sendMessage(from, {
                   document: dlRes.buffer,
                   fileName: `${dlRes.filename}`,
-                  mimetype: 'audio/mpeg'
+                  mimetype: 'audio/mp3'
                 }, {
                   quoted: info
                 });
@@ -5951,7 +5951,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             try {
               await nazu.sendMessage(from, {
                 audio: dlRes.buffer,
-                mimetype: 'audio/mpeg'
+                mimetype: 'audio/mp3'
               }, {
                 quoted: info
               });
@@ -5961,7 +5961,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
                 await nazu.sendMessage(from, {
                   document: dlRes.buffer,
                   fileName: `${dlRes.filename}`,
-                  mimetype: 'audio/mpeg'
+                  mimetype: 'audio/mp3'
                 }, {
                   quoted: info
                 });
@@ -6008,7 +6008,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           try {
             await nazu.sendMessage(from, {
               audio: dlRes.buffer,
-              mimetype: 'audio/mpeg'
+              mimetype: 'audio/mp3'
             }, {
               quoted: info
             });
@@ -6018,7 +6018,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               await nazu.sendMessage(from, {
                 document: dlRes.buffer,
                 fileName: `${dlRes.filename}`,
-                mimetype: 'audio/mpeg'
+                mimetype: 'audio/mp3'
               }, {
                 quoted: info
               });

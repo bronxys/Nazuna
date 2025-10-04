@@ -48,81 +48,6 @@ function isApiKeyError(error) {
   return false;
 }
 
-// Função para converter buffer usando FFmpeg
-async function convertWithFFmpeg(inputBuffer, outputFormat, quality, isVideo = false) {
-  return new Promise((resolve, reject) => {
-    try {
-      if (!Buffer.isBuffer(inputBuffer) || inputBuffer.length < 1000) {
-        return reject(new Error('⚠️ Buffer inválido ou vazio — nada para converter.'));
-      }
-
-      const chunks = [];
-      let ffmpegArgs;
-
-      if (isVideo) {
-        ffmpegArgs = [
-          '-i', 'pipe:0',
-          '-c:v', 'libx264',
-          '-c:a', 'aac',
-          '-preset', 'fast',
-          '-crf', '23',
-          '-vf', `scale=-2:${quality}`,
-          '-movflags', '+faststart',
-          '-f', 'mp4',
-          'pipe:1'
-        ];
-      } else {
-        ffmpegArgs = [
-          '-i', 'pipe:0',
-          '-c:a', 'libmp3lame',
-          '-b:a', `${quality}k`,
-          '-ar', '44100',
-          '-ac', '2',
-          '-f', 'mp3',
-          'pipe:1'
-        ];
-      }
-
-      const ffmpeg = spawn('ffmpeg', ffmpegArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
-
-      ffmpeg.stdout.on('data', chunk => chunks.push(chunk));
-
-      ffmpeg.stderr.on('data', data => {
-        // 🔍 Log útil para depuração (pode comentar depois)
-        // console.log('[FFmpeg stderr]', data.toString());
-      });
-
-      ffmpeg.on('close', code => {
-        if (code === 0) {
-          return resolve(Buffer.concat(chunks));
-        } else {
-          return reject(new Error(`❌ FFmpeg terminou com código ${code}`));
-        }
-      });
-
-      ffmpeg.on('error', err => {
-        reject(new Error(`❌ Erro ao executar FFmpeg: ${err.message}`));
-      });
-
-      // 🧱 Tratamento de erro de pipe antes do EPIPE aparecer
-      ffmpeg.stdin.on('error', err => {
-        if (err.code === 'EPIPE') {
-          reject(new Error('❌ EPIPE: O FFmpeg encerrou antes de receber todos os dados.'));
-        } else {
-          reject(new Error(`Erro no stdin do FFmpeg: ${err.message}`));
-        }
-      });
-
-      // ✍️ Escreve o buffer e finaliza corretamente
-      ffmpeg.stdin.write(inputBuffer);
-      ffmpeg.stdin.end();
-
-    } catch (err) {
-      reject(err);
-    }
-  });
-}
-
 // Função para notificar o dono sobre problemas com a API key
 async function notifyOwnerAboutApiKey(nazu, ownerNumber, error, command) {
   try {
@@ -213,13 +138,10 @@ async function mp3(url, quality = 128, apiKey) {
     });
 
     const rawBuffer = Buffer.from(response.data);
-    
-    // Converter com FFmpeg para garantir compatibilidade MPEG
-    const convertedBuffer = await convertWithFFmpeg(rawBuffer, 'mp3', quality, false);
-    
+
     return {
       ok: true,
-      buffer: convertedBuffer,
+      buffer: rawBuffer,
       filename: `audio_${Date.now()}_${quality}kbps.mp3`,
       quality: `${quality}kbps`
     };
@@ -258,13 +180,10 @@ async function mp4(url, quality = 360, apiKey) {
     });
 
     const rawBuffer = Buffer.from(response.data);
-    
-    // Converter com FFmpeg para garantir compatibilidade
-    const convertedBuffer = await convertWithFFmpeg(rawBuffer, 'mp4', quality, true);
-    
+
     return {
       ok: true,
-      buffer: convertedBuffer,
+      buffer: rawBuffer,
       filename: `video_${Date.now()}_${quality}p.mp4`,
       quality: `${quality}p`
     };
