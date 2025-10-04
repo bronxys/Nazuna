@@ -51,64 +51,75 @@ function isApiKeyError(error) {
 // Função para converter buffer usando FFmpeg
 async function convertWithFFmpeg(inputBuffer, outputFormat, quality, isVideo = false) {
   return new Promise((resolve, reject) => {
-    const chunks = [];
-    
-    // Configurar argumentos do FFmpeg baseado no formato
-    let ffmpegArgs;
-    if (isVideo) {
-      ffmpegArgs = [
-        '-i', 'pipe:0',
-        '-c:v', 'libx264',
-        '-c:a', 'aac',
-        '-preset', 'fast',
-        '-crf', '23',
-        '-vf', `scale=-2:${quality}`,
-        '-movflags', '+faststart',
-        '-f', 'mp4',
-        'pipe:1'
-      ];
-    } else {
-      ffmpegArgs = [
-        '-i', 'pipe:0',
-        '-c:a', 'libmp3lame',
-        '-b:a', `${quality}k`,
-        '-ar', '44100',
-        '-ac', '2',
-        '-f', 'mp3',
-        'pipe:1'
-      ];
-    }
-
-    const ffmpeg = spawn('ffmpeg', ffmpegArgs, {
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    ffmpeg.stdout.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
-
-    ffmpeg.stderr.on('data', (data) => {
-      // Log de debug opcional (comentado para não poluir)
-      // console.log('FFmpeg stderr:', data.toString());
-    });
-
-    ffmpeg.on('close', (code) => {
-      if (code === 0) {
-        resolve(Buffer.concat(chunks));
-      } else {
-        reject(new Error(`FFmpeg process exited with code ${code}`));
+    try {
+      if (!Buffer.isBuffer(inputBuffer) || inputBuffer.length < 1000) {
+        return reject(new Error('⚠️ Buffer inválido ou vazio — nada para converter.'));
       }
-    });
 
-    ffmpeg.on('error', (error) => {
-      reject(new Error(`FFmpeg error: ${error.message}`));
-    });
+      const chunks = [];
+      let ffmpegArgs;
 
-    // Enviar buffer de entrada para o FFmpeg
-    const inputStream = new Readable();
-    inputStream.push(inputBuffer);
-    inputStream.push(null);
-    inputStream.pipe(ffmpeg.stdin);
+      if (isVideo) {
+        ffmpegArgs = [
+          '-i', 'pipe:0',
+          '-c:v', 'libx264',
+          '-c:a', 'aac',
+          '-preset', 'fast',
+          '-crf', '23',
+          '-vf', `scale=-2:${quality}`,
+          '-movflags', '+faststart',
+          '-f', 'mp4',
+          'pipe:1'
+        ];
+      } else {
+        ffmpegArgs = [
+          '-i', 'pipe:0',
+          '-c:a', 'libmp3lame',
+          '-b:a', `${quality}k`,
+          '-ar', '44100',
+          '-ac', '2',
+          '-f', 'mp3',
+          'pipe:1'
+        ];
+      }
+
+      const ffmpeg = spawn('ffmpeg', ffmpegArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
+
+      ffmpeg.stdout.on('data', chunk => chunks.push(chunk));
+
+      ffmpeg.stderr.on('data', data => {
+        // 🔍 Log útil para depuração (pode comentar depois)
+        // console.log('[FFmpeg stderr]', data.toString());
+      });
+
+      ffmpeg.on('close', code => {
+        if (code === 0) {
+          return resolve(Buffer.concat(chunks));
+        } else {
+          return reject(new Error(`❌ FFmpeg terminou com código ${code}`));
+        }
+      });
+
+      ffmpeg.on('error', err => {
+        reject(new Error(`❌ Erro ao executar FFmpeg: ${err.message}`));
+      });
+
+      // 🧱 Tratamento de erro de pipe antes do EPIPE aparecer
+      ffmpeg.stdin.on('error', err => {
+        if (err.code === 'EPIPE') {
+          reject(new Error('❌ EPIPE: O FFmpeg encerrou antes de receber todos os dados.'));
+        } else {
+          reject(new Error(`Erro no stdin do FFmpeg: ${err.message}`));
+        }
+      });
+
+      // ✍️ Escreve o buffer e finaliza corretamente
+      ffmpeg.stdin.write(inputBuffer);
+      ffmpeg.stdin.end();
+
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
