@@ -1,13 +1,12 @@
 /**
- * Download e Pesquisa YouTube usando SaveTube
- * Migrado de AdonixYtdl -> SaveTube
+ * Download e Pesquisa YouTube usando AdonixYtdl
+ * Made By Ado  <<< github.com/Ado-rgb >>>
  */
 
 import axios from 'axios';
 import yts from 'yt-search';
-import { createDecipheriv } from 'crypto';
 
-// Qualidades suportadas pelo SaveTube
+// Qualidades disponíveis (formato de compatibilidade)
 const AUDIO_QUALITIES = [92, 128, 256, 320];
 const VIDEO_QUALITIES = [144, 360, 480, 720, 1080];
 
@@ -33,84 +32,78 @@ function getYouTubeVideoId(url) {
   return match ? match[1] : null;
 }
 
-// Funções auxiliares para decodificar resposta SaveTube
-const hexcode = (hex) => Buffer.from(hex, 'hex');
-const decode = (enc) => {
-  try {
-    const secret_key = 'C5D58EF67A7584E4A29F6C35BBC4EB12';
-    const data = Buffer.from(enc, 'base64');
-    const iv = data.slice(0, 16);
-    const content = data.slice(16);
-    const key = hexcode(secret_key);
-    const decipher = createDecipheriv('aes-128-cbc', key, iv);
-    const decrypted = Buffer.concat([decipher.update(content), decipher.final()]);
-    return JSON.parse(decrypted.toString());
-  } catch (error) {
-    throw new Error(error.message);
-  }
-};
+// Scraper AdonixYtdl
+async function adonixytdl(url) {
+  const headers = {
+    "accept": "*/*",
+    "accept-language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+    "sec-ch-ua": '"Not A(Brand";v="8", "Chromium";v="132"',
+    "sec-ch-ua-mobile": "?1",
+    "sec-ch-ua-platform": '"Android"',
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://id.ytmp3.mobi/",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  };
 
-async function savetube(link, quality, type) {
-  try {
-    const cdn = (await axios.get('https://media.savetube.me/api/random-cdn')).data.cdn;
-    const infoget = (await axios.post(`https://${cdn}/v2/info`, { url: link }, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36',
-        'Referer': 'https://yt.savetube.me/1kejjj1?id=362796039'
-      }
-    })).data;
-    const info = decode(infoget.data);
-    const response = (await axios.post(`https://${cdn}/download`, {
-      downloadType: type,
-      quality: `${quality}`,
-      key: info.key
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36',
-        'Referer': 'https://yt.savetube.me/start-download?from=1kejjj1%3Fid%3D362796039'
-      }
-    })).data;
+  const initial = await axios.get(`https://d.ymcdn.org/api/v1/init?p=y&23=1llum1n471&_=${Math.random()}`, { headers });
+  const init = initial.data;
 
-    return {
-      status: true,
-      quality: `${quality}${type === 'audio' ? 'kbps' : 'p'}`,
-      availableQuality: type === 'audio' ? AUDIO_QUALITIES : VIDEO_QUALITIES,
-      url: response.data.downloadUrl,
-      filename: `${info.title} (${quality}${type === 'audio' ? 'kbps).mp3' : 'p).mp4'}`
-    };
-  } catch (error) {
-    console.error('SaveTube error:', error.message);
-    return { status: false, message: 'Converting error' };
+  const id = url.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*\/|.*embed\/))([^&?/]+)/)?.[1];
+  if (!id) throw new Error('No se pudo obtener ID del video.');
+
+  const mp4_ = init.convertURL + `&v=${id}&f=mp4&_=${Math.random()}`;
+  const mp3_ = init.convertURL + `&v=${id}&f=mp3&_=${Math.random()}`;
+
+  const mp4__ = await axios.get(mp4_, { headers });
+  const mp3__ = await axios.get(mp3_, { headers });
+
+  let info = {};
+  while (true) {
+    const j = await axios.get(mp3__.data.progressURL, { headers });
+    info = j.data;
+    if (info.progress == 3) break;
   }
+
+  return {
+    title: info.title,
+    mp3: mp3__.data.downloadURL,
+    mp4: mp4__.data.downloadURL
+  };
 }
 
 async function mp3(input, quality = 128) {
   try {
     const id = getYouTubeVideoId(input);
     if (!id) throw new Error('URL inválida');
-    const format = AUDIO_QUALITIES.includes(Number(quality)) ? Number(quality) : 128;
 
-    // cache de metadados
+    // Cache de metadados
     const cacheKey = `meta:${id}`;
     let meta;
     if (metadataCache.has(cacheKey)) {
       const cached = metadataCache.get(cacheKey);
       if (Date.now() - cached.timestamp < 30 * 60 * 1000) meta = cached.data;
     }
+    
     const url = `https://youtube.com/watch?v=${id}`;
     if (!meta) {
       meta = await yts(url);
       metadataCache.set(cacheKey, { data: meta, timestamp: Date.now() });
     }
-    const result = await savetube(url, format, 'audio');
-    if (!result.status) throw new Error(result.message || 'Falha ao gerar link');
-    const buffer = (await axios.get(result.url, { responseType: 'arraybuffer', timeout: 60000 })).data;
+
+    // Usar AdonixYtdl para obter os links
+    const result = await adonixytdl(url);
+    if (!result.mp3) throw new Error('Falha ao gerar link de áudio');
+
+    // Baixar o arquivo
+    const buffer = (await axios.get(result.mp3, { responseType: 'arraybuffer', timeout: 60000 })).data;
+    
     return {
       ok: true,
       buffer: Buffer.from(buffer),
-      filename: result.filename || 'download.mp3',
-      quality: result.quality,
+      filename: `${result.title || 'download'} (${quality}kbps).mp3`,
+      quality: `${quality}kbps`,
       availableQuality: AUDIO_QUALITIES
     };
   } catch (err) {
@@ -122,27 +115,33 @@ async function mp4(input, quality = 360) {
   try {
     const id = getYouTubeVideoId(input);
     if (!id) throw new Error('URL inválida');
-    const format = VIDEO_QUALITIES.includes(Number(quality)) ? Number(quality) : 360;
 
+    // Cache de metadados
     const cacheKey = `meta:${id}`;
     let meta;
     if (metadataCache.has(cacheKey)) {
       const cached = metadataCache.get(cacheKey);
       if (Date.now() - cached.timestamp < 30 * 60 * 1000) meta = cached.data;
     }
+    
     const url = `https://youtube.com/watch?v=${id}`;
     if (!meta) {
       meta = await yts(url);
       metadataCache.set(cacheKey, { data: meta, timestamp: Date.now() });
     }
-    const result = await savetube(url, format, 'video');
-    if (!result.status) throw new Error(result.message || 'Falha ao gerar link');
-    const buffer = (await axios.get(result.url, { responseType: 'arraybuffer', timeout: 60000 })).data;
+
+    // Usar AdonixYtdl para obter os links
+    const result = await adonixytdl(url);
+    if (!result.mp4) throw new Error('Falha ao gerar link de vídeo');
+
+    // Baixar o arquivo
+    const buffer = (await axios.get(result.mp4, { responseType: 'arraybuffer', timeout: 60000 })).data;
+    
     return {
       ok: true,
       buffer: Buffer.from(buffer),
-      filename: result.filename || 'download.mp4',
-      quality: result.quality,
+      filename: `${result.title || 'download'} (${quality}p).mp4`,
+      quality: `${quality}p`,
       availableQuality: VIDEO_QUALITIES
     };
   } catch (err) {

@@ -61,9 +61,9 @@ export default async function menuButtons(prefix, botName = "MeuBot", userName =
                             highlight_label: 'Jogos',
                             rows: [
                                 {
-                                    header: '🎲 Menu Brincadeiras',
-                                    title: 'Jogos e Diversão',
-                                    description: 'Jogos, sorteios e brincadeiras',
+                                    header: '� Menu Brincadeiras & Jogos',
+                                    title: '🎯 Diversão Total',
+                                    description: '🎲 Jogos, rankings, ships e muita zoeira!',
                                     id: `${prefix}menubn`
                                 }
                             ]
