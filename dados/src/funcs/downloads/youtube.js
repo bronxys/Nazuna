@@ -1,78 +1,51 @@
 /**
- * Download e Pesquisa YouTube usando AdonixYtdl
- * Made By Ado  <<< github.com/Ado-rgb >>>
+ * Download e Pesquisa YouTube usando API Cognima
+ * Updated to use cog2.cognima.com.br API
  */
 
 import axios from 'axios';
-import yts from 'yt-search';
 import { spawn } from 'child_process';
 import { Readable } from 'stream';
 
-// Qualidades disponíveis (formato de compatibilidade)
-const AUDIO_QUALITIES = [92, 128, 256, 320];
-const VIDEO_QUALITIES = [144, 360, 480, 720, 1080];
-
-// Cache para resultados de busca e metadados (com expiração)
-const searchCache = new Map();
-const metadataCache = new Map();
-
-// Limpa entradas antigas do cache baseado no tempo
-function cleanCache() {
-  const now = Date.now();
-  for (const [key, value] of searchCache.entries()) {
-    if (now - value.timestamp > 60 * 60 * 1000) searchCache.delete(key); // 1h
+// Função para verificar se a API key é válida
+function isApiKeyError(error) {
+  if (!error) return false;
+  
+  const errorMessage = (error.message || '').toLowerCase();
+  const statusCode = error.response?.status;
+  const responseData = error.response?.data;
+  
+  const authErrorCodes = [401, 403, 429];
+  
+  const keyErrorMessages = [
+    'api key',
+    'unauthorized',
+    'invalid token',
+    'authentication failed',
+    'access denied',
+    'quota exceeded',
+    'rate limit',
+    'forbidden',
+    'token expired',
+    'invalid credentials'
+  ];
+  
+  if (authErrorCodes.includes(statusCode)) {
+    return true;
   }
-  for (const [key, value] of metadataCache.entries()) {
-    if (now - value.timestamp > 30 * 60 * 1000) metadataCache.delete(key); // 30m
+  
+  if (keyErrorMessages.some(msg => errorMessage.includes(msg))) {
+    return true;
   }
-}
-setInterval(cleanCache, 10 * 60 * 1000); // a cada 10m
-
-function getYouTubeVideoId(url) {
-  const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|v\/|embed\/|user\/[^\/\n\s]+\/)?(?:watch\?v=|v%3D|embed%2F|video%2F)?|youtu\.be\/|youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/|youtube\.com\/playlist\?list=)([a-zA-Z0-9_-]{11})/;
-  const match = url.match(regex);
-  return match ? match[1] : null;
-}
-
-// Scraper AdonixYtdl
-async function adonixytdl(url) {
-  const headers = {
-    "accept": "*/*",
-    "accept-language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-    "sec-ch-ua": '"Not A(Brand";v="8", "Chromium";v="132"',
-    "sec-ch-ua-mobile": "?1",
-    "sec-ch-ua-platform": '"Android"',
-    "sec-fetch-dest": "empty",
-    "sec-fetch-mode": "cors",
-    "sec-fetch-site": "cross-site",
-    "Referer": "https://id.ytmp3.mobi/",
-    "Referrer-Policy": "strict-origin-when-cross-origin"
-  };
-
-  const initial = await axios.get(`https://d.ymcdn.org/api/v1/init?p=y&23=1llum1n471&_=${Math.random()}`, { headers });
-  const init = initial.data;
-
-  const id = url.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*\/|.*embed\/))([^&?/]+)/)?.[1];
-  if (!id) throw new Error('No se pudo obtener ID del video.');
-
-  const mp4_ = init.convertURL + `&v=${id}&f=mp4&_=${Math.random()}`;
-  const mp3_ = init.convertURL + `&v=${id}&f=mp3&_=${Math.random()}`;
-
-  const mp4__ = await axios.get(mp4_, { headers });
-  const mp3__ = await axios.get(mp3_, { headers });
-
-  let info = {};
-  while (true) {
-    const j = await axios.get(mp3__.data.progressURL, { headers });
-    info = j.data;
-    if (info.progress == 3) break;
+  
+  if (responseData && typeof responseData === 'object') {
+    const responseString = JSON.stringify(responseData).toLowerCase();
+    if (keyErrorMessages.some(msg => responseString.includes(msg))) {
+      return true;
+    }
   }
-
-  return {
-    title: info.title,
-    mp3: mp3__.data.downloadURL,
-    mp4: mp4__.data.downloadURL
-  };
+  
+  return false;
 }
 
 // Função para converter buffer usando FFmpeg
@@ -139,110 +112,171 @@ async function convertWithFFmpeg(inputBuffer, outputFormat, quality, isVideo = f
   });
 }
 
-async function mp3(input, quality = 128) {
+// Função para notificar o dono sobre problemas com a API key
+async function notifyOwnerAboutApiKey(nazu, ownerNumber, error, command) {
   try {
-    const id = getYouTubeVideoId(input);
-    if (!id) throw new Error('URL inválida');
+    const message = `🚨 *ALERTA - API KEY INVÁLIDA* 🚨
 
-    // Cache de metadados
-    const cacheKey = `meta:${id}`;
-    let meta;
-    if (metadataCache.has(cacheKey)) {
-      const cached = metadataCache.get(cacheKey);
-      if (Date.now() - cached.timestamp < 30 * 60 * 1000) meta = cached.data;
-    }
-    
-    const url = `https://youtube.com/watch?v=${id}`;
-    if (!meta) {
-      meta = await yts(url);
-      metadataCache.set(cacheKey, { data: meta, timestamp: Date.now() });
-    }
+⚠️ A API key do YouTube (Cognima) está com problemas:
 
-    // Usar AdonixYtdl para obter os links
-    const result = await adonixytdl(url);
-    if (!result.mp3) throw new Error('Falha ao gerar link de áudio');
+*Comando:* ${command}
+*Erro:* ${error || 'Chave inválida ou expirada'}
+*Data:* ${new Date().toLocaleString('pt-BR')}
 
-    // Baixar o arquivo
-    const rawBuffer = (await axios.get(result.mp3, { responseType: 'arraybuffer', timeout: 60000 })).data;
+🔧 *Ações necessárias:*
+• Verificar se a API key não expirou
+• Confirmar se ainda há créditos na conta
+• Verificar se a key está correta no config.json
+
+💡 *Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês!*
+
+📞 *Contato:* wa.me/553399285117`;
+
+    const ownerId = ownerNumber?.replace(/[^\d]/g, '') + '@s.whatsapp.net';
+    await nazu.sendText(ownerId, message);
     
-    // Converter com FFmpeg para garantir compatibilidade
-    const convertedBuffer = await convertWithFFmpeg(Buffer.from(rawBuffer), 'mp3', quality, false);
-    
-    return {
-      ok: true,
-      buffer: convertedBuffer,
-      filename: `${result.title || 'download'} (${quality}kbps).mp3`,
-      quality: `${quality}kbps`,
-      availableQuality: AUDIO_QUALITIES
-    };
-  } catch (err) {
-    return { ok: false, msg: 'Erro ao processar o áudio: ' + err.message };
+    console.log('📧 Notificação sobre API key enviada ao dono');
+  } catch (notifyError) {
+    console.error('❌ Erro ao notificar dono sobre API key:', notifyError.message);
   }
 }
 
-async function mp4(input, quality = 360) {
+// Função para buscar vídeos no YouTube
+async function search(query, apiKey) {
   try {
-    const id = getYouTubeVideoId(input);
-    if (!id) throw new Error('URL inválida');
-
-    // Cache de metadados
-    const cacheKey = `meta:${id}`;
-    let meta;
-    if (metadataCache.has(cacheKey)) {
-      const cached = metadataCache.get(cacheKey);
-      if (Date.now() - cached.timestamp < 30 * 60 * 1000) meta = cached.data;
-    }
-    
-    const url = `https://youtube.com/watch?v=${id}`;
-    if (!meta) {
-      meta = await yts(url);
-      metadataCache.set(cacheKey, { data: meta, timestamp: Date.now() });
+    if (!apiKey) {
+      throw new Error('API key não fornecida');
     }
 
-    // Usar AdonixYtdl para obter os links
-    const result = await adonixytdl(url);
-    if (!result.mp4) throw new Error('Falha ao gerar link de vídeo');
+    const response = await axios.post('https://cog2.cognima.com.br/api/v1/youtube/search', {
+      query: query
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      timeout: 30000
+    });
 
-    // Baixar o arquivo
-    const rawBuffer = (await axios.get(result.mp4, { responseType: 'arraybuffer', timeout: 60000 })).data;
-    
-    // Converter com FFmpeg para garantir compatibilidade
-    const convertedBuffer = await convertWithFFmpeg(Buffer.from(rawBuffer), 'mp4', quality, true);
-    
+    if (!response.data.success || !response.data.data) {
+      throw new Error('Resposta inválida da API');
+    }
+
     return {
       ok: true,
-      buffer: convertedBuffer,
-      filename: `${result.title || 'download'} (${quality}p).mp4`,
-      quality: `${quality}p`,
-      availableQuality: VIDEO_QUALITIES
+      criador: 'Hiudy',
+      data: response.data.data.data
     };
-  } catch (err) {
-    return { ok: false, msg: 'Erro ao processar o vídeo: ' + err.message };
-  }
-}
 
-// Mantém função search com cache simples (sem fila complexa agora)
-async function search(name) {
-  try {
-    const cacheKey = `search:${name}`;
-    if (searchCache.has(cacheKey)) {
-      const cached = searchCache.get(cacheKey);
-      if (Date.now() - cached.timestamp < 60 * 60 * 1000) return cached.data;
-    }
-    const searchRes = await yts(name);
-    if (!searchRes.videos?.length) return { ok: false, msg: 'Não encontrei nenhuma música.' };
-    const result = { ok: true, criador: 'Hiudy', data: searchRes.videos[0] };
-    searchCache.set(cacheKey, { data: result, timestamp: Date.now() });
-    return result;
   } catch (error) {
-    return { ok: false, msg: 'Ocorreu um erro ao realizar a pesquisa.' };
+    console.error('Erro na busca YouTube:', error.message);
+    
+    if (isApiKeyError(error)) {
+      throw new Error(`API key inválida ou expirada: ${error.response?.data?.message || error.message}`);
+    }
+    
+    return { 
+      ok: false, 
+      msg: 'Erro ao buscar vídeo: ' + (error.response?.data?.message || error.message) 
+    };
+  }
+}
+
+// Função para baixar áudio (MP3) com conversão MPEG
+async function mp3(url, quality = 128, apiKey) {
+  try {
+    if (!apiKey) {
+      throw new Error('API key não fornecida');
+    }
+
+    const response = await axios.post('https://cog2.cognima.com.br/api/v1/youtube/mp3', {
+      url: url,
+      quality: quality
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      timeout: 60000,
+      responseType: 'arraybuffer'
+    });
+
+    const rawBuffer = Buffer.from(response.data);
+    
+    // Converter com FFmpeg para garantir compatibilidade MPEG
+    const convertedBuffer = await convertWithFFmpeg(rawBuffer, 'mp3', quality, false);
+    
+    return {
+      ok: true,
+      buffer: convertedBuffer,
+      filename: `audio_${Date.now()}_${quality}kbps.mp3`,
+      quality: `${quality}kbps`
+    };
+
+  } catch (error) {
+    console.error('Erro no download MP3:', error.message);
+    
+    if (isApiKeyError(error)) {
+      throw new Error(`API key inválida ou expirada: ${error.response?.data?.message || error.message}`);
+    }
+    
+    return { 
+      ok: false, 
+      msg: 'Erro ao baixar áudio: ' + (error.response?.data?.message || error.message) 
+    };
+  }
+}
+
+// Função para baixar vídeo (MP4) com conversão
+async function mp4(url, quality = 360, apiKey) {
+  try {
+    if (!apiKey) {
+      throw new Error('API key não fornecida');
+    }
+
+    const response = await axios.post('https://cog2.cognima.com.br/api/v1/youtube/mp4', {
+      url: url,
+      quality: quality
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      timeout: 60000,
+      responseType: 'arraybuffer'
+    });
+
+    const rawBuffer = Buffer.from(response.data);
+    
+    // Converter com FFmpeg para garantir compatibilidade
+    const convertedBuffer = await convertWithFFmpeg(rawBuffer, 'mp4', quality, true);
+    
+    return {
+      ok: true,
+      buffer: convertedBuffer,
+      filename: `video_${Date.now()}_${quality}p.mp4`,
+      quality: `${quality}p`
+    };
+
+  } catch (error) {
+    console.error('Erro no download MP4:', error.message);
+    
+    if (isApiKeyError(error)) {
+      throw new Error(`API key inválida ou expirada: ${error.response?.data?.message || error.message}`);
+    }
+    
+    return { 
+      ok: false, 
+      msg: 'Erro ao baixar vídeo: ' + (error.response?.data?.message || error.message) 
+    };
   }
 }
 
 export default {
-  search: (text) => search(text),
-  mp3: (url, q) => mp3(url, q),
-  mp4: (url, q) => mp4(url, q),
-  ytmp3: (url, q) => mp3(url, q),
-  ytmp4: (url, q) => mp4(url, q)
+  search: (text, apiKey) => search(text, apiKey),
+  mp3: (url, q, apiKey) => mp3(url, q, apiKey),
+  mp4: (url, q, apiKey) => mp4(url, q, apiKey),
+  ytmp3: (url, q, apiKey) => mp3(url, q, apiKey),
+  ytmp4: (url, q, apiKey) => mp4(url, q, apiKey),
+  notifyOwnerAboutApiKey
 };

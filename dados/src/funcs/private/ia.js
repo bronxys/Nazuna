@@ -301,7 +301,7 @@ async function makeCognimaImageRequest(params, key) {
   }
   
   try {
-    const response = await axios.post('https://v2.cognima.com.br/api/v1/generate', params, {
+    const response = await axios.post('https://cog2.cognima.com.br/api/v1/generate', params, {
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': key
@@ -351,7 +351,7 @@ async function makeCognimaRequest(modelo, texto, systemPrompt = null, key, histo
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       const response = await axios.post(
-        `https://v2.cognima.com.br/api/v1/completion`,
+        `https://cog2.cognima.com.br/api/v1/completion`,
         {
           messages,
           model: modelo,
