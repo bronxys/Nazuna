@@ -214,7 +214,7 @@ async function mp3(url, quality = 128, apiKey) {
     };
 
   } catch (error) {
-    console.error('Erro no download MP3:', error.message);
+    console.error('Erro no download MP3:', error);
     
     if (isApiKeyError(error)) {
       throw new Error(`API key inválida ou expirada: ${error.response?.data?.message || error.message}`);
