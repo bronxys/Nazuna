@@ -126,8 +126,7 @@ async function mp3(url, quality = 128, apiKey) {
     }
 
     const response = await axios.post('https://cog2.cognima.com.br/api/v1/youtube/mp3', {
-      url: url,
-      quality: quality
+      url: url
     }, {
       headers: {
         'Content-Type': 'application/json',
@@ -168,8 +167,7 @@ async function mp4(url, quality = 360, apiKey) {
     }
 
     const response = await axios.post('https://cog2.cognima.com.br/api/v1/youtube/mp4', {
-      url: url,
-      quality: quality
+      url: url
     }, {
       headers: {
         'Content-Type': 'application/json',
