@@ -422,7 +422,8 @@ const addSubdono = (userId, numerodono) => {
   }
   ;
   const nmrdn_check = buildUserId(numerodono, config);
-  if (userId === nmrdn_check) {
+  const ownerJid = `${numerodono}@s.whatsapp.net`;
+  if (userId === nmrdn_check || userId === ownerJid || (config.lidowner && userId === config.lidowner)) {
     return {
       success: false,
       message: '🤔 O Dono principal já tem todos os superpoderes! Não dá pra adicionar como subdono. 😉'
@@ -1489,7 +1490,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const nmrdn = buildUserId(numerodono, config);
     const subDonoList = loadSubdonos();
     const isSubOwner = isSubdono(sender);
-    const isOwner = nmrdn === sender || `${numerodono}@s.whatsapp.net` === sender || lidowner === sender || info.key.fromMe || isSubOwner;
+    const ownerJid = `${numerodono}@s.whatsapp.net`;
+    const isOwner = nmrdn === sender || ownerJid === sender || (lidowner && lidowner === sender) || info.key.fromMe;
     const isOwnerOrSub = isOwner || isSubOwner;
     const type = getContentType(info.message);
     const isMedia = ["imageMessage", "videoMessage", "audioMessage"].includes(type);
@@ -4801,14 +4803,24 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         ;
         break;
       case 'addsubdono':
-        if (!isOwner || isOwner && isSubOwner) return reply("🚫 Apenas o Dono principal pode adicionar subdonos!");
+        if (!isOwner || isSubOwner) return reply("🚫 Apenas o Dono principal pode adicionar subdonos!");
         try {
-          const targetUserJid = menc_jid2 && menc_jid2.length > 0 ? menc_jid2[0] : (q.includes('@') ? q.split(' ')[0].replace('@', '') : null);
-          if (!targetUserJid) {
-            return reply("🤔 Você precisa marcar o usuário ou fornecer o número completo (ex: 5511999998888) para adicionar como subdono.");
+          let targetUserId;
+          
+          if (menc_jid2 && menc_jid2.length > 0) {
+            targetUserId = menc_jid2[0];
+          } else if (q && q.trim()) {
+            const cleanNumber = q.replace(/\D/g, '');
+            if (cleanNumber.length >= 10) {
+              targetUserId = `${cleanNumber}@s.whatsapp.net`;
+            } else {
+              return reply("❌ Número inválido! Use um número completo (ex: 5511999998888)");
+            }
+          } else {
+            return reply(`📝 *Como usar:*\n\n1️⃣ Marque o usuário: ${prefix}addsubdono @usuario\n2️⃣ Ou digite o número: ${prefix}addsubdono 5511999998888`);
           }
-          const normalizedJid = (isUserId(targetUserJid) || isValidJid(targetUserJid)) ? targetUserJid : buildUserId(targetUserJid);
-          const result = addSubdono(normalizedJid, numerodono);
+          
+          const result = addSubdono(targetUserId, numerodono);
           await reply(result.message);
         } catch (e) {
           console.error("Erro ao adicionar subdono:", e);
@@ -4817,14 +4829,30 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         break;
       case 'remsubdono':
       case 'rmsubdono':
-        if (!isOwner || isOwner && isSubOwner) return reply("🚫 Apenas o Dono principal pode remover subdonos!");
+        if (!isOwner || isSubOwner) return reply("🚫 Apenas o Dono principal pode remover subdonos!");
         try {
-          const targetUserJid = menc_jid2 && menc_jid2.length > 0 ? menc_jid2[0] : q.includes('@') ? buildUserId(q.split(' ')[0].replace('@', '')) : null;
-          if (!targetUserJid) {
-            return reply("🤔 Você precisa marcar o usuário ou fornecer o número completo (ex: 5511999998888) para remover como subdono.");
+          let targetUserId;
+          
+          if (menc_jid2 && menc_jid2.length > 0) {
+            targetUserId = menc_jid2[0];
+          } else if (q && q.trim()) {
+            const cleanNumber = q.replace(/\D/g, '');
+            if (cleanNumber.length >= 10) {
+              targetUserId = `${cleanNumber}@s.whatsapp.net`;
+            } else {
+              const subdonos = getSubdonos();
+              const index = parseInt(q) - 1;
+              if (index >= 0 && index < subdonos.length) {
+                targetUserId = subdonos[index];
+              } else {
+                return reply("❌ Número/índice inválido! Use um número completo ou o índice da lista de subdonos.");
+              }
+            }
+          } else {
+            return reply(`📝 *Como usar:*\n\n1️⃣ Marque o usuário: ${prefix}remsubdono @usuario\n2️⃣ Digite o número: ${prefix}remsubdono 5511999998888\n3️⃣ Use o índice da lista: ${prefix}remsubdono 1`);
           }
-          const normalizedJid = isUserId(targetUserJid) ? targetUserJid : buildUserId(targetUserJid);
-          const result = removeSubdono(normalizedJid);
+          
+          const result = removeSubdono(targetUserId);
           await reply(result.message);
         } catch (e) {
           console.error("Erro ao remover subdono:", e);
