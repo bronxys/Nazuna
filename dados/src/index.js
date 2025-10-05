@@ -1489,7 +1489,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     const nmrdn = buildUserId(numerodono, config);
     const subDonoList = loadSubdonos();
     const isSubOwner = isSubdono(sender);
-    const isOwner = nmrdn === sender || lidowner === sender || info.key.fromMe || isSubOwner;
+    const isOwner = nmrdn === sender || `${numerodono}@s.whatsapp.net` === sender || lidowner === sender || info.key.fromMe || isSubOwner;
     const isOwnerOrSub = isOwner || isSubOwner;
     const type = getContentType(info.message);
     const isMedia = ["imageMessage", "videoMessage", "audioMessage"].includes(type);
