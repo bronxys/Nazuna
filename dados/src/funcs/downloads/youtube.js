@@ -98,77 +98,42 @@ async function search(query, apiKey) {
   }
 }
 
-// Função para baixar áudio (MP3) com LOGS detalhados
+// Função para baixar áudio (MP3)
 async function mp3(url, quality = 128, apiKey) {
-  console.log('🎧 [MP3] Iniciando função mp3()...');
-  console.log(`🔍 [MP3] URL recebida: ${url}`);
-  console.log(`🎚️ [MP3] Qualidade desejada: ${quality}kbps`);
-
   try {
-    if (!apiKey) {
-      console.log('❌ [MP3] Nenhuma API key fornecida!');
-      throw new Error('API key não fornecida');
-    }
-    console.log('✅ [MP3] API key recebida com sucesso.');
+    if (!apiKey) throw new Error('API key não fornecida');
 
-    console.log('📡 [MP3] Enviando requisição para API Cognima...');
-    const response = await axios.post(
-      'https://cog2.cognima.com.br/api/v1/youtube/mp3',
-      {
-        url: url,
-        quality: 'mp3'
+    const response = await axios.post('https://cog2.cognima.com.br/api/v1/youtube/mp3', {
+      url: url,
+      quality: 'mp3'
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
       },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': apiKey
-        },
-        timeout: 120000, // ⏱️ 2min
-        responseType: 'arraybuffer',
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity
-      }
-    );
+      timeout: 120000,
+      responseType: 'arraybuffer',
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    });
 
-    console.log('📥 [MP3] Resposta recebida da API!');
-    console.log(`📏 [MP3] Tamanho do buffer recebido: ${response.data?.length || 0} bytes`);
-
-    console.log('🔄 [MP3] Convertendo dados para Buffer...');
-    const audioBuffer = Buffer.from(response.data);
-    console.log('✅ [MP3] Buffer convertido com sucesso.');
-
-    const filename = `audio_${Date.now()}_${quality}kbps.mp3`;
-    console.log(`💾 [MP3] Nome do arquivo definido: ${filename}`);
-
-    console.log('🏁 [MP3] Processo concluído com sucesso. Retornando resultado...');
     return {
       ok: true,
-      buffer: audioBuffer,
-      filename: filename,
+      buffer: Buffer.from(response.data),
+      filename: `audio_${Date.now()}_${quality}kbps.mp3`,
       quality: `${quality}kbps`
     };
 
   } catch (error) {
-    console.error('❌ [MP3] Erro no download MP3:', error.message);
-
-    if (error.code === 'ECONNABORTED') {
-      console.error('⏱️ [MP3] Timeout atingido ao tentar baixar o áudio.');
-    }
-
+    console.error('Erro no download MP3:', error.message);
+    
     if (isApiKeyError(error)) {
-      console.error('🔑 [MP3] Erro relacionado à API key detectado.');
       throw new Error(`API key inválida ou expirada: ${error.response?.data?.message || error.message}`);
     }
-
-    console.error('📋 [MP3] Detalhes do erro:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data?.message || null
-    });
-
-    return {
-      ok: false,
-      msg: 'Erro ao baixar áudio: ' + (error.response?.data?.message || error.message)
+    
+    return { 
+      ok: false, 
+      msg: 'Erro ao baixar áudio: ' + (error.response?.data?.message || error.message) 
     };
   }
 }
