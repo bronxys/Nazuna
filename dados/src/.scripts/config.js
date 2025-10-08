@@ -159,12 +159,56 @@ async function installSystemDependencies() {
         }
         report.push({ name: dep.name, status });
     }
+    
+    try {
+        const optimizationDirs = ['temp', 'logs', 'cache', 'dados/backup'];
+        for (const dir of optimizationDirs) {
+            await fs.mkdir(dir, { recursive: true });
+        }
+        print.message('📁 Diretórios de otimização criados');
+        report.push({ name: 'Diretórios de Otimização', status: `${colors.green}✅ Criados${colors.reset}` });
+    } catch (error) {
+        print.warning('⚠️ Erro ao criar diretórios de otimização');
+        report.push({ name: 'Diretórios de Otimização', status: `${colors.red}❌ Falha${colors.reset}` });
+    }
+    
     return report;
 }
 
 async function installNodeDependencies() {
     print.separator();
     print.message('📦 Instalando dependências do projeto (Node.js)...');
+    
+    try {
+        const cleanupPaths = [
+            './temp',
+            './logs/*.log', 
+            '/tmp/nazuna-*',
+            '/tmp/baileys_media_cache'
+        ];
+        
+        for (const cleanupPath of cleanupPaths) {
+            try {
+                if (cleanupPath.includes('*')) {
+                    await execAsync(`rm -rf ${cleanupPath} 2>/dev/null || true`);
+                } else {
+                    try {
+                        await fs.access(cleanupPath);
+                        const stats = await fs.stat(cleanupPath);
+                        if (stats.isDirectory()) {
+                            await fs.rm(cleanupPath, { recursive: true, force: true });
+                        }
+                    } catch {
+                    }
+                }
+            } catch {
+            }
+        }
+        print.message('🧹 Limpeza automática executada');
+    } catch (error) {
+        print.warning('⚠️ Erro na limpeza automática (continuando...)');
+    }
+    
     try {
         await runCommandWithSpinner('npm install --no-optional --force --no-bin-links', 'Executando npm install...');
         print.message('✅ Dependências instaladas com sucesso via NPM.');

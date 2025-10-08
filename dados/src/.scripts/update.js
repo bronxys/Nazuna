@@ -297,7 +297,54 @@ async function restoreBackup() {
   }
 }
 
+async function checkDependencyChanges() {
+  printInfo('🔍 Verificando mudanças nas dependências...');
+  
+  try {
+    const currentPackageJsonPath = path.join(process.cwd(), 'package.json');
+    const newPackageJsonPath = path.join(TEMP_DIR, 'package.json');
+    
+    if (!fsSync.existsSync(currentPackageJsonPath) || !fsSync.existsSync(newPackageJsonPath)) {
+      printDetail('📦 Arquivo package.json não encontrado, instalação será necessária');
+      return true;
+    }
+    
+    const currentPackage = JSON.parse(await fs.readFile(currentPackageJsonPath, 'utf8'));
+    const newPackage = JSON.parse(await fs.readFile(newPackageJsonPath, 'utf8'));
+    
+    const currentDeps = JSON.stringify(currentPackage.dependencies || {});
+    const newDeps = JSON.stringify(newPackage.dependencies || {});
+    
+    const currentDevDeps = JSON.stringify(currentPackage.devDependencies || {});
+    const newDevDeps = JSON.stringify(newPackage.devDependencies || {});
+    
+    if (currentDeps !== newDeps || currentDevDeps !== newDevDeps) {
+      printDetail('📦 Dependências foram alteradas, reinstalação necessária');
+      return true;
+    }
+    
+    const nodeModulesPath = path.join(process.cwd(), 'node_modules');
+    if (!fsSync.existsSync(nodeModulesPath)) {
+      printDetail('📦 Diretório node_modules não encontrado, instalação necessária');
+      return true;
+    }
+    
+    printDetail('✅ Dependências inalteradas, reinstalação não necessária');
+    return false;
+  } catch (error) {
+    printWarning(`❌ Erro ao verificar dependências: ${error.message}`);
+    return true;
+  }
+}
+
 async function installDependencies() {
+  const needsInstall = await checkDependencyChanges();
+  
+  if (!needsInstall) {
+    printMessage('⚡ Dependências já estão atualizadas, pulando instalação');
+    return;
+  }
+  
   printMessage('📦 Instalando dependências...');
 
   try {

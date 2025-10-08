@@ -19,6 +19,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import crypto from 'crypto';
 
+import PerformanceOptimizer from './utils/performanceOptimizer.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -27,6 +29,8 @@ let config = JSON.parse(await readFile(configPath, "utf8"));
 
 import indexModule from './index.js';
 
+const performanceOptimizer = new PerformanceOptimizer();
+
 const logger = pino({
     level: 'silent'
 });
@@ -34,23 +38,61 @@ const logger = pino({
 const AUTH_DIR = path.join(__dirname, '..', 'database', 'qr-code');
 const DATABASE_DIR = path.join(__dirname, '..', 'database');
 const GLOBAL_BLACKLIST_PATH = path.join(__dirname, '..', 'database', 'dono', 'globalBlacklist.json');
-const msgRetryCounterCache = new NodeCache({
-    stdTTL: 5 * 60,
-    useClones: false
-});
-const groupCache = new NodeCache({
-    stdTTL: 5 * 60,
-    useClones: false
-});
+
+let msgRetryCounterCache;
+let groupCache;
+let messagesCache;
+
+async function initializeOptimizedCaches() {
+    try {
+        await performanceOptimizer.initialize();
+        
+        msgRetryCounterCache = {
+            get: (key) => performanceOptimizer.cacheGet('msgRetry', key),
+            set: (key, value, ttl) => performanceOptimizer.cacheSet('msgRetry', key, value, ttl),
+            del: (key) => performanceOptimizer.modules.cacheManager?.del('msgRetry', key)
+        };
+        
+        groupCache = {
+            get: (key) => performanceOptimizer.cacheGet('groupMeta', key),
+            set: (key, value) => performanceOptimizer.cacheSet('groupMeta', key, value)
+        };
+        
+        messagesCache = new Map();
+        
+        console.log('✅ Sistema de otimização inicializado com sucesso!');
+    } catch (error) {
+        console.error('❌ Erro ao inicializar sistema de otimização:', error.message);
+        
+        msgRetryCounterCache = new NodeCache({
+            stdTTL: 5 * 60,
+            useClones: false
+        });
+        groupCache = new NodeCache({
+            stdTTL: 5 * 60,
+            useClones: false
+        });
+        messagesCache = new Map();
+        
+        console.log('⚠️ Usando caches tradicionais como fallback');
+    }
+}
+
 const {
     prefixo,
     nomebot,
     nomedono,
     numerodono
 } = config;
-const codeMode = process.argv.includes('--code');
-const messagesCache = new Map();
-setInterval(() => messagesCache.clear(), 600000);
+const codeMode = process.argv.includes('--code') || process.env.NAZUNA_CODE_MODE === '1';
+
+setInterval(() => {
+    if (messagesCache && messagesCache.size > 5000) {
+        const keysToDelete = Array.from(messagesCache.keys()).slice(0, messagesCache.size - 2000);
+        keysToDelete.forEach(key => messagesCache.delete(key));
+        console.log(`🧹 Cache de mensagens limpo: ${keysToDelete.length} entradas removidas`);
+    }
+}, 600000);
 
 const ask = (question) => {
     const rl = readline.createInterface({
@@ -660,7 +702,11 @@ async function createBotSocket(authDir) {
                             if (info?.WebMessageInfo) {
                                 continue;
                             }
-                            messagesCache.set(info.key.id, info.message);
+                            
+                            if (messagesCache) {
+                                messagesCache.set(info.key.id, info.message);
+                            }
+                            
                             await indexModule(NazunaSock, info, null, groupCache, messagesCache);
                         }
                     } else {
@@ -668,6 +714,11 @@ async function createBotSocket(authDir) {
                     }
                 } catch (err) {
                     console.error(`❌ Erro ao processar mensagem: ${err.message}`);
+                    
+                    if (err.message.includes('ENOSPC') || err.message.includes('ENOMEM')) {
+                        console.error('🚨 Erro crítico detectado, acionando sistema de emergência...');
+                        await performanceOptimizer.emergencyCleanup();
+                    }
                 }
             });
         };
@@ -688,11 +739,22 @@ async function createBotSocket(authDir) {
                 console.log('📱 Escaneie o QR code acima com o WhatsApp para autenticar o bot.');
             }
             if (connection === 'open') {
-                console.log(`🔄 Conexão aberta. Atualizando LID do dono e iniciando verificação de migração...`);
+                console.log(`🔄 Conexão aberta. Inicializando sistema de otimização...`);
+                
+                await initializeOptimizedCaches();
+                
                 await updateOwnerLid(NazunaSock);
                 await performMigration(NazunaSock);
                 attachMessagesListener();
                 console.log(`✅ Bot ${nomebot} iniciado com sucesso! Prefixo: ${prefixo} | Dono: ${nomedono}`);
+                
+                setTimeout(() => {
+                    const stats = performanceOptimizer.getFullStatistics();
+                    console.log('📊 Sistema de otimização pronto:', {
+                        módulos: Object.keys(stats.modules).length,
+                        tempo_inicialização: `${Math.round((Date.now() - stats.optimizer.startTime) / 1000)}s`
+                    });
+                }, 5000);
             }
             if (connection === 'close') {
                 const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
@@ -730,10 +792,45 @@ async function startNazu() {
         await createBotSocket(AUTH_DIR);
     } catch (err) {
         console.error(`❌ Erro ao iniciar o bot: ${err.message}`);
+        
+        if (err.message.includes('ENOSPC')) {
+            console.log('🧹 Tentando limpeza de emergência...');
+            try {
+                await performanceOptimizer.emergencyCleanup();
+            } catch (cleanupErr) {
+                console.error('❌ Falha na limpeza de emergência:', cleanupErr.message);
+            }
+        }
+        
         console.log('🔄 Aguardando 5 segundos antes de tentar novamente...');
         setTimeout(() => {
             startNazu();
         }, 5000);
     }
 }
+
+process.on('SIGTERM', async () => {
+    console.log('📡 SIGTERM recebido, parando bot graciosamente...');
+    await performanceOptimizer.shutdown();
+    process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+    console.log('📡 SIGINT recebido, parando bot graciosamente...');
+    await performanceOptimizer.shutdown();
+    process.exit(0);
+});
+
+process.on('uncaughtException', async (error) => {
+    console.error('🚨 Erro não capturado:', error.message);
+    
+    if (error.message.includes('ENOSPC') || error.message.includes('ENOMEM')) {
+        try {
+            await performanceOptimizer.emergencyCleanup();
+        } catch (cleanupErr) {
+            console.error('❌ Falha na limpeza de emergência:', cleanupErr.message);
+        }
+    }
+});
+
 startNazu();
