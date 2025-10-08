@@ -4014,7 +4014,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           let styleKey = command === 'genrealism' ? 'default' : command.slice(3);
           if (!KeyCog) {
             await nazu.sendMessage(nmrdn, {
-              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
+              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
             });
             return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
           }
@@ -4051,7 +4051,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Gemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4075,7 +4075,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Phi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4098,7 +4098,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Qwen2? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4122,7 +4122,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Qwen? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4146,7 +4146,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Llama? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4170,7 +4170,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Baichuan? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4193,7 +4193,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Marin? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4217,7 +4217,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Kimi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4240,7 +4240,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Mistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4263,7 +4263,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Magistral? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4287,7 +4287,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o RakutenAI? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4310,7 +4310,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Yi? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4333,7 +4333,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Gemma2? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4356,7 +4356,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Swallow? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4379,7 +4379,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Falcon? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4402,7 +4402,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o Qwencoder? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4425,7 +4425,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤔 Qual sua dúvida para o CodeGemma? Informe a pergunta após o comando! Exemplo: ${prefix}${command} quem descobriu o Brasil? 🌍`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4448,7 +4448,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`📝 Quer um resumo? Envie o texto logo após o comando ${prefix}resumir! Exemplo: ${prefix}resumir [seu texto aqui] 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4472,7 +4472,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🌐 Quer resumir uma página? Envie a URL após o comando ${prefix}resumirurl! Exemplo: ${prefix}resumirurl https://exemplo.com/artigo 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4518,7 +4518,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`💡 Quer ideias criativas? Diga o tema após o comando ${prefix}ideias! Exemplo: ${prefix}ideias nomes para um aplicativo de receitas 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4543,7 +4543,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`🤓 Quer entender algo? Diga o que deseja explicar após o comando ${prefix}explicar! Exemplo: ${prefix}explicar o que é inteligência artificial 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4568,7 +4568,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`✍️ Quer corrigir um texto? Envie o texto após o comando ${prefix}corrigir! Exemplo: ${prefix}corrigir Eu foi no mercado e comprei frutas. 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4586,7 +4586,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (!q) return reply(`📢 Ei, falta a pergunta! Me diga o que quer saber após o comando ${prefix}cog! 😴`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4605,7 +4605,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
 Exemplo: ${prefix}tradutor inglês | Bom dia! 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -4732,7 +4732,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         if (!q) return reply(`📔 Qual palavra você quer procurar no dicionário? Me diga após o comando ${prefix}${command}! 😊`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -5884,7 +5884,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'shazam':
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
-            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+            text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
           });
           return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
         }
@@ -5961,7 +5961,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           // Verificar se tem API key
           if (!KeyCog) {
             await nazu.sendMessage(nmrdn, {
-              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
+              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
             });
             return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
           }
@@ -6081,7 +6081,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           // Verificar se tem API key
           if (!KeyCog) {
             await nazu.sendMessage(nmrdn, {
-              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
+              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
             });
             return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
           }
@@ -6211,7 +6211,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           // Verificar se tem API key
           if (!KeyCog) {
             await nazu.sendMessage(nmrdn, {
-              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
+              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
             });
             return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
           }
@@ -6263,7 +6263,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           // Verificar se tem API key
           if (!KeyCog) {
             await nazu.sendMessage(nmrdn, {
-              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
+              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês! 🚀\nwa.me/553399285117`
             });
             return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
           }
@@ -10204,7 +10204,7 @@ Exemplos:
         try {
           if (!KeyCog) {
             await nazu.sendMessage(nmrdn, {
-              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 50 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
+              text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
             });
             return reply('Este comando precisa de API key para funcionar. Meu dono já foi notificado! 😺');
           }
