@@ -417,7 +417,7 @@ const addSubdono = (userId, numerodono) => {
   if (currentSubdonos.includes(userId)) {
     return {
       success: false,
-      message: '✨ Este usuário já é um subdono! Não precisa adicionar de novo. 😊'
+      message: '✨ Este usuário já é um subdono!'
     };
   }
   ;
@@ -439,7 +439,7 @@ const addSubdono = (userId, numerodono) => {
   } else {
     return {
       success: false,
-      message: '😥 Oops! Tive um probleminha para salvar a lista de subdonos. Tente novamente, por favor!'
+      message: '❌ Erro ao salvar a lista de subdonos. Tente novamente.'
     };
   }
   ;
@@ -476,7 +476,7 @@ const removeSubdono = userId => {
   } else {
     return {
       success: false,
-      message: '😥 Oops! Tive um probleminha para salvar a lista após remover o subdono. Tente novamente!'
+      message: '❌ Erro ao salvar a lista após remover o subdono. Tente novamente.'
     };
   }
   ;
@@ -1817,7 +1817,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       rentalStatusChecked = true;
       const allowedCommandsBypass = ['modoaluguel', 'addaluguel', 'gerarcodigo', 'addsubdono', 'remsubdono', 'listasubdonos'];
       if (!groupHasActiveRental && isCmd && !isOwnerOrSub && !allowedCommandsBypass.includes(command)) {
-        await reply("⏳ Oops! Parece que o aluguel deste grupo expirou ou não está ativo. Para usar os comandos, ative com um código ou peça para o dono renovar! 😊");
+        await reply("⏳ O aluguel deste grupo expirou ou não está ativo. Para usar os comandos, ative com um código ou solicite ao dono a renovação.");
         return;
       }
       ;
@@ -2434,7 +2434,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     delete: info.key
                   });
                   await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-                  await reply(`🔞 Oops! @${getUserName(sender)}, conteúdo impróprio não é permitido e você foi removido(a).`, {
+                  await reply(`🔞 @${getUserName(sender)}, conteúdo impróprio detectado. Você foi removido do grupo.`, {
                     mentions: [sender]
                   });
                 } catch (adminError) {
@@ -2471,7 +2471,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         }
       });
       await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-      await reply(`🗺️ Ops! @${getUserName(sender)}, parece que localizações não são permitidas aqui e você foi removido(a).`, {
+      await reply(`🗺️ @${getUserName(sender)}, localização não permitida. Você foi removido do grupo.`, {
         mentions: [sender]
       });
     }
@@ -2482,7 +2482,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       const lastCmd = antifloodData[from].users[sender]?.lastCmd || 0;
       const interval = antifloodData[from].interval * 1000;
       if (now - lastCmd < interval) {
-        return reply(`⏳ Calma aí, apressadinho(a)! 😊 Espere ${Math.ceil((interval - (now - lastCmd)) / 1000)} segundos para usar outro comando, por favor! ✨`);
+        return reply(`⏳ Aguarde ${Math.ceil((interval - (now - lastCmd)) / 1000)} segundos antes de usar outro comando.`);
       }
       ;
       antifloodData[from].users[sender] = {
@@ -2501,7 +2501,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         }
       });
       await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-      await reply(`📄 Oops! @${getUserName(sender)}, parece que documentos não são permitidos aqui e você foi removido(a).`, {
+      await reply(`📄 @${getUserName(sender)}, documentos não são permitidos. Você foi removido do grupo.`, {
         mentions: [sender]
       });
     }
@@ -2520,7 +2520,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         };
       }
       if (cmdLimitData[from].users[sender].count >= cmdLimitData[from].limit) {
-        return reply(`🚫 Oops! Você já usou seus ${cmdLimitData[from].limit} comandos de hoje. Tente novamente amanhã! 😊`);
+        return reply(`🚫 Você atingiu o limite de ${cmdLimitData[from].limit} comandos diários. Tente novamente amanhã.`);
       }
       cmdLimitData[from].users[sender].count++;
       fs.writeFileSync(__dirname + '/../database/cmdlimit.json', JSON.stringify(cmdLimitData, null, 2));
@@ -2616,11 +2616,11 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         });
         if (isBotAdmin) {
           await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-          await reply(`🔗 Ops! @${getUserName(sender)}, links não são permitidos aqui e você foi removido(a).`, {
+          await reply(`🔗 @${getUserName(sender)}, links não são permitidos. Você foi removido do grupo.`, {
             mentions: [sender]
           });
         } else {
-          await reply(`🔗 Atenção, @${getUserName(sender)}! Links não são permitidos aqui. Não consigo remover você, mas por favor, evite enviar links. 😉`, {
+          await reply(`🔗 Atenção, @${getUserName(sender)}! Links não são permitidos. Não consigo remover você, mas evite enviar links.`, {
             mentions: [sender]
           });
         }
@@ -2743,11 +2743,11 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           if (!AllgroupMembers.includes(sender)) return;
           if (isBotAdmin) {
             await nazu.groupParticipantsUpdate(from, [sender], 'remove');
-            await reply(`🔗 Ops! @${getUserName(sender)}, links de outros grupos não são permitidos aqui e você foi removido(a).`, {
+            await reply(`🔗 @${getUserName(sender)}, links de outros grupos não são permitidos. Você foi removido do grupo.`, {
               mentions: [sender]
             });
           } else {
-            await reply(`🔗 Atenção, @${getUserName(sender)}! Links de outros grupos não são permitidos. Não consigo remover você, mas por favor, evite compartilhar esses links. 😉`, {
+            await reply(`🔗 Atenção, @${getUserName(sender)}! Links de outros grupos não são permitidos. Não consigo remover você, mas evite compartilhar esses links.`, {
               mentions: [sender]
             });
           }
@@ -2805,7 +2805,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         if (tictactoe.hasActiveGame(from) && budy2) {
           if (['tttend', 'rv', 'fimjogo'].includes(budy2)) {
             if (!isGroupAdmin) {
-              await reply("✋ Somente os administradores do grupo podem encerrar um jogo da velha em andamento! 😊");
+              await reply("⚠️ Apenas administradores podem encerrar um jogo da velha em andamento.");
               return;
             }
             ;
@@ -2838,7 +2838,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     }
     ;
     if (isGroup && groupData.blockedUsers && (groupData.blockedUsers[sender] || groupData.blockedUsers[sender.split('@')[0]]) && isCmd) {
-      return reply(`🚫 Oops! Parece que você não pode usar comandos neste grupo.\nMotivo: ${groupData.blockedUsers[sender] ? groupData.blockedUsers[sender].reason : groupData.blockedUsers[sender.split('@')[0]].reason}`);
+      return reply(`🚫 Você não tem permissão para usar comandos neste grupo.\nMotivo: ${groupData.blockedUsers[sender] ? groupData.blockedUsers[sender].reason : groupData.blockedUsers[sender.split('@')[0]].reason}`);
     };
 
     const globalBlacklist = loadGlobalBlacklist();
@@ -2937,7 +2937,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           }
         } catch (assistentError) {
           console.error('Erro no assistente virtual:', assistentError.message);
-          await reply('🤖 Ops! Estou com um probleminha técnico. Tente novamente em instantes!');
+          await reply('🤖 Erro técnico no assistente virtual. Tente novamente em alguns minutos.');
         }
         ;
       }
@@ -3049,7 +3049,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
         fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
       } catch (error) {
         console.error("Erro no sistema antifig:", error);
-        await reply(`⚠️ Erro ao processar antifig para @${getUserName(sender)}. Admins, por favor, verifiquem!`, {
+        await reply(`⚠️ Erro ao processar antifig para @${getUserName(sender)}. Administradores, verifiquem!`, {
           mentions: [sender]
         });
       }
@@ -3875,7 +3875,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
               lowpass: 'lowpass=f=500'
             };
             const muk = isQuotedAudio ? info.message.extendedTextMessage.contextInfo.quotedMessage.audioMessage : info.message.audioMessage;
-            await reply('Aguarde um momentinho... ☀️');
+            await reply('🎵 Processando áudio... Por favor, aguarde alguns segundos.');
             const rane = __dirname + `/../database/tmp/${Math.random()}.mp3`;
             const buffimg = await getFileBuffer(muk, 'audio');
             fs.writeFileSync(rane, buffimg);
@@ -3886,7 +3886,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
               await fs.unlinkSync(gem);
               if (err) {
                 console.error(`FFMPEG Error (Audio Effect ${command}):`, err);
-                return reply(`🐝 Oops! Tive um probleminha ao aplicar o efeito *${command}* no seu áudio. Tente novamente, por favorzinho! 🥺`);
+                return reply(`❌ Erro ao aplicar o efeito *${command}* no áudio. Verifique se o arquivo está válido e tente novamente.`);
               }
               const hah = fs.readFileSync(ran);
               await nazu.sendMessage(from, {
@@ -3898,11 +3898,11 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
               await fs.unlinkSync(ran);
             });
           } else {
-            reply("🎶 Para usar este efeito, por favor, responda (marque) a mensagem de áudio que você quer modificar! 😊");
+            reply("� Para aplicar este efeito de áudio, responda a uma mensagem que contenha um áudio.");
           }
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -3926,7 +3926,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         try {
           if (isMedia && info.message.videoMessage || isQuotedVideo) {
             const encmedia = isQuotedVideo ? info.message.extendedTextMessage.contextInfo.quotedMessage.videoMessage : info.message.videoMessage;
-            await reply('Aguarde um momentinho... ☀️');
+            await reply('🎬 Processando vídeo... Por favor, aguarde alguns segundos.');
             const videoEffects = {
               videorapido: '[0:v]setpts=0.5*PTS[v];[0:a]atempo=2[a]',
               fastvid: '[0:v]setpts=0.5*PTS[v];[0:a]atempo=2[a]',
@@ -3975,7 +3975,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
               await fs.unlinkSync(media);
               if (err) {
                 console.error(`FFMPEG Error (Video Effect ${command}):`, err);
-                return reply(`🎬 Oops! Algo deu errado ao aplicar o efeito *${command}* no seu vídeo. Poderia tentar de novo? 🥺`);
+                return reply(`❌ Erro ao aplicar o efeito *${command}* no vídeo. Verifique se o arquivo está válido e tente novamente.`);
               }
               const buffer453 = fs.readFileSync(ran);
               const messageType = command === 'tomp3' ? {
@@ -3991,12 +3991,12 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
               await fs.unlinkSync(ran);
             });
           } else {
-            reply(command === 'tomp3' ? "🎬 Para converter para áudio, por favor, responda (marque) a mensagem de vídeo! 😊" : "🎬 Para usar este efeito, por favor, responda (marque) a mensagem de vídeo que você quer modificar! 😊");
+            reply(command === 'tomp3' ? "🎬 Para converter vídeo para áudio, responda a uma mensagem que contenha um vídeo." : "🎬 Para aplicar este efeito de vídeo, responda a uma mensagem que contenha um vídeo.");
           }
           ;
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -4445,7 +4445,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         }
         break;
       case 'resumir':
-        if (!q) return reply(`📝 Quer um resumo? Envie o texto logo após o comando ${prefix}resumir! Exemplo: ${prefix}resumir [seu texto aqui] 😊`);
+        if (!q) return reply(`📝 Para usar o resumidor, envie o texto após o comando. Exemplo: ${prefix}resumir [seu texto aqui]`);
         if (!KeyCog) {
           await nazu.sendMessage(nmrdn, {
             text: `Olá! 🐝 Passei aqui para avisar que alguém tentou usar o comando "${prefix}${command}", mas parece que a sua API key ainda não foi configurada. 😊 Caso tenha interesse, entre em contato comigo pelo link abaixo! Você pode entrar em contato para solicitar uma key gratuita com limite de 150 requests por dia ou comprar a ilimitada por R$15/mês. 🚀\nwa.me/553399285117`
@@ -4623,7 +4623,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(`🌐✨ *Prontinho! Sua tradução para ${idioma.toUpperCase()} está aqui:*\n\n${bahz.data.choices[0].message.content}`);
         } catch (e) {
           console.error("Erro ao traduzir texto:", e);
-          await reply("Awnn... 🥺 Não consegui fazer a tradução agora... Poderia tentar de novo, por favorzinho? 💔");
+          await reply("❌ Não foi possível realizar a tradução no momento. Tente novamente mais tarde.");
         }
         break;
       case 'qrcode':
@@ -4641,7 +4641,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error("Erro ao gerar QR Code:", e);
-          await reply("Oh céus! 🥺 Tive um probleminha para gerar seu QR Code... Poderia tentar de novo? 💔");
+          await reply("❌ Erro ao gerar QR Code. Tente novamente mais tarde.");
         }
         break;
       case 'wikipedia':
@@ -4724,7 +4724,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           }
         } catch (e) {
           console.error("Erro ao buscar na Wikipédia:", e);
-          await reply("📚 Oops! Tive um probleminha para acessar a Wikipédia agora... 😥 Tente de novo daqui a pouco, por favor! ✨");
+          await reply("📚 Erro ao acessar a Wikipédia no momento. Tente novamente mais tarde.");
         }
         break;
       case 'dicionario':
@@ -4777,7 +4777,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           }
         } catch (e) {
           console.error("Erro geral ao buscar no dicionário:", e);
-          await reply("Awnn... 🥺 Tive um probleminha para encontrar essa palavra... Poderia tentar de novo? 💔");
+          await reply("❌ Palavra não encontrada. Verifique a ortografia e tente novamente.");
         }
         break;
       case 'updates':
@@ -4893,7 +4893,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'viewmsg':
         try {
           if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
-          if (!q) return reply(`Por favor, use: ${prefix}viewmsg [on/off]`);
+          if (!q) return reply(`Use: ${prefix}viewmsg [on/off]`);
           const botStateFile = DATABASE_DIR + '/botState.json';
           let botState = loadJsonFile(botStateFile, {
             status: 'on',
@@ -5768,7 +5768,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           reply(`${anu.data}`);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -5782,7 +5782,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(datzn.join('\n'));
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -5799,7 +5799,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -5828,7 +5828,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(`${linkz}`);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       //DOWNLOADS
@@ -5856,7 +5856,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           }
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -5877,7 +5877,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -5946,7 +5946,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             await ia.notifyOwnerAboutApiKey(nazu, numerodono, e.message);
             await reply('🤖 *Sistema de IA temporariamente indisponível*\n\n😅 Estou com problemas técnicos no momento. O administrador já foi notificado!\n\n⏰ Tente novamente em alguns minutos.');
           } else {
-            await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+            await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
           }
         }
         ;
@@ -6695,7 +6695,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(`📜 *Lista de Comandos (Cases)*:\n\n${caseList.join('\n')}\n\nTotal: ${caseList.length} comandos`);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'getcase':
@@ -6713,7 +6713,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'boton':
@@ -6734,7 +6734,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(message);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'blockcmdg':
@@ -6753,7 +6753,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(`✅ Comando *${cmdToBlock}* bloqueado globalmente!\nMotivo: ${reason}`);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'unblockcmdg':
@@ -6770,7 +6770,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(`✅ Comando *${cmdToUnblock}* desbloqueado globalmente!`);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'blockuserg':
@@ -6794,7 +6794,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'unblockuserg':
@@ -6819,7 +6819,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'listblocks':
@@ -6835,7 +6835,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(message);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'seradm':
@@ -6844,7 +6844,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await nazu.groupParticipantsUpdate(from, [sender], "promote");
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -6854,7 +6854,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await nazu.groupParticipantsUpdate(from, [sender], "demote");
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -7184,7 +7184,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(teks);
         } catch (e) {
           console.log(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'bangp':
@@ -7203,7 +7203,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           fs.writeFileSync(__dirname + `/../database/dono/bangp.json`, JSON.stringify(banGpIds));
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -7380,7 +7380,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           ;
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -7521,7 +7521,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -7584,7 +7584,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'meustatus':
@@ -7654,7 +7654,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           ;
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -7884,7 +7884,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(lines);
         } catch (e) {
           console.error("Erro em statusbot:", e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -7977,7 +7977,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'cmdinfo':
@@ -8002,7 +8002,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'statusgp':
@@ -8153,7 +8153,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           }
         } catch (e) {
           console.error("Erro em statusgp:", e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'dono':
@@ -8162,7 +8162,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(TextinDonoInfo);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
 
@@ -8172,7 +8172,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(TextinCriadorInfo);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'ping':
@@ -8225,7 +8225,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             quoted: info
           });
         } catch (error) {
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8276,7 +8276,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8301,7 +8301,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8328,7 +8328,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8373,7 +8373,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8399,7 +8399,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8415,7 +8415,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8440,7 +8440,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8458,7 +8458,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           reply(`Autor e pacote salvos com sucesso!\nAutor: ${author}\nPacote: ${pack}`);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8484,7 +8484,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8620,7 +8620,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8646,7 +8646,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'listblocksgp':
@@ -8659,7 +8659,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(message);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'banir':
@@ -8691,7 +8691,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply('https://chat.whatsapp.com/' + linkgc);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8792,7 +8792,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           }
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -8904,7 +8904,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error('Erro no comando chaveamento:', e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'sorteionum':
@@ -8916,7 +8916,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(`🎲 *Sorteio de Número* 🎲\n\nNúmero sorteado: *${numeroSorteado}*`);
         } catch (e) {
           console.error('Erro no comando sorteionum:', e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'sorteionome':
@@ -8963,7 +8963,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply(resultado);
         } catch (e) {
           console.error('Erro no comando sorteionome:', e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'sorteio':
@@ -8993,7 +8993,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           });
         } catch (e) {
           console.error('Erro no comando sorteio:', e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'totag':
@@ -9096,7 +9096,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await nazu.sendMessage(from, DFC4).catch(error => {});
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -9368,7 +9368,7 @@ case 'divulgar':
           await reply(`✅ Limite de mensagens configurado: ${limit} mensagens a cada ${timeInput} com ${actionText}!`);
         } catch (e) {
           console.error('Erro no comando limitmessage:', e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'dellimitmessage':
@@ -9383,7 +9383,7 @@ case 'divulgar':
           await reply("🗑️ Sistema de limite de mensagens desativado com sucesso!");
         } catch (e) {
           console.error('Erro no comando dellimitmessage:', e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         break;
       case 'setprefix':
@@ -9525,7 +9525,7 @@ Exemplos:
           }
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -9553,7 +9553,7 @@ Exemplos:
           }
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -9728,7 +9728,7 @@ Exemplos:
             await reply('✅ Mensagem de saída configurada com sucesso!\n\n📝 Mensagem definida como:\n' + q);
           } catch (error) {
             console.error(error);
-            await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+            await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
           }
         }
         break;
@@ -9748,7 +9748,7 @@ Exemplos:
             await reply(groupData.exit.enabled ? '✅ Mensagens de saída ativadas!' : '❌ Mensagens de saída desativadas!');
           } catch (error) {
             console.error(error);
-            await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+            await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
           }
           ;
         }
@@ -10254,7 +10254,7 @@ Exemplos:
           reply(`✅ *Mensagem de boas-vindas configurada com sucesso!*\n\n📌 Nova mensagem:\n"${groupData.textbv}"`);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -10701,7 +10701,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -10727,7 +10727,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -10775,7 +10775,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           });
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -10790,7 +10790,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           }, 3000);
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -10911,7 +10911,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           ;
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -11030,7 +11030,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           ;
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -11129,7 +11129,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           }
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -11226,7 +11226,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           }
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -11293,7 +11293,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           ;
         } catch (e) {
           console.error(e);
-          await reply("🐝 Oh não! Aconteceu um errinho inesperado aqui. Tente de novo daqui a pouquinho, por favor! 🥺");
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
