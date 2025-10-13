@@ -20,6 +20,176 @@ import { dirname, join } from 'path';
 import crypto from 'crypto';
 
 import PerformanceOptimizer from './utils/performanceOptimizer.js';
+import RentalExpirationManager from './utils/rentalExpirationManager.js';
+
+export { rentalExpirationManager };
+
+class MessageQueue {
+    constructor(maxWorkers = 4) {
+        this.queue = [];
+        this.maxWorkers = maxWorkers;
+        this.activeWorkers = 0;
+        this.isProcessing = false;
+        this.processingInterval = null;
+        this.errorHandler = null;
+        this.stats = {
+            totalProcessed: 0,
+            totalErrors: 0,
+            currentQueueLength: 0,
+            startTime: Date.now()
+        };
+    }
+
+    setErrorHandler(handler) {
+        this.errorHandler = handler;
+    }
+
+    async add(message, processor) {
+        return new Promise((resolve, reject) => {
+            this.queue.push({
+                message,
+                processor,
+                resolve,
+                reject,
+                timestamp: Date.now(),
+                id: crypto.randomUUID()
+            });
+            
+            this.stats.currentQueueLength = this.queue.length;
+            
+            if (!this.isProcessing) {
+                this.startProcessing();
+            }
+        });
+    }
+
+    startProcessing() {
+        if (this.isProcessing) return;
+        
+        this.isProcessing = true;
+        this.processingInterval = setInterval(() => {
+            this.processQueue();
+        }, 0);
+    }
+
+    stopProcessing() {
+        if (this.processingInterval) {
+            clearInterval(this.processingInterval);
+            this.processingInterval = null;
+        }
+        this.isProcessing = false;
+    }
+
+    async processQueue() {
+        if (this.activeWorkers >= this.maxWorkers || this.queue.length === 0) {
+            if (this.activeWorkers === 0 && this.queue.length === 0) {
+                this.stopProcessing();
+            }
+            return;
+        }
+
+        const item = this.queue.shift();
+        if (!item) return;
+
+        this.activeWorkers++;
+        this.stats.currentQueueLength = this.queue.length;
+
+        setImmediate(async () => {
+            try {
+                await this.processItem(item);
+            } catch (error) {
+                await this.handleProcessingError(item, error);
+            } finally {
+                this.activeWorkers--;
+                this.stats.totalProcessed++;
+                
+                if (this.queue.length > 0) {
+                    this.processQueue();
+                } else if (this.activeWorkers === 0) {
+                    this.stopProcessing();
+                }
+            }
+        });
+    }
+
+    async processItem(item) {
+        const { message, processor, resolve } = item;
+        
+        try {
+            const result = await processor(message);
+            resolve(result);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async handleProcessingError(item, error) {
+        this.stats.totalErrors++;
+        
+        console.error(`❌ Queue processing error for message ${item.id}:`, error.message);
+        
+        if (this.errorHandler) {
+            try {
+                await this.errorHandler(item, error);
+            } catch (handlerError) {
+                console.error('❌ Error handler failed:', handlerError.message);
+            }
+        }
+        
+        item.reject(error);
+    }
+
+    getStatus() {
+        const uptime = Date.now() - this.stats.startTime;
+        return {
+            queueLength: this.queue.length,
+            activeWorkers: this.activeWorkers,
+            maxWorkers: this.maxWorkers,
+            isProcessing: this.isProcessing,
+            totalProcessed: this.stats.totalProcessed,
+            totalErrors: this.stats.totalErrors,
+            currentQueueLength: this.stats.currentQueueLength,
+            uptime: uptime,
+            uptimeFormatted: this.formatUptime(uptime),
+            throughput: this.stats.totalProcessed > 0 ?
+                (this.stats.totalProcessed / (uptime / 1000)).toFixed(2) : 0,
+            errorRate: this.stats.totalProcessed > 0 ?
+                ((this.stats.totalErrors / this.stats.totalProcessed) * 100).toFixed(2) : 0
+        };
+    }
+
+    formatUptime(ms) {
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${seconds % 60}s`;
+        } else {
+            return `${seconds}s`;
+        }
+    }
+
+    clear() {
+        this.queue = [];
+        this.stats.currentQueueLength = 0;
+        this.stopProcessing();
+    }
+
+    pause() {
+        this.stopProcessing();
+    }
+
+    resume() {
+        if (!this.isProcessing && (this.queue.length > 0 || this.activeWorkers > 0)) {
+            this.startProcessing();
+        }
+    }
+}
+
+const messageQueue = new MessageQueue(4);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -31,6 +201,16 @@ import indexModule from './index.js';
 
 const performanceOptimizer = new PerformanceOptimizer();
 
+const rentalExpirationManager = new RentalExpirationManager(null, {
+    checkInterval: '0 */6 * * *',
+    warningDays: 3,
+    finalWarningDays: 1,
+    cleanupDelayHours: 24,
+    enableNotifications: true,
+    enableAutoCleanup: true,
+    logFile: path.join(__dirname, '../logs/rental_expiration.log')
+});
+
 const logger = pino({
     level: 'silent'
 });
@@ -40,7 +220,6 @@ const DATABASE_DIR = path.join(__dirname, '..', 'database');
 const GLOBAL_BLACKLIST_PATH = path.join(__dirname, '..', 'database', 'dono', 'globalBlacklist.json');
 
 let msgRetryCounterCache;
-let groupCache;
 let messagesCache;
 
 async function initializeOptimizedCaches() {
@@ -53,11 +232,6 @@ async function initializeOptimizedCaches() {
             del: (key) => performanceOptimizer.modules.cacheManager?.del('msgRetry', key)
         };
         
-        groupCache = {
-            get: (key) => performanceOptimizer.cacheGet('groupMeta', key),
-            set: (key, value) => performanceOptimizer.cacheSet('groupMeta', key, value)
-        };
-        
         messagesCache = new Map();
         
         console.log('✅ Sistema de otimização inicializado com sucesso!');
@@ -65,10 +239,6 @@ async function initializeOptimizedCaches() {
         console.error('❌ Erro ao inicializar sistema de otimização:', error.message);
         
         msgRetryCounterCache = new NodeCache({
-            stdTTL: 5 * 60,
-            useClones: false
-        });
-        groupCache = new NodeCache({
             stdTTL: 5 * 60,
             useClones: false
         });
@@ -189,15 +359,21 @@ async function createGroupMessage(NazunaSock, groupMetadata, participants, setti
 
 async function handleGroupParticipantsUpdate(NazunaSock, inf) {
     try {
-        const from = inf.id;
+        const from = inf.id || inf.jid || (inf.participants && inf.participants.length > 0 ? inf.participants[0].split('@')[0] + '@s.whatsapp.net' : null);
+        
+        if (!from) {
+            console.error('❌ Erro: ID do grupo não encontrado nos dados do evento.');
+            return;
+        }
+        
         if (inf.participants.some(p => p.startsWith(NazunaSock.user.id.split(':')[0])))
             return;
-        let groupMetadata = groupCache.get(from) || await NazunaSock.groupMetadata(from).catch(() => null);
+            
+        let groupMetadata = await NazunaSock.groupMetadata(from).catch(() => null);
         if (!groupMetadata) {
             console.error(`❌ Metadados do grupo ${from} não encontrados.`);
             return;
         }
-        groupCache.set(from, groupMetadata);
         const groupSettings = await loadGroupSettings(from);
         const globalBlacklist = await loadGlobalBlacklist();
         switch (inf.action) {
@@ -214,16 +390,6 @@ async function handleGroupParticipantsUpdate(NazunaSock, inf) {
                     if (groupSettings.blacklist?.[participant]) {
                         membersToRemove.push(participant);
                         removalReasons.push(`@${participant.split('@')[0]} (lista negra do grupo: ${groupSettings.blacklist[participant].reason})`);
-                        continue;
-                    }
-                    if (groupSettings.antifake && !['55', '35'].includes(participant.substring(0, 2))) {
-                        membersToRemove.push(participant);
-                        removalReasons.push(`@${participant.split('@')[0]} (número não permitido)`);
-                        continue;
-                    }
-                    if (groupSettings.antipt && participant.substring(0, 3) === '351') {
-                        membersToRemove.push(participant);
-                        removalReasons.push(`@${participant.split('@')[0]} (número de Portugal)`);
                         continue;
                     }
                     if (groupSettings.bemvindo) {
@@ -257,6 +423,33 @@ async function handleGroupParticipantsUpdate(NazunaSock, inf) {
             }
             case 'promote':
             case 'demote': {
+                // Check if anti-arquivamento is enabled
+                if (groupSettings.antiarqv) {
+                    // Check if the author is a group owner
+                    const isOwner = groupSettings.groupOwners?.includes(inf.author);
+                    
+                    if (!isOwner) {
+                        // Prevent the action if not a group owner
+                        const action = inf.action === 'promote' ? 'promoção' : 'rebaixamento';
+                        console.log(`[ANTI-ARQUIVAMENTO] Bloqueado ${action} por @${inf.author.split('@')[0]} em ${groupMetadata.subject}. Ação revertida.`);
+                        
+                        // Revert the action by promoting/demoting back
+                        for (const participant of inf.participants) {
+                            try {
+                                await NazunaSock.groupParticipantsUpdate(from, [participant], inf.action === 'promote' ? 'demote' : 'promote');
+                                await NazunaSock.sendMessage(from, {
+                                    text: `🛡️ @${inf.author.split('@')[0]}, você não tem permissão para ${action} membros! Apenas donos do grupo podem promover/rebaixar quando o anti-arquivamento está ativo. Ação revertida.`,
+                                    mentions: [inf.author, participant],
+                                });
+                            } catch (revertError) {
+                                console.error(`[ANTI-ARQUIVAMENTO] Erro ao reverter ${action} de ${participant}: ${revertError.message}`);
+                            }
+                        }
+                        break; // Exit the switch statement
+                    }
+                }
+                
+                // X9 notification (only if anti-arquivamento didn't block)
                 if (groupSettings.x9) {
                     for (const participant of inf.participants) {
                         const action = inf.action === 'promote' ? 'promovido a ADM' : 'rebaixado de ADM';
@@ -650,7 +843,6 @@ async function createBotSocket(authDir) {
             keepAliveIntervalMs: 30_000,
             defaultQueryTimeoutMs: undefined,
             msgRetryCounterCache,
-            cachedGroupMetadata: async (jid) => groupCache.get(jid),
             auth: state,
             signalRepository,
             browser: ['Ubuntu', 'Edge', '110.0.1587.56'],
@@ -674,8 +866,8 @@ async function createBotSocket(authDir) {
         NazunaSock.ev.on('groups.update', async ([ev]) => {
             try {
                 const meta = await NazunaSock.groupMetadata(ev.id).catch(() => null);
-                if (meta)
-                    groupCache.set(ev.id, meta);
+                if (meta) {
+                }
             } catch (e) {
                 console.error(`❌ Erro ao atualizar metadados do grupo ${ev.id}: ${e.message}`);
             }
@@ -687,6 +879,49 @@ async function createBotSocket(authDir) {
 
         let messagesListenerAttached = false;
 
+        const queueErrorHandler = async (item, error) => {
+            console.error(`❌ Critical error processing message ${item.id}:`, error);
+            
+            if (error.message.includes('ENOSPC') || error.message.includes('ENOMEM')) {
+                console.error('🚨 Critical system error detected, triggering emergency cleanup...');
+                try {
+                    await performanceOptimizer.emergencyCleanup();
+                } catch (cleanupErr) {
+                    console.error('❌ Emergency cleanup failed:', cleanupErr.message);
+                }
+            }
+            
+            console.error({
+                messageId: item.id,
+                errorType: error.constructor.name,
+                errorMessage: error.message,
+                stack: error.stack,
+                messageTimestamp: item.timestamp,
+                queueStatus: messageQueue.getStatus()
+            });
+        };
+
+        messageQueue.setErrorHandler(queueErrorHandler);
+
+        const processMessage = async (info) => {
+            if (!info.message || !info.key.remoteJid)
+                return;
+                
+            if (info?.WebMessageInfo) {
+                return;
+            }
+            
+            if (messagesCache) {
+                messagesCache.set(info.key.id, info.message);
+            }
+            
+            if (typeof indexModule === 'function') {
+                await indexModule(NazunaSock, info, null, null, messagesCache, rentalExpirationManager);
+            } else {
+                throw new Error('Módulo index.js não é uma função válida. Verifique o arquivo index.js.');
+            }
+        };
+
         const attachMessagesListener = () => {
             if (messagesListenerAttached) return;
             messagesListenerAttached = true;
@@ -694,30 +929,30 @@ async function createBotSocket(authDir) {
             NazunaSock.ev.on('messages.upsert', async (m) => {
                 if (!m.messages || !Array.isArray(m.messages) || m.type !== 'notify')
                     return;
+                    
                 try {
-                    if (typeof indexModule === 'function') {
-                        for (const info of m.messages) {
-                            if (!info.message || !info.key.remoteJid)
-                                continue;
-                            if (info?.WebMessageInfo) {
-                                continue;
-                            }
-                            
-                            if (messagesCache) {
-                                messagesCache.set(info.key.id, info.message);
-                            }
-                            
-                            await indexModule(NazunaSock, info, null, groupCache, messagesCache);
-                        }
-                    } else {
-                        console.error('⚠️ Módulo index.js não é uma função válida. Verifique o arquivo index.js.');
+                    const messageProcessingPromises = m.messages.map(info =>
+                        messageQueue.add(info, processMessage).catch(err => {
+                            console.error(`❌ Failed to queue message ${info.key?.id}: ${err.message}`);
+                        })
+                    );
+                    
+                    await Promise.allSettled(messageProcessingPromises);
+                    
+                    if (Math.random() < 0.01) {
+                        const status = messageQueue.getStatus();
+                        console.log(`📊 Queue status: ${status.queueLength} queued, ${status.activeWorkers} active, ${status.totalProcessed} processed (${status.throughput}/s)`);
                     }
                 } catch (err) {
-                    console.error(`❌ Erro ao processar mensagem: ${err.message}`);
+                    console.error(`❌ Error in message upsert handler: ${err.message}`);
                     
                     if (err.message.includes('ENOSPC') || err.message.includes('ENOMEM')) {
-                        console.error('🚨 Erro crítico detectado, acionando sistema de emergência...');
-                        await performanceOptimizer.emergencyCleanup();
+                        console.error('🚨 Critical system error detected, triggering emergency cleanup...');
+                        try {
+                            await performanceOptimizer.emergencyCleanup();
+                        } catch (cleanupErr) {
+                            console.error('❌ Emergency cleanup failed:', cleanupErr.message);
+                        }
                     }
                 }
             });
@@ -745,6 +980,10 @@ async function createBotSocket(authDir) {
                 
                 await updateOwnerLid(NazunaSock);
                 await performMigration(NazunaSock);
+                
+                rentalExpirationManager.nazu = NazunaSock;
+                await rentalExpirationManager.initialize();
+                
                 attachMessagesListener();
                 console.log(`✅ Bot ${nomebot} iniciado com sucesso! Prefixo: ${prefixo} | Dono: ${nomedono}`);
                 
@@ -753,6 +992,17 @@ async function createBotSocket(authDir) {
                     console.log('📊 Sistema de otimização pronto:', {
                         módulos: Object.keys(stats.modules).length,
                         tempo_inicialização: `${Math.round((Date.now() - stats.optimizer.startTime) / 1000)}s`
+                    });
+                    
+                    // Log initial queue status
+                    const queueStatus = messageQueue.getStatus();
+                    console.log('📦 Message Queue Status:', {
+                        queueLength: queueStatus.queueLength,
+                        activeWorkers: queueStatus.activeWorkers,
+                        maxWorkers: queueStatus.maxWorkers,
+                        totalProcessed: queueStatus.totalProcessed,
+                        uptime: queueStatus.uptimeFormatted,
+                        throughput: `${queueStatus.throughput}/s`
                     });
                 }, 5000);
             }

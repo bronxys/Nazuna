@@ -122,8 +122,6 @@ ${middleBorder}${menuItemIcon}${prefix}antilinkgp
 ${middleBorder}${menuItemIcon}${prefix}antilinkhard
 ${middleBorder}${menuItemIcon}${prefix}antiporn
 ${middleBorder}${menuItemIcon}${prefix}antiflood
-${middleBorder}${menuItemIcon}${prefix}antifake
-${middleBorder}${menuItemIcon}${prefix}antipt
 ${middleBorder}${menuItemIcon}${prefix}antidoc
 ${middleBorder}${menuItemIcon}${prefix}antiloc
 ${middleBorder}${menuItemIcon}${prefix}antifig

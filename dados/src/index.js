@@ -31,6 +31,7 @@ const ECONOMY_FILE = pathz.join(DATABASE_DIR, 'economy.json');
 const MSGPREFIX_FILE = pathz.join(DONO_DIR, 'msgprefix.json');
 const CUSTOM_REACTS_FILE = pathz.join(DATABASE_DIR, 'customReacts.json');
 const REMINDERS_FILE = pathz.join(DATABASE_DIR, 'reminders.json');
+const CMD_NOT_FOUND_FILE = pathz.join(DONO_DIR, 'cmdNotFound.json');
 
 function formatUptime(seconds, longFormat = false, showZero = false) {
   const d = Math.floor(seconds / (24 * 3600));
@@ -303,6 +304,18 @@ ensureJsonFileExists(LEVELING_FILE, {
 ensureJsonFileExists(MSGPREFIX_FILE, { message: false });
 ensureJsonFileExists(CUSTOM_REACTS_FILE, { reacts: [] });
 ensureJsonFileExists(REMINDERS_FILE, { reminders: [] });
+ensureJsonFileExists(CMD_NOT_FOUND_FILE, {
+  enabled: true,
+  message: '❌ Comando não encontrado! Tente {prefix}menu para ver todos os comandos disponíveis.',
+  style: 'friendly',
+  variables: {
+    command: '{command}',
+    prefix: '{prefix}',
+    user: '{user}',
+    botName: '{botName}',
+    userName: '{userName}'
+  }
+});
 const loadMsgPrefix = () => {
   return loadJsonFile(MSGPREFIX_FILE, { message: false }).message;
 };
@@ -315,6 +328,104 @@ const saveMsgPrefix = (message) => {
   } catch (error) {
     console.error('❌ Erro ao salvar msgprefix:', error);
     return false;
+  }
+};
+
+const loadCmdNotFoundConfig = () => {
+  return loadJsonFile(CMD_NOT_FOUND_FILE, {
+    enabled: true,
+    message: '❌ Comando não encontrado! Tente {prefix}menu para ver todos os comandos disponíveis.',
+    style: 'friendly',
+    variables: {
+      command: '{command}',
+      prefix: '{prefix}',
+      user: '{user}',
+      botName: '{botName}',
+      userName: '{userName}'
+    }
+  });
+};
+
+const saveCmdNotFoundConfig = (config, action = 'update') => {
+  try {
+    ensureDirectoryExists(DONO_DIR);
+    const validatedConfig = {
+      enabled: typeof config.enabled === 'boolean' ? config.enabled : true,
+      message: config.message || '❌ Comando não encontrado! Tente {prefix}menu para ver todos os comandos disponíveis.',
+      style: ['friendly', 'formal', 'casual', 'emoji'].includes(config.style) ? config.style : 'friendly',
+      variables: {
+        command: config.variables?.command || '{command}',
+        prefix: config.variables?.prefix || '{prefix}',
+        user: config.variables?.user || '{user}',
+        botName: config.variables?.botName || '{botName}',
+        userName: config.variables?.userName || '{userName}'
+      },
+      lastUpdated: new Date().toISOString()
+    };
+    fs.writeFileSync(CMD_NOT_FOUND_FILE, JSON.stringify(validatedConfig, null, 2));
+    
+    const logMessage = `🔧 Configuração de comando não encontrado ${action}:\n` +
+      `• Status: ${validatedConfig.enabled ? 'ATIVADO' : 'DESATIVADO'}\n` +
+      `• Estilo: ${validatedConfig.style}\n` +
+      `• Mensagem: ${validatedConfig.message.substring(0, 50)}${validatedConfig.message.length > 50 ? '...' : ''}\n` +
+      `• Em: ${new Date().toLocaleString('pt-BR')}`;
+    
+    console.log(logMessage);
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar configuração de comando não encontrado:', error);
+    return false;
+  }
+};
+
+const validateMessageTemplate = (template) => {
+  if (!template || typeof template !== 'string') {
+    return { valid: false, error: 'Mensagem inválida ou vazia' };
+  }
+  
+  const issues = [];
+  
+  const openBraces = (template.match(/\{/g) || []).length;
+  const closeBraces = (template.match(/\}/g) || []).length;
+  if (openBraces !== closeBraces) {
+    issues.push('Número desigual de chaves abertas e fechadas');
+  }
+  
+  const validVariables = ['{command}', '{prefix}', '{user}', '{botName}', '{userName}'];
+  const foundVariables = template.match(/\{[^}]+\}/g) || [];
+  
+  foundVariables.forEach(variable => {
+    if (!validVariables.includes(variable)) {
+      issues.push(`Variável inválida: ${variable}`);
+    }
+  });
+  
+  return {
+    valid: issues.length === 0,
+    issues: issues.length > 0 ? issues : null,
+    variables: foundVariables
+  };
+};
+
+const formatMessageWithFallback = (template, variables, fallbackMessage) => {
+  try {
+    const validation = validateMessageTemplate(template);
+    if (!validation.valid) {
+      console.warn('⚠️ Template de mensagem inválido:', validation.issues);
+      return fallbackMessage;
+    }
+    
+    let formattedMessage = template;
+    
+    Object.keys(variables).forEach(key => {
+      const placeholder = `{${key}}`;
+      formattedMessage = formattedMessage.replace(new RegExp(placeholder, 'g'), variables[key] || '');
+    });
+    
+    return formattedMessage;
+  } catch (error) {
+    console.error('❌ Erro ao formatar mensagem:', error);
+    return fallbackMessage;
   }
 };
 const loadCustomReacts = () => {
@@ -813,46 +924,21 @@ function getPatent(level, patents) {
   return "Iniciante";
 }
 
-// ====== Economia (Gold) Helpers ======
-function loadEconomy() {
-  return loadJsonFile(ECONOMY_FILE, { users: {}, shop: {}, jobCatalog: {} });
-}
-function saveEconomy(data) {
-  try {
-    fs.writeFileSync(ECONOMY_FILE, JSON.stringify(data, null, 2));
-    return true;
-  } catch (e) { console.error('❌ Erro ao salvar economy.json:', e); return false; }
-}
-function getEcoUser(econ, userId) {
-  econ.users[userId] = econ.users[userId] || { wallet: 0, bank: 0, cooldowns: {}, inventory: {}, job: null, tools: {}, materials: {}, challenge: null, weeklyChallenge: null, monthlyChallenge: null, skills: {}, properties: {} };
-  const u = econ.users[userId];
-  u.cooldowns = u.cooldowns || {};
-  u.inventory = u.inventory || {};
-  if (typeof u.job === 'undefined') u.job = null;
-  u.tools = u.tools || {};
-  u.materials = u.materials || {};
-  u.challenge = u.challenge || null;
-  u.weeklyChallenge = u.weeklyChallenge || null;
-  u.monthlyChallenge = u.monthlyChallenge || null;
-  u.skills = u.skills || {};
-  u.properties = u.properties || {};
-  return u;
-}
-function parseAmount(text, maxValue) {
-  if (!text) return NaN;
-  const t = text.trim().toLowerCase();
-  if (['all', 'tudo', 'max'].includes(t)) return maxValue;
-  const n = parseInt(t.replace(/[^0-9]/g, ''));
-  return isNaN(n) ? NaN : Math.max(0, n);
-}
-function fmt(n) { return new Intl.NumberFormat('pt-BR').format(Math.floor(n)); }
-function timeLeft(targetMs) {
-  const diff = targetMs - Date.now();
-  if (diff <= 0) return '0s';
-  const s = Math.ceil(diff / 1000);
-  const m = Math.floor(s / 60); const rs = s % 60; const h = Math.floor(m / 60); const rm = m % 60;
-  return h > 0 ? `${h}h ${rm}m` : (m > 0 ? `${m}m ${rs}s` : `${rs}s`);
-}
+// Import enhanced gold system functions
+const goldSystem = await import('./funcs/goldSystem.js');
+const {
+  loadEconomy,
+  saveEconomy,
+  getEcoUser,
+  parseAmount,
+  fmt,
+  timeLeft,
+  performGoldTransaction,
+  checkAndUpdateAchievements,
+  displayGoldInfo,
+  getDailyReward,
+  getTopUsers
+} = goldSystem;
 function applyShopBonuses(user, econ) {
   const inv = user.inventory || {};
   const shop = econ.shop || {};
@@ -1387,7 +1473,7 @@ const getMenuDesignWithDefaults = (botName, userName) => {
   return processedDesign;
 };
 
-async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
+async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirationManager = null) {
   var config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
   var {
     numerodono,
@@ -1397,7 +1483,99 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     debug,
     lidowner
   } = config;
-  var KeyCog = config.apikey || false;
+  var KeyCog = config.apikey || '';
+
+  // Função para validar API Key
+  function isValidApiKey(key) {
+    if (!key || typeof key !== 'string') return false;
+    if (key.trim() === '') return false;
+    if (key.length < 10) return false;
+    
+    // Verifica se a chave contém caracteres alfanuméricos básicos
+    const validChars = /^[a-zA-Z0-9\-_]+$/;
+    return validChars.test(key.trim());
+  }
+
+  // Validação da API Key
+  if (!KeyCog || KeyCog.trim() === '') {
+    console.warn('⚠️ API key não configurada. Sistema de IA e downloads automáticos estarão desativados.');
+    KeyCog = false;
+  } else if (!isValidApiKey(KeyCog)) {
+    console.warn('⚠️ API key parece inválida. Sistema de IA e downloads automáticos podem não funcionar.');
+    KeyCog = false;
+  } else {
+    console.log('✅ API key configurada e validada com sucesso.');
+  }
+
+  // Função centralizada para lidar com downloads automáticos
+  async function handleAutoDownload(nazu, from, url, info) {
+    try {
+      if (url.includes('tiktok.com')) {
+        // Verificar se tem API key antes de fazer download automático
+        if (!KeyCog) {
+          console.warn('⚠️ TikTok autodl ignorado: API Key não configurada');
+          return false;
+        }
+        
+        const datinha = await tiktok.dl(url, KeyCog);
+        if (datinha.ok) {
+          await nazu.sendMessage(from, {
+            [datinha.type]: {
+              url: datinha.urls[0]
+            },
+            caption: '🎵 Download automático do TikTok!'
+          }, {
+            quoted: info
+          });
+          return true;
+        } else {
+          console.warn(`⚠️ TikTok autodl falhou: ${datinha.msg}`);
+          return false;
+        }
+      } else if (url.includes('instagram.com')) {
+        // Verificar se tem API key antes de fazer download automático
+        if (!KeyCog) {
+          console.warn('⚠️ Instagram autodl ignorado: API Key não configurada');
+          return false;
+        }
+        
+        const datinha = await igdl.dl(url, KeyCog);
+        if (datinha.ok) {
+          await nazu.sendMessage(from, {
+            [datinha.data[0].type]: datinha.data[0].buff,
+            caption: '📸 Download automático do Instagram!'
+          }, {
+            quoted: info
+          });
+          return true;
+        } else {
+          console.warn(`⚠️ Instagram autodl falhou: ${datinha.msg}`);
+          return false;
+        }
+      } else if (url.includes('pinterest.com') || url.includes('pin.it')) {
+        // Pinterest não requer API key
+        const datinha = await pinterest.dl(url);
+        if (datinha.ok) {
+          await nazu.sendMessage(from, {
+            [datinha.type]: {
+              url: datinha.urls[0]
+            },
+            caption: '📌 Download automático do Pinterest!'
+          }, {
+            quoted: info
+          });
+          return true;
+        } else {
+          console.warn(`⚠️ Pinterest autodl falhou: ${datinha.msg}`);
+          return false;
+        }
+      }
+      return false;
+    } catch (e) {
+      console.error('Erro no autodl:', e);
+      return false;
+    }
+  }
   const menusModule = await import(new URL('./menus/index.js', import.meta.url));
   const menus = await menusModule.default;
   const {
@@ -1547,7 +1725,6 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     var q = args.join(' ');
     const budy2 = normalizar(body);
     const menc_prt = info.message?.extendedTextMessage?.contextInfo?.participant;
-    const menc_jid = q.replace("@", "").split(' ')[0] + "@lid";
     const menc_jid2 = info.message?.extendedTextMessage?.contextInfo?.mentionedJid;
     const menc_os2 = (menc_jid2 && menc_jid2.length > 0) ? menc_jid2[0] : menc_prt;
     const sender_ou_n = (menc_jid2 && menc_jid2.length > 0) ? menc_jid2[0] : menc_prt || sender;
@@ -1767,7 +1944,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     if (isGroup && groupData.afkUsers && groupData.afkUsers[sender]) {
       try {
         const afkReason = groupData.afkUsers[sender].reason;
-        const afkSince = new Date(groupData.afkUsers[sender].since || Date.now()).toLocaleString('pt-BR');
+        const afkSince = new Date(groupData.afkUsers[sender].since || Date.now()).toLocaleString('pt-BR', {
+          timeZone: 'America/Sao_Paulo'
+        });
         delete groupData.afkUsers[sender];
         fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
         await reply(`👋 *Bem-vindo(a) de volta!*\nSeu status AFK foi removido.\nVocê estava ausente desde: ${afkSince}`);
@@ -1780,7 +1959,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     if (isGroup && isMuted) {
       try {
         await nazu.sendMessage(from, {
-          text: `🤫 *Usuário mutado detectado*\n\n@${sender.split("@")[0]}, você está tentando falar enquanto está mutado neste grupo. Você será removido conforme as regras.`,
+          text: `🤫 *Usuário mutado detectado*\n\n@${getUserName(sender)}, você está tentando falar enquanto está mutado neste grupo. Você será removido conforme as regras.`,
           mentions: [sender]
         }, {
           quoted: info
@@ -1987,21 +2166,66 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     nazu.react = reagir;
     const parseTimeToMinutes = (timeStr) => {
       if (typeof timeStr !== 'string') return null;
+      
+      // Validate basic format
       const m = timeStr.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
       if (!m) return null;
+      
       const h = parseInt(m[1]);
       const mi = parseInt(m[2]);
+      
+      // Validate hour range
+      if (h < 0 || h > 23) return null;
+      
+      // Validate minute range
+      if (mi < 0 || mi > 59) return null;
+      
       return h * 60 + mi;
     };
+    
+    // Enhanced time validation function
+    const validateTimeFormat = (timeStr) => {
+      if (!timeStr || typeof timeStr !== 'string') {
+        return { valid: false, error: 'Horário inválido. O horário não pode ser vazio.' };
+      }
+      
+      // Check for valid format
+      const isValidFormat = /^([01]?\d|2[0-3]):([0-5]\d)$/.test(timeStr);
+      if (!isValidFormat) {
+        return { valid: false, error: 'Formato inválido. Use HH:MM (24 horas).' };
+      }
+      
+      // Parse and validate components
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      
+      if (hours < 0 || hours > 23) {
+        return { valid: false, error: 'Hora inválida. Use entre 00 e 23.' };
+      }
+      
+      if (minutes < 0 || minutes > 59) {
+        return { valid: false, error: 'Minuto inválido. Use entre 00 e 59.' };
+      }
+      
+      // Check for edge cases
+      if (timeStr === '24:00') {
+        return { valid: false, error: 'Use 23:59 como horário máximo.' };
+      }
+      
+      return { valid: true, timeStr };
+    };
     const getNowMinutes = () => {
+      // Use Brazil/Sao_Paulo timezone for accurate time comparisons
       const now = new Date();
-      return now.getHours() * 60 + now.getMinutes();
+      const saoPauloTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+      return saoPauloTime.getHours() * 60 + saoPauloTime.getMinutes();
     };
     const getTodayStr = () => {
+      // Use Brazil/Sao_Paulo timezone for consistent date handling
       const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
+      const saoPauloDate = new Date(d.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+      const y = saoPauloDate.getFullYear();
+      const m = String(saoPauloDate.getMonth() + 1).padStart(2, '0');
+      const day = String(saoPauloDate.getDate()).padStart(2, '0');
       return `${y}-${m}-${day}`;
     };
 
@@ -2131,8 +2355,13 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
           try {
             const files = fs.readdirSync(GRUPOS_DIR).filter(f => f.endsWith('.json'));
             if (!files.length) return;
+            
             const nowMin = getNowMinutes();
             const today = getTodayStr();
+            
+            // Log worker start for debugging
+            console.log(`[Schedule Worker] Running at ${nowMin}min (${today}) - Checking ${files.length} groups`);
+            
             for (const f of files) {
               const groupId = f.replace(/\.json$/, '');
               const filePath = pathz.join(GRUPOS_DIR, f);
@@ -2140,14 +2369,24 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
               try {
                 data = JSON.parse(fs.readFileSync(filePath, 'utf-8')) || {};
               } catch (e) {
+                console.error(`[Schedule Worker] Error reading group file ${f}:`, e);
                 continue;
               }
+              
               const schedule = data.schedule || {};
               const lastRun = schedule.lastRun || {};
+              
+              // Log current time and schedule info for debugging
+              console.log(`[Schedule Check] Group: ${groupId}, Current Time: ${nowMin}min, Today: ${today}`);
+              console.log(`[Schedule Check] Open Time: ${schedule.openTime}, Close Time: ${schedule.closeTime}`);
+              console.log(`[Schedule Check] Last Run - Open: ${lastRun.open}, Close: ${lastRun.close}`);
+              
+              // Handle opening schedule
               if (schedule.openTime) {
                 const t = parseTimeToMinutes(schedule.openTime);
                 if (t !== null && t === nowMin && lastRun.open !== today) {
                   try {
+                    console.log(`[Schedule Action] Opening group ${groupId} at ${schedule.openTime}`);
                     await nazuInstance.groupSettingUpdate(groupId, 'not_announcement');
                     await nazuInstance.sendMessage(groupId, { text: '🔓 Grupo aberto automaticamente pelo agendamento diário.' });
                     schedule.lastRun = schedule.lastRun || {};
@@ -2155,13 +2394,17 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     data.schedule = schedule;
                     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
                   } catch (e) {
+                    console.error(`[Schedule Error] Failed to open group ${groupId}:`, e);
                   }
                 }
               }
+              
+              // Handle closing schedule
               if (schedule.closeTime) {
                 const t = parseTimeToMinutes(schedule.closeTime);
                 if (t !== null && t === nowMin && lastRun.close !== today) {
                   try {
+                    console.log(`[Schedule Action] Closing group ${groupId} at ${schedule.closeTime}`);
                     await nazuInstance.groupSettingUpdate(groupId, 'announcement');
                     await nazuInstance.sendMessage(groupId, { text: '🔒 Grupo fechado automaticamente pelo agendamento diário.' });
                     schedule.lastRun = schedule.lastRun || {};
@@ -2169,13 +2412,15 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
                     data.schedule = schedule;
                     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
                   } catch (e) {
+                    console.error(`[Schedule Error] Failed to close group ${groupId}:`, e);
                   }
                 }
               }
             }
           } catch (err) {
+            console.error('[Schedule Worker] Error:', err);
           }
-        }, 60 * 1000);
+        }, 60 * 1000); // Check every minute for precise timing
       } catch (e) {
       }
     };
@@ -2531,47 +2776,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       if (urlMatch) {
         for (const url of urlMatch) {
           try {
-            if (url.includes('tiktok.com')) {
-              // Verificar se tem API key antes de fazer download automático
-              if (KeyCog) {
-                const datinha = await tiktok.dl(url, KeyCog);
-                if (datinha.ok) {
-                  await nazu.sendMessage(from, {
-                    [datinha.type]: {
-                      url: datinha.urls[0]
-                    },
-                    caption: '🎵 Download automático do TikTok!'
-                  }, {
-                    quoted: info
-                  });
-                }
-              }
-            } else if (url.includes('instagram.com')) {
-              // Verificar se tem API key antes de fazer download automático
-              if (KeyCog) {
-                const datinha = await igdl.dl(url, KeyCog);
-                if (datinha.ok) {
-                  await nazu.sendMessage(from, {
-                    [datinha.data[0].type]: datinha.data[0].buff,
-                    caption: '📸 Download automático do Instagram!'
-                  }, {
-                    quoted: info
-                  });
-                }
-              }
-            } else if (url.includes('pinterest.com') || url.includes('pin.it')) {
-              const datinha = await pinterest.dl(url);
-              if (datinha.ok) {
-                await nazu.sendMessage(from, {
-                  [datinha.type]: {
-                    url: datinha.urls[0]
-                  },
-                  caption: '📌 Download automático do Pinterest!'
-                }, {
-                  quoted: info
-                });
-              }
-            }
+            await handleAutoDownload(nazu, from, url, info);
           } catch (e) {
             console.error('Erro no autodl:', e);
           }
@@ -2764,7 +2969,8 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     try {
       if (budy2 && budy2.length > 1) {
         const timestamp = new Date().toLocaleTimeString('pt-BR', {
-          hour12: false
+          hour12: false,
+          timeZone: 'America/Sao_Paulo'
         });
         const messageType = isCmd ? 'COMANDO' : 'MENSAGEM';
         const context = isGroup ? 'GRUPO' : 'PRIVADO';
@@ -2837,22 +3043,22 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
       ;
     }
     ;
-    if (isGroup && groupData.blockedUsers && (groupData.blockedUsers[sender] || groupData.blockedUsers[sender.split('@')[0]]) && isCmd) {
-      return reply(`🚫 Você não tem permissão para usar comandos neste grupo.\nMotivo: ${groupData.blockedUsers[sender] ? groupData.blockedUsers[sender].reason : groupData.blockedUsers[sender.split('@')[0]].reason}`);
+    if (isGroup && groupData.blockedUsers && (groupData.blockedUsers[sender] || groupData.blockedUsers[getUserName(sender)]) && isCmd) {
+      return reply(`🚫 Você não tem permissão para usar comandos neste grupo.\nMotivo: ${groupData.blockedUsers[sender] ? groupData.blockedUsers[sender].reason : groupData.blockedUsers[getUserName(sender)].reason}`);
     };
 
     const globalBlacklist = loadGlobalBlacklist();
     if (isCmd && sender && globalBlacklist.users && (globalBlacklist.users[sender] || globalBlacklist.users[getUserName(sender)])) {
       const blacklistEntry = globalBlacklist.users[sender] || globalBlacklist.users[getUserName(sender)];
-      return reply(`🚫 Você está na blacklist global e não pode usar comandos.\nMotivo: ${blacklistEntry.reason}\nAdicionado por: ${blacklistEntry.addedBy}\nData: ${new Date(blacklistEntry.addedAt).toLocaleString('pt-BR')}`);
+      return reply(`🚫 Você está na blacklist global e não pode usar comandos.\nMotivo: ${blacklistEntry.reason}\nAdicionado por: ${blacklistEntry.addedBy}\nData: ${new Date(blacklistEntry.addedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
     };
     
     if (isGroup && isCmd && groupData.blacklist && (groupData.blacklist[sender] || groupData.blacklist[getUserName(sender)])) {
       const blacklistEntry = groupData.blacklist[sender] || groupData.blacklist[getUserName(sender)];
-      return reply(`🚫 Você está na blacklist deste grupo e não pode usar comandos.\nMotivo: ${blacklistEntry.reason}\nData: ${new Date(blacklistEntry.timestamp).toLocaleString('pt-BR')}`);
+      return reply(`🚫 Você está na blacklist deste grupo e não pode usar comandos.\nMotivo: ${blacklistEntry.reason}\nData: ${new Date(blacklistEntry.timestamp).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
     }
     ;
-    if (sender && sender.includes('@') && globalBlocks.users && (globalBlocks.users[getUserName(sender)] || globalBlocks.users[sender]) && isCmd) {
+    if (sender && sender.includes('@') && globalBlocks.users && (globalBlocks.users[sender] || globalBlocks.users[getUserName(sender)]) && isCmd) {
       return reply(`🚫 Parece que você está bloqueado de usar meus comandos globalmente.\nMotivo: ${globalBlocks.users[sender] ? globalBlocks.users[sender].reason : globalBlocks.users[getUserName(sender)].reason}`);
     }
     ;
@@ -2865,7 +3071,7 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
     }
     ;
     if (budy2.match(/^(\d+)d(\d+)$/)) reply(+budy2.match(/^(\d+)d(\d+)$/)[1] > 50 || +budy2.match(/^(\d+)d(\d+)$/)[2] > 100 ? "❌ Limite: max 50 dados e 100 lados" : "🎲 Rolando " + budy2.match(/^(\d+)d(\d+)$/)[1] + "d" + budy2.match(/^(\d+)d(\d+)$/)[2] + "...\n🎯 Resultados: " + (r = [...Array(+budy2.match(/^(\d+)d(\d+)$/)[1])].map(_ => 1 + Math.floor(Math.random() * +budy2.match(/^(\d+)d(\d+)$/)[2]))).join(", ") + "\n📊 Total: " + r.reduce((a, b) => a + b, 0));
-    if (!info.key.fromMe && isAssistente && !isCmd && (budy2.includes('@' + nazu.user.id.split(':')[0]) || menc_os2 && menc_os2 == getBotId(nazu)) && KeyCog) {
+    if (!info.key.fromMe && isAssistente && !isCmd && (budy2.includes(nazu.user.id.split(':')[0]) || (budy2.includes(nazu.user.lid.split(':')[0])) || menc_os2 && menc_os2 == getBotId(nazu)) && KeyCog) {
       if (budy2.replaceAll('@' + nazu.user.id.split(':')[0], '').length > 2) {
         try {
           const jSoNzIn = {
@@ -2904,9 +3110,24 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
             jSoNzIn.marcou_sua_mensagem = jsonO.participant == getBotId(nazu);
           }
           ;
-          const respAssist = await ia.makeAssistentRequest({
-            mensagens: [jSoNzIn]
-          }, pathz.join(__dirname, 'index.js'), KeyCog || null, nazu, nmrdn);
+            if (!KeyCog) {
+              await nazu.sendMessage(nmrdn, {
+                text: '🤖 *Sistema de IA desativado*\n\n😅 O sistema de IA está desativado porque a API key não foi configurada.\n\n⚙️ Para configurar, use o comando: `!apikey SUA_API_KEY`\n📞 Suporte: wa.me/553399285117'
+              });
+              return;
+            }
+            
+            console.log('🤖 Processando mensagem de assistente...');
+            const respAssist = await ia.makeAssistentRequest({
+              mensagens: [jSoNzIn]
+            }, pathz.join(__dirname, 'index.js'), KeyCog, nazu, nmrdn);
+            
+            if (respAssist.erro === 'Sistema de IA temporariamente desativado') {
+              console.log('🚨 Sistema de IA temporariamente desativado devido a problemas de API key.');
+              return;
+            }
+            
+            console.log('✅ Assistente processado com sucesso');
           
           if (respAssist.apiKeyInvalid) {
             await reply(respAssist.message || '🤖 Sistema de IA temporariamente indisponível. Tente novamente mais tarde.');
@@ -3239,12 +3460,9 @@ async function NazuninhaBotExec(nazu, info, store, groupCache, messagesCache) {
 
         if (sub === 'perfilrpg' || sub === 'carteira') {
           const total = (me.wallet||0) + (me.bank||0);
-          return reply(`👤 Perfil Financeiro
-💼 Carteira: ${fmt(me.wallet)}
-🏦 Banco: ${fmt(me.bank)}
-💠 Total: ${fmt(total)}
- 💼 Emprego: ${me.job ? econ.jobCatalog[me.job]?.name || me.job : 'Desempregado(a)'}
-`);
+          // Use enhanced display function
+          const profileDisplay = displayGoldInfo(me, econ);
+          return reply(profileDisplay);
         }
         if (sub === 'banco') {
           const cap = isFinite(bankCapacity) ? bankCapacity : '∞';
@@ -3256,23 +3474,58 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
 
         if (sub === 'depositar' || sub === 'dep') {
           const amount = parseAmount(q.split(' ')[0], me.wallet);
-          if (!isFinite(amount) || amount <= 0) return reply('Informe um valor válido (ou "all").');
-          if (amount > me.wallet) return reply('Você não tem tudo isso na carteira.');
+          if (!isFinite(amount) || amount <= 0) return reply('❌ Informe um valor válido (ou "all").');
+          if (amount > me.wallet) return reply('❌ Você não tem tudo isso na carteira.');
+          
           const cap = isFinite(bankCapacity) ? bankCapacity : Infinity;
           const space = cap - me.bank;
-          if (space <= 0) return reply('Seu banco está cheio. Compre um Cofre na loja para aumentar a capacidade.');
+          if (space <= 0) return reply('❌ Seu banco está cheio. Compre um Cofre na loja para aumentar a capacidade.');
+          
           const toDep = Math.min(amount, space);
           me.wallet -= toDep; me.bank += toDep;
+          
+          // Log transaction
+          me.transactionHistory.push({
+            timestamp: Date.now(),
+            type: 'deposit',
+            amount: toDep,
+            balance: me.wallet
+          });
+          
           saveEconomy(econ);
-          return reply(`✅ Depositado ${fmt(toDep)}. Banco: ${fmt(me.bank)} | Carteira: ${fmt(me.wallet)}`);
+          
+          // Check for achievements
+          const achievementMsg = checkAndUpdateAchievements(me, econ);
+          
+          let response = `✅ Depositado ${fmt(toDep)}. Banco: ${fmt(me.bank)} | Carteira: ${fmt(me.wallet)}`;
+          if (achievementMsg) response += `\n\n${achievementMsg}`;
+          
+          return reply(response);
         }
         if (sub === 'sacar' || sub === 'saque') {
           const amount = parseAmount(q.split(' ')[0], me.bank);
-          if (!isFinite(amount) || amount <= 0) return reply('Informe um valor válido (ou "all").');
-          if (amount > me.bank) return reply('Saldo insuficiente no banco.');
+          if (!isFinite(amount) || amount <= 0) return reply('❌ Informe um valor válido (ou "all").');
+          if (amount > me.bank) return reply('❌ Saldo insuficiente no banco.');
+          
           me.bank -= amount; me.wallet += amount;
+          
+          // Log transaction
+          me.transactionHistory.push({
+            timestamp: Date.now(),
+            type: 'withdraw',
+            amount: amount,
+            balance: me.wallet
+          });
+          
           saveEconomy(econ);
-          return reply(`✅ Sacado ${fmt(amount)}. Banco: ${fmt(me.bank)} | Carteira: ${fmt(me.wallet)}`);
+          
+          // Check for achievements
+          const achievementMsg = checkAndUpdateAchievements(me, econ);
+          
+          let response = `✅ Sacado ${fmt(amount)}. Banco: ${fmt(me.bank)} | Carteira: ${fmt(me.wallet)}`;
+          if (achievementMsg) response += `\n\n${achievementMsg}`;
+          
+          return reply(response);
         }
 
         if (sub === 'transferir' || sub === 'pix') {
@@ -3280,11 +3533,25 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           const amount = parseAmount(args.slice(-1)[0], me.wallet);
           if (!isFinite(amount) || amount <= 0) return reply('Informe um valor válido.');
           if (amount > me.wallet) return reply('Você não tem esse valor na carteira.');
-          const other = getEcoUser(econ, mentioned);
           if (mentioned === sender) return reply('Você não pode transferir para si mesmo.');
-          me.wallet -= amount; other.wallet += amount;
+          
+          // Use enhanced transaction system
+          const transaction = performGoldTransaction(econ, sender, mentioned, amount, 'transfer', `Transferência via ${prefix}${sub}`);
+          if (!transaction.success) {
+            return reply(`❌ ${transaction.error}`);
+          }
+          
           saveEconomy(econ);
-          return reply(`💸 Transferido ${fmt(amount)} para @${getUserName(mentioned)}.`, { mentions:[mentioned] });
+          
+          // Check for achievements
+          const achievementMsg = checkAndUpdateAchievements(me, econ);
+          const achievementMsgOther = checkAndUpdateAchievements(getEcoUser(econ, mentioned), econ);
+          
+          let response = `💸 Transferido ${fmt(amount)} para @${getUserName(mentioned)}.`;
+          if (achievementMsg) response += `\n\n${achievementMsg}`;
+          if (achievementMsgOther) response += `\n\n@${getUserName(mentioned)}: ${achievementMsgOther}`;
+          
+          return reply(response, { mentions:[mentioned] });
         }
 
         if (sub === 'loja' || sub === 'lojagold') {
@@ -3598,7 +3865,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           if (items.length===0) return reply('🛒 O mercado está vazio. Use listar para anunciar algo.');
           let text = '🛒 Mercado (ofertas abertas)\n\n';
           for (const ofr of items) {
-            text += `#${ofr.id} • ${ofr.type==='item'?`${ofr.key} x${ofr.qty}`:`${ofr.mat} x${ofr.qty}`} — ${fmt(ofr.price)} | Vendedor: @${ofr.seller.split('@')[0]}\n`;
+            text += `#${ofr.id} • ${ofr.type==='item'?`${ofr.key} x${ofr.qty}`:`${ofr.mat} x${ofr.qty}`} — ${fmt(ofr.price)} | Vendedor: @${getUserName(ofr.seller)}\n`;
           }
           return reply(text, { mentions: (items.map(i=>i.seller)) });
         }
@@ -3774,21 +4041,95 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (sub === 'diario' || sub === 'daily') {
           const cd = me.cooldowns?.daily || 0;
           if (Date.now() < cd) return reply(`⏳ Você já coletou hoje. Volte em ${timeLeft(cd)}.`);
-          const reward = 500;
-          me.wallet += reward; me.cooldowns.daily = Date.now() + 24*60*60*1000;
+          
+          // Use enhanced daily reward system
+          const dailyReward = getDailyReward(me, econ);
+          me.wallet += dailyReward.amount;
+          me.cooldowns.daily = Date.now() + 24*60*60*1000;
           saveEconomy(econ);
-          return reply(`🎁 Recompensa diária coletada: ${fmt(reward)}!`);
+          
+          // Check for achievements
+          const achievementMsg = checkAndUpdateAchievements(me, econ);
+          
+          let response = dailyReward.message;
+          if (achievementMsg) response += `\n\n${achievementMsg}`;
+          
+          return reply(response);
         }
 
         if (sub === 'topgold') {
-          const arr = Object.entries(econ.users).map(([id,u])=>[id,(u.wallet||0)+(u.bank||0)]).sort((a,b)=>b[1]-a[1]).slice(0,10);
-          if (arr.length===0) return reply('Sem dados suficientes para ranking.');
+          const topUsers = getTopUsers(econ, 10, 1);
+          if (topUsers.length === 0) return reply('Sem dados suficientes para ranking.');
           let text = '🏆 Ranking de Riqueza\n\n';
           const mentions = [];
-          arr.forEach(([id,total],i)=>{ text += `${i+1}. @${id.split('@')[0]} — ${fmt(total)}\n`; mentions.push(id); });
+          
+          topUsers.forEach((user, i) => {
+            text += `${i+1}. @${user.name} — ${fmt(user.total)} (Nível ${user.level})\n`;
+            mentions.push(user.id);
+          });
+          
           return reply(text, { mentions });
         }
 
+        // Check achievements
+        if (sub === 'conquistas' || sub === 'achievements') {
+          if (!me.achievements || Object.keys(me.achievements).length === 0) {
+            return reply('🏅 Você ainda não conquistou nada. Continue jogando para desbloquear conquistas!');
+          }
+          
+          let text = '🏅 Suas Conquistas\n\n';
+          const achievementList = [
+            { key: 'first_thousand', name: 'Primeiro Milhar', desc: 'Acumule 1.000 gold', icon: '💰' },
+            { key: 'ten_thousand', name: 'Magnata', desc: 'Acumule 10.000 gold', icon: '💎' },
+            { key: 'hundred_thousand', name: 'Imperador do Ouro', desc: 'Acumule 100.000 gold', icon: '👑' },
+            { key: 'fifty_transactions', name: 'Negociante Ágil', desc: 'Realize 50 transações', icon: '🔄' }
+          ];
+          
+          achievementList.forEach(ach => {
+            const status = me.achievements[ach.key] ? '✅' : '🔒';
+            text += `${status} ${ach.icon} *${ach.name}*\n   ${ach.desc}\n\n`;
+          });
+          
+          return reply(text);
+        }
+        
+        // View transaction history
+        if (sub === 'extrato' || sub === 'historico') {
+          if (!me.transactionHistory || me.transactionHistory.length === 0) {
+            return reply('📊 Você ainda não realizou nenhuma transação.');
+          }
+          
+          let text = '📊 Seu Extrato de Transações\n\n';
+          const recentTransactions = me.transactionHistory.slice(-10).reverse(); // Show last 10 transactions
+          
+          recentTransactions.forEach((tx, i) => {
+            const date = new Date(tx.timestamp).toLocaleDateString('pt-BR');
+            const time = new Date(tx.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const typeEmoji = {
+              'sent': '➖',
+              'received': '➕',
+              'deposit': '🏦',
+              'withdraw': '💸',
+              'bet': '🎰',
+              'slots': '🎰',
+              'mine': '⛏️',
+              'work': '💼',
+              'fish': '🎣',
+              'explore': '🧭',
+              'hunt': '🏹',
+              'crime': '🕵️',
+              'rob': '🦹'
+            }[tx.type] || '💰';
+            
+            text += `${i + 1}. ${typeEmoji} ${tx.type === 'sent' ? '-' : '+'}${fmt(Math.abs(tx.amount))} — ${date} ${time}\n`;
+            if (tx.description) text += `   ${tx.description}\n`;
+            text += `   Saldo: ${fmt(tx.balance)}\n\n`;
+          });
+          
+          text += `📈 Total de transações: ${me.transactionHistory.length}`;
+          return reply(text);
+        }
+        
         return reply('Comando de economia inválido. Use '+prefix+'menugold para ver os comandos.');
       }
 
@@ -4874,12 +5215,12 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let participantsInfo = {};
           if (isGroup && groupMetadata.participants) {
             groupMetadata.participants.forEach(p => {
-              participantsInfo[p.lid || p.id] = p.pushname || p.lid.split('@')[0] || p.id.split('@')[0];
+              participantsInfo[p.lid || p.id] = p.pushname || getUserName(p.lid || p.id);
             });
           }
           subdonos.forEach((jid, index) => {
-            const nameOrNumber = participantsInfo[jid] || jid.split('@')[0];
-            listaMsg += `${index + 1}. @${jid.split('@')[0]} (${nameOrNumber})\n`;
+            const nameOrNumber = participantsInfo[jid] || getUserName(jid);
+            listaMsg += `${index + 1}. @${getUserName(jid)} (${nameOrNumber})\n`;
             mentions.push(jid);
           });
           await reply(listaMsg.trim(), {
@@ -5053,7 +5394,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         userDataDel.xp = Math.max(0, userDataDel.xp - xpToRemove);
         checkLevelDown(menc_os2, userDataDel, levelingDataDel);
         fs.writeFileSync(LEVELING_FILE, JSON.stringify(levelingDataDel, null, 2));
-        await reply(`✅ Removido ${xpToRemove} XP de @${menc_os2.split('@')[0]}`, {
+        await reply(`✅ Removido ${xpToRemove} XP de @${getUserName(menc_os2)}`, {
           mentions: [menc_os2]
         });
         break;
@@ -5062,7 +5403,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         const sortedUsers = Object.entries(levelingDataRank.users).sort((a, b) => b[1].level - a[1].level || b[1].xp - a[1].xp).slice(0, 10);
         let rankMessage = '🏆 *Ranking Global de Níveis*\n\n';
         sortedUsers.forEach(([userId, data], index) => {
-          rankMessage += `${index + 1}. @${userId.split('@')[0]} - Nível ${data.level} (XP: ${data.xp})\n`;
+          rankMessage += `${index + 1}. @${getUserName(userId)} - Nível ${data.level} (XP: ${data.xp})\n`;
         });
         await reply(rankMessage, {
           mentions: sortedUsers.map(([userId]) => userId)
@@ -5172,6 +5513,40 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'limparaluguel':
         try {
           if (!isOwner) return reply("Apenas o dono pode usar este comando. 🚫");
+          
+          // Check if rental expiration manager is available
+          if (rentalExpirationManager) {
+            const stats = rentalExpirationManager.getStats();
+            const message = `
+🧹 **MODO AUTOMÁTICO ATIVADO** 🧹
+
+O sistema de gerenciamento de expiração de aluguel já está ativo e automatizando este processo!
+
+📊 **Status Atual:**
+• Verificações automáticas: ${stats.isRunning ? '✅ Ativas' : '❌ Inativas'}
+• Próxima verificação: Em ${stats.config.checkInterval}
+• Avisos enviados: ${stats.warningsSent}
+• Aluguéis expirados processados: ${stats.expiredProcessed}
+
+🔧 **Comandos Disponíveis:**
+• ${prefix}rentalstats - Ver estatísticas detalhadas
+• ${prefix}rentaltest - Testar sistema manualmente
+• ${prefix}rentalconfig - Configurar sistema
+• ${prefix}rentalclean - Limpar estatísticas
+
+💡 **Notas:**
+• O sistema agora avisa automaticamente sobre expirações
+• O bot sai automaticamente após expiração
+• Mensagens incluem informações de contato do dono
+• Logs são gerados para auditoria
+
+Deseja continuar com a limpeza manual? Isso pode interferir com o sistema automático.`;
+            
+            await reply(message);
+            return;
+          }
+          
+          // Fallback to manual cleaning if rental expiration manager is not available
           let rentalData = loadRentalData();
           let groupsCleaned = 0;
           let groupsExpired = 0;
@@ -5221,7 +5596,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           summary += `📩 Administradores notificados: *${adminsNotified}*\n`;
           if (groupsLeft.length > 0) {
             
-            summary += `\n📋 *Grupos dos quais saí:*\n${groupsLeft.map(id => `- ${id.split('@')[0]}`).join('\n')}\n`;
+            summary += `\n📋 *Grupos dos quais saí:*\n${groupsLeft.map(id => `- ${getUserName(id)}`).join('\n')}\n`;
           } else {
             
             summary += `\n📋 Nenhum grupo vencido encontrado para sair.\n`;
@@ -5714,7 +6089,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!isOwner) return reply("Apenas o dono pode adicionar usuários à blacklist global.");
           if (!menc_os2 && !q) return reply(`Marque o usuário ou forneça o número (ex: ${prefix}addblackglobal @usuario motivo).`);
           const reason = args.length > 1 ? args.slice(1).join(' ') : 'Não especificado';
-          const targetUser = menc_os2 || (q.split(' ')[0].includes('@') ? q.split(' ')[0] : (isValidJid(q.split(' ')[0]) || isValidLid(q.split(' ')[0])) ? q.split(' ')[0] : q.split(' ')[0].replace(/\D/g, '') + '@s.whatsapp.net');
+          const targetUser = menc_os2 || (q.split(' ')[0].includes('@') ? q.split(' ')[0] : (isValidJid(q.split(' ')[0]) || isValidLid(q.split(' ')[0])) ? q.split(' ')[0] : buildUserId(q.split(' ')[0].replace(/\D/g, ''), config));
           const result = addGlobalBlacklist(targetUser, reason, pushname);
           await reply(result.message, {
             mentions: [targetUser]
@@ -5728,7 +6103,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isOwner) return reply("Apenas o dono pode remover usuários da blacklist global.");
           if (!menc_os2 && !q) return reply(`Marque o usuário ou forneça o número (ex: ${prefix}remblackglobal @usuario).`);
-          const targetUser = menc_os2 || (q.split(' ')[0].includes('@') ? q.split(' ')[0] : (isValidJid(q.split(' ')[0]) || isValidLid(q.split(' ')[0])) ? q.split(' ')[0] : q.split(' ')[0].replace(/\D/g, '') + '@s.whatsapp.net');
+          const targetUser = menc_os2 || (q.split(' ')[0].includes('@') ? q.split(' ')[0] : (isValidJid(q.split(' ')[0]) || isValidLid(q.split(' ')[0])) ? q.split(' ')[0] : buildUserId(q.split(' ')[0].replace(/\D/g, ''), config));
           const result = removeGlobalBlacklist(targetUser);
           await reply(result.message, {
             mentions: [targetUser]
@@ -5748,7 +6123,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           let message = `🛑 *Blacklist Global* 🛑\n\n`;
           for (const [userId, data] of Object.entries(blacklistData.users)) {
             
-            message += `➤ @${userId.split('@')[0]}\n   Motivo: ${data.reason}\n   Adicionado por: ${data.addedBy}\n   Data: ${new Date(data.addedAt).toLocaleString('pt-BR')}\n\n`;
+            message += `➤ @${getUserName(userId)}\n   Motivo: ${data.reason}\n   Adicionado por: ${data.addedBy}\n   Data: ${new Date(data.addedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}\n\n`;
           }
           await reply(message, {
             mentions: Object.keys(blacklistData.users)
@@ -6464,6 +6839,118 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           await reply("❌ Ocorreu um erro ao carregar o menu de membros");
         }
         break;
+      case 'configcmdnotfound':
+      case 'setcmdmsg':
+        if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+        
+        const cmdNotFoundConfig = loadCmdNotFoundConfig();
+        const args = body.trim().split(/ +/).slice(1);
+        const subcommand = args[0]?.toLowerCase();
+        
+        if (!subcommand) {
+          return reply(`📝 *Uso do ${prefix}configcmdnotfound:*\n\n` +
+            `• ${prefix}configcmdnotfound activate - Ativar mensagens de comando não encontrado\n` +
+            `• ${prefix}configcmdnotfound deactivate - Desativar mensagens de comando não encontrado\n` +
+            `• ${prefix}configcmdnotfound set <mensagem> - Definir mensagem personalizada\n` +
+            `• ${prefix}configcmdnotfound style <estilo> - Definir estilo (friendly, formal, casual, emoji)\n` +
+            `• ${prefix}configcmdnotfound preview - Pré-visualizar mensagem atual\n` +
+            `• ${prefix}configcmdnotfound reset - Restaurar configurações padrão\n\n` +
+            `📌 *Variáveis disponíveis:*\n` +
+            `{command} - Comando digitado\n` +
+            `{prefix} - Prefixo do bot\n` +
+            `{user} - Usuário que digitou\n` +
+            `{botName} - Nome do bot\n` +
+            `{userName} - Nome do usuário`);
+        }
+        
+        switch (subcommand) {
+          case 'activate':
+            cmdNotFoundConfig.enabled = true;
+            if (saveCmdNotFoundConfig(cmdNotFoundConfig, 'ativado')) {
+              reply('✅ Mensagens de comando não encontrados foram ativadas!');
+            }
+            break;
+            
+          case 'deactivate':
+            cmdNotFoundConfig.enabled = false;
+            if (saveCmdNotFoundConfig(cmdNotFoundConfig, 'desativado')) {
+              reply('✅ Mensagens de comando não encontrados foram desativadas!');
+            }
+            break;
+            
+          case 'set':
+            const newMessage = args.slice(1).join(' ');
+            if (!newMessage) {
+              return reply('❌ Por favor, forneça uma mensagem personalizada.\n\nExemplo: ' +
+                prefix + 'configcmdnotfound set O comando {command} não existe! Tente {prefix}menu');
+            }
+            
+            // Validate the message template
+            const validation = validateMessageTemplate(newMessage);
+            if (!validation.valid) {
+              return reply('❌ A mensagem contém problemas:\n\n• ' + validation.issues.join('\n• ') + '\n\nCorrija esses problemas e tente novamente.');
+            }
+            
+            cmdNotFoundConfig.message = newMessage;
+            if (saveCmdNotFoundConfig(cmdNotFoundConfig)) {
+              reply('✅ Mensagem personalizada salva com sucesso!');
+              console.log(`🔧 Comando não encontrado: Mensagem alterada por ${pushname} (${sender})`);
+            } else {
+              reply('❌ Ocorreu um erro ao salvar a mensagem. Tente novamente.');
+            }
+            break;
+            
+          case 'style':
+            const style = args[1]?.toLowerCase();
+            const validStyles = ['friendly', 'formal', 'casual', 'emoji'];
+            if (!validStyles.includes(style)) {
+              return reply('❌ Estilo inválido! Estilos disponíveis: ' + validStyles.join(', '));
+            }
+            
+            cmdNotFoundConfig.style = style;
+            if (saveCmdNotFoundConfig(cmdNotFoundConfig, `estilo alterado para ${style}`)) {
+              reply(`✅ Estilo alterado para "${style}" com sucesso!`);
+            }
+            break;
+            
+          case 'preview':
+            const userName = pushname || getUserName(sender);
+            const previewMessage = formatMessageWithFallback(
+              cmdNotFoundConfig.message,
+              {
+                command: 'exemplo',
+                prefix: prefixo,
+                user: sender,
+                botName: nomebot,
+                userName: userName
+              },
+              '❌ Comando não encontrado! Tente ' + prefixo + 'menu para ver todos os comandos disponíveis.'
+            );
+            reply(`🔍 *Pré-visualização da mensagem:*\n\n${previewMessage}\n\n✅ *Status da configuração:*\n• Ativado: ${cmdNotFoundConfig.enabled ? 'Sim' : 'Não'}\n• Estilo: ${cmdNotFoundConfig.style}\n• Última atualização: ${new Date(cmdNotFoundConfig.lastUpdated || Date.now()).toLocaleString('pt-BR')}`);
+            break;
+            
+          case 'reset':
+            cmdNotFoundConfig.enabled = true;
+            cmdNotFoundConfig.message = '❌ Comando não encontrado! Tente {prefix}menu para ver todos os comandos disponíveis.';
+            cmdNotFoundConfig.style = 'friendly';
+            cmdNotFoundConfig.variables = {
+              command: '{command}',
+              prefix: '{prefix}',
+              user: '{user}',
+              botName: '{botName}',
+              userName: '{userName}'
+            };
+            
+            if (saveCmdNotFoundConfig(cmdNotFoundConfig, 'resetado para padrão')) {
+              reply('✅ Configurações de comando não encontradas restauradas para o padrão!');
+            }
+            break;
+            
+          default:
+            reply('❌ Subcomando inválido! Use ' + prefix + 'configcmdnotfound para ver a lista de comandos disponíveis.');
+        }
+        break;
+        
       case 'menudono':
       case 'ownermenu':
         try {
@@ -6789,7 +7276,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             timestamp: Date.now()
           };
           fs.writeFileSync(blockFile, JSON.stringify(globalBlocks, null, 2));
-          await reply(`✅ Usuário @${menc_os3.split('@')[0]} bloqueado globalmente!\nMotivo: ${reason}`, {
+          await reply(`✅ Usuário @${getUserName(menc_os3)} bloqueado globalmente!\nMotivo: ${reason}`, {
             mentions: [menc_os3]
           });
         } catch (e) {
@@ -6805,16 +7292,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!globalBlocks.users) {
             return reply(`ℹ️ Não há usuários bloqueados globalmente.`);
           }
-          const userToUnblock = globalBlocks.users[menc_os2] ? menc_os2 : 
-                               globalBlocks.users[menc_os2.split('@')[0]] ? menc_os2.split('@')[0] : null;
+          const userToUnblock = globalBlocks.users[menc_os2] ? menc_os2 :
+                               globalBlocks.users[getUserName(menc_os2)] ? getUserName(menc_os2) : null;
           if (!userToUnblock) {
-            return reply(`❌ O usuário @${menc_os2.split('@')[0]} não está bloqueado globalmente!`, {
+            return reply(`❌ O usuário @${getUserName(menc_os2)} não está bloqueado globalmente!`, {
               mentions: [menc_os2]
             });
           }
           delete globalBlocks.users[userToUnblock];
           fs.writeFileSync(blockFile, JSON.stringify(globalBlocks, null, 2));
-          await reply(`✅ Usuário @${menc_os2.split('@')[0]} desbloqueado globalmente!`, {
+          await reply(`✅ Usuário @${getUserName(menc_os2)} desbloqueado globalmente!`, {
             mentions: [menc_os2]
           });
         } catch (e) {
@@ -6828,8 +7315,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const blockFile = __dirname + '/../database/globalBlocks.json';
           const blockedCommands = globalBlocks.commands ? Object.entries(globalBlocks.commands).map(([cmd, data]) => `🔧 *${cmd}* - Motivo: ${data.reason}`).join('\n') : 'Nenhum comando bloqueado.';
           const blockedUsers = globalBlocks.users ? Object.entries(globalBlocks.users).map(([user, data]) => {
-            const userId = user.split('@')[0];
-            return `👤 *${userId}* - Motivo: ${data.reason}`;
+            return `👤 *${getUserName(user)}* - Motivo: ${data.reason}`;
           }).join('\n') : 'Nenhum usuário bloqueado.';
           const message = `🔒 *Bloqueios Globais - ${nomebot}* 🔒\n\n📜 *Comandos Bloqueados*:\n${blockedCommands}\n\n👥 *Usuários Bloqueados*:\n${blockedUsers}`;
           await reply(message);
@@ -7215,7 +7701,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!!premiumListaZinha[menc_os2]) return reply('O usuário ja esta na lista premium.');
           premiumListaZinha[menc_os2] = true;
           await nazu.sendMessage(from, {
-            text: `✅ @${menc_os2.split('@')[0]} foi adicionado(a) a lista premium.`,
+            text: `✅ @${getUserName(menc_os2)} foi adicionado(a) a lista premium.`,
             mentions: [menc_os2]
           }, {
             quoted: info
@@ -7236,7 +7722,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!premiumListaZinha[menc_os2]) return reply('O usuário não esta na lista premium.');
           delete premiumListaZinha[menc_os2];
           await nazu.sendMessage(from, {
-            text: `🫡 @${menc_os2.split('@')[0]} foi removido(a) da lista premium.`,
+            text: `🫡 @${getUserName(menc_os2)} foi removido(a) da lista premium.`,
             mentions: [menc_os2]
           }, {
             quoted: info
@@ -7299,7 +7785,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           teks += `👤 *Usuários Premium* (${usersPremium.length})\n`;
           if (usersPremium.length > 0) {
             usersPremium.forEach((user, i) => {
-              const userNumber = user.split('@')[0];
+              const userNumber = getUserName(user);
               
               teks += `🔹 ${i + 1}. @${userNumber}\n`;
             });
@@ -7410,30 +7896,63 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         try {
           if (!isGroup) return reply("Este comando só funciona em grupos.");
           if (!isGroupAdmin) return reply("Apenas administradores podem limpar o rank de atividade.");
+          
+          // Get current group members with proper LID/JID handling
           const currentMembers = AllgroupMembers;
           const oldContador = groupData.contador || [];
           let removedCount = 0;
           let removedUsers = [];
+          let invalidUsers = [];
+          
+          // Enhanced filtering with better error handling
           groupData.contador = oldContador.filter(user => {
             try {
-              if (!currentMembers.includes(user.id)) {
-                removedCount++;
-                removedUsers.push(user.id.split('@')[0]);
+              if (!user || !user.id) {
+                invalidUsers.push('Invalid user entry');
                 return false;
               }
+              
+              // Check if user is still in the group
+              const isMember = currentMembers.includes(user.id);
+              
+              if (!isMember) {
+                removedCount++;
+                const userName = getUserName(user.id);
+                removedUsers.push(userName);
+                console.log(`[LIMPAR RANK] Removed departed user: ${user.id} (${userName})`);
+                return false;
+              }
+              
               return true;
             } catch (e) {
+              console.log(`[LIMPAR RANK] Error processing user ${user?.id}:`, e.message);
+              invalidUsers.push(user?.id || 'Unknown');
               return false;
             }
-            ;
           });
+          
+          // Save the updated data
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-          await reply(`🧹 Limpeza do rank de atividade concluída!\n\nRemovidos ${removedCount} usuários ausentes:\n${removedUsers.map(name => `• @${name}`).join('\n') || 'Nenhum usuário ausente encontrado.'}`, {
-            mentions: removedUsers.map(name => buildUserId(name))
+          
+          // Prepare response message
+          let responseMessage = `🧹 Limpeza do rank de atividade concluída!\n\n`;
+          responseMessage += `✅ Removidos ${removedCount} usuários ausentes:\n`;
+          responseMessage += `${removedUsers.map(name => `• @${name}`).join('\n') || 'Nenhum usuário ausente encontrado.'}`;
+          
+          if (invalidUsers.length > 0) {
+            responseMessage += `\n\n⚠️ ${invalidUsers.length} entradas inválidas foram removidas silenciosamente.`;
+          }
+          
+          // Send response with proper mentions
+          await reply(responseMessage, {
+            mentions: removedUsers.map(name => buildUserId(name, config))
           });
+          
+          // Log the action
+          console.log(`[LIMPAR RANK] Action completed in group ${from}. Removed ${removedCount} users, ${invalidUsers.length} invalid entries.`);
         } catch (e) {
-          console.error('Erro no comando limparrank:', e);
-          await reply("Ocorreu um erro ao limpar o rank 💔");
+          console.error('[LIMPAR RANK] Error:', e);
+          await reply("❌ Ocorreu um erro ao limpar o rank. Tente novamente mais tarde.");
         }
         break;
       case 'resetrank':
@@ -7452,48 +7971,166 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'limparrankg':
         try {
           if (!isOwner) return reply("Apenas o dono pode limpar os ranks de todos os grupos.");
+          
           const groupFiles = fs.readdirSync(GRUPOS_DIR).filter(file => file.endsWith('.json'));
           let totalRemoved = 0;
+          let totalInvalid = 0;
           let summary = [];
+          let failedGroups = [];
+          
+          console.log(`[LIMPAR RANK GLOBAL] Starting cleanup for ${groupFiles.length} groups`);
+          
           for (const file of groupFiles) {
-            const groupId = file.replace('.json', '');
-            const groupPath = pathz.join(GRUPOS_DIR, file);
-            let gData = JSON.parse(fs.readFileSync(groupPath));
-            const metadata = await nazu.groupMetadata(groupId).catch(() => null);
-            if (!metadata) continue;
-            const currentMembers = metadata.participants?.map(p => p.lid || p.id) || [];
-            const oldContador = gData.contador || [];
-            let removedInGroup = 0;
-            gData.contador = oldContador.filter(user => {
+            try {
+              const groupId = file.replace('.json', '');
+              const groupPath = pathz.join(GRUPOS_DIR, file);
+              
+              // Skip if file doesn't exist or can't be read
+              if (!fs.existsSync(groupPath)) {
+                console.log(`[LIMPAR RANK GLOBAL] Skipping non-existent file: ${groupPath}`);
+                continue;
+              }
+              
+              let gData;
               try {
-                if (!currentMembers.includes(user.id)) {
-                  removedInGroup++;
-                  totalRemoved++;
+                gData = JSON.parse(fs.readFileSync(groupPath));
+              } catch (parseError) {
+                console.log(`[LIMPAR RANK GLOBAL] Error reading group file ${groupId}:`, parseError.message);
+                failedGroups.push(`${groupId}: Erro ao ler arquivo`);
+                continue;
+              }
+              
+              // Get group metadata with error handling
+              let metadata;
+              try {
+                metadata = await nazu.groupMetadata(groupId).catch(() => null);
+              } catch (metaError) {
+                console.log(`[LIMPAR RANK GLOBAL] Error getting metadata for group ${groupId}:`, metaError.message);
+                failedGroups.push(`${groupId}: Erro ao obter metadados`);
+                continue;
+              }
+              
+              if (!metadata) {
+                console.log(`[LIMPAR RANK GLOBAL] No metadata for group ${groupId}, skipping`);
+                continue;
+              }
+              
+              // Get current members with proper LID/JID handling
+              const currentMembers = metadata.participants?.map(p => p.lid || p.id) || [];
+              const oldContador = gData.contador || [];
+              let removedInGroup = 0;
+              let invalidInGroup = 0;
+              
+              // Enhanced filtering
+              gData.contador = oldContador.filter(user => {
+                try {
+                  if (!user || !user.id) {
+                    invalidInGroup++;
+                    totalInvalid++;
+                    return false;
+                  }
+                  
+                  // Check if user is still in the group
+                  const isMember = currentMembers.includes(user.id);
+                  
+                  if (!isMember) {
+                    removedInGroup++;
+                    totalRemoved++;
+                    const userName = getUserName(user.id);
+                    console.log(`[LIMPAR RANK GLOBAL] Removed departed user from ${groupId}: ${user.id} (${userName})`);
+                    return false;
+                  }
+                  
+                  return true;
+                } catch (e) {
+                  console.log(`[LIMPAR RANK GLOBAL] Error processing user ${user?.id} in group ${groupId}:`, e.message);
+                  invalidInGroup++;
+                  totalInvalid++;
                   return false;
                 }
-                return true;
-              } catch (e) {
-                return false;
+              });
+              
+              // Save updated group data
+              try {
+                fs.writeFileSync(groupPath, JSON.stringify(gData, null, 2));
+              } catch (writeError) {
+                console.log(`[LIMPAR RANK GLOBAL] Error writing to group file ${groupId}:`, writeError.message);
+                failedGroups.push(`${groupId}: Erro ao salvar arquivo`);
+                continue;
               }
-              ;
-            });
-            fs.writeFileSync(groupPath, JSON.stringify(gData, null, 2));
-            if (removedInGroup > 0) {
-              summary.push(`• ${groupId}: Removidos ${removedInGroup} usuários`);
+              
+              // Add to summary if changes were made
+              if (removedInGroup > 0 || invalidInGroup > 0) {
+                let groupSummary = `${groupId}: `;
+                if (removedInGroup > 0) groupSummary += `Removidos ${removedInGroup} usuários ausentes`;
+                if (invalidInGroup > 0) {
+                  if (removedInGroup > 0) groupSummary += ', ';
+                  groupSummary += `${invalidInGroup} entradas inválidas`;
+                }
+                summary.push(groupSummary);
+              }
+              
+            } catch (groupError) {
+              console.log(`[LIMPAR RANK GLOBAL] Error processing group file ${file}:`, groupError.message);
+              failedGroups.push(`${file}: Erro inesperado`);
             }
           }
-          await reply(`🧹 Limpeza de ranks em todos os grupos concluída!\n\nTotal de usuários removidos: ${totalRemoved}\n\nDetalhes:\n${summary.join('\n') || 'Nenhum usuário ausente encontrado em qualquer grupo.'}`);
+          
+          // Prepare response message
+          let responseMessage = `🧹 Limpeza de ranks em todos os grupos concluída!\n\n`;
+          responseMessage += `✅ Total de usuários removidos: ${totalRemoved}\n`;
+          responseMessage += `⚠️ Entradas inválidas removidas: ${totalInvalid}\n\n`;
+          
+          if (summary.length > 0) {
+            responseMessage += `📋 Detalhes:\n${summary.join('\n')}\n\n`;
+          }
+          
+          if (failedGroups.length > 0) {
+            responseMessage += `❌ Grupos com problemas (${failedGroups.length}):\n${failedGroups.slice(0, 5).join('\n')}${failedGroups.length > 5 ? '\n... e mais ' + (failedGroups.length - 5) : ''}\n`;
+          }
+          
+          if (summary.length === 0 && totalRemoved === 0 && totalInvalid === 0) {
+            responseMessage = `🧹 Limpeza de ranks em todos os grupos concluída!\n\nNenhum usuário ausente ou entrada inválida encontrada em qualquer grupo.`;
+          }
+          
+          await reply(responseMessage);
+          
+          // Log the action
+          console.log(`[LIMPAR RANK GLOBAL] Cleanup completed. Total removed: ${totalRemoved}, Invalid: ${totalInvalid}, Failed: ${failedGroups.length}`);
+          
         } catch (e) {
-          console.error('Erro no comando limpartodosranks:', e);
-          await reply("Ocorreu um erro ao limpar ranks de todos os grupos 💔");
+          console.error('[LIMPAR RANK GLOBAL] Error:', e);
+          await reply("❌ Ocorreu um erro ao limpar ranks de todos os grupos. Tente novamente mais tarde.");
         }
         break;
       case 'rankativos':
       case 'rankativo':
         try {
           if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
+          
+          // Verify current group members first
+          let currentMembers = AllgroupMembers;
+          let validUsers = [];
+          
+          // Filter out users who have left the group
+          groupData.contador = groupData.contador.filter(user => {
+            const userId = user.id;
+            const isValidMember = currentMembers.includes(userId);
+            
+            if (!isValidMember) {
+              console.log(`[RANKATIVO] Removed departed user: ${userId} (${getUserName(userId)})`);
+              return false;
+            }
+            
+            validUsers.push(user);
+            return true;
+          });
+          
+          // Save updated data
+          fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+          
           var blue67;
-          blue67 = groupData.contador.sort((a, b) => (a.figu == undefined ? a.figu = 0 : a.figu + a.msg + a.cmd) < (b.figu == undefined ? b.figu = 0 : b.figu + b.cmd + b.msg) ? 0 : -1);
+          blue67 = validUsers.sort((a, b) => (a.figu == undefined ? a.figu = 0 : a.figu + a.msg + a.cmd) < (b.figu == undefined ? b.figu = 0 : b.figu + b.cmd + b.msg) ? 0 : -1);
           var menc;
           menc = [];
           let blad;
@@ -7501,7 +8138,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           for (i6 = 0; i6 < (blue67.length < 10 ? blue67.length : 10); i6++) {
             if (blue67[i6].id) {
               if (i6 != null) {
-                blad += `\n*🏅 ${i6 + 1}º Lugar:* @${blue67[i6].id.split('@')[0]}\n- mensagens encaminhadas: *${blue67[i6].msg}*\n- comandos executados: *${blue67[i6].cmd}*\n- Figurinhas encaminhadas: *${blue67[i6].figu}*\n`;
+                blad += `\n*🏅 ${i6 + 1}º Lugar:* @${getUserName(blue67[i6].id)}\n- mensagens encaminhadas: *${blue67[i6].msg}*\n- comandos executados: *${blue67[i6].cmd}*\n- Figurinhas encaminhadas: *${blue67[i6].figu}*\n`;
               }
               if (!groupData.mark) {
                 groupData.mark = {};
@@ -7520,7 +8157,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             quoted: info
           });
         } catch (e) {
-          console.error(e);
+          console.error('[RANKATIVO] Erro:', e);
           await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
@@ -7529,8 +8166,30 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'rankinativo':
         try {
           if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
+          
+          // Verify current group members first
+          let currentMembers = AllgroupMembers;
+          let validUsers = [];
+          
+          // Filter out users who have left the group
+          groupData.contador = groupData.contador.filter(user => {
+            const userId = user.id;
+            const isValidMember = currentMembers.includes(userId);
+            
+            if (!isValidMember) {
+              console.log(`[RANKINATIVO] Removed departed user: ${userId} (${getUserName(userId)})`);
+              return false;
+            }
+            
+            validUsers.push(user);
+            return true;
+          });
+          
+          // Save updated data
+          fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
+          
           var blue67;
-          blue67 = groupData.contador.sort((a, b) => {
+          blue67 = validUsers.sort((a, b) => {
             const totalA = (a.figu ?? 0) + a.msg + a.cmd;
             const totalB = (b.figu ?? 0) + b.msg + b.cmd;
             return totalA - totalB;
@@ -7543,8 +8202,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             var i6;
             if (i6 != null) {
               var blad;
-              var blad;
-              blad += `\n*🏅 ${i6 + 1}º Lugar:* @${blue67[i6].id.split('@')[0]}\n- mensagens encaminhadas: *${blue67[i6].msg}*\n- comandos executados: *${blue67[i6].cmd}*\n- Figurinhas encaminhadas: *${blue67[i6].figu}*\n`;
+              blad += `\n*🏅 ${i6 + 1}º Lugar:* @${getUserName(blue67[i6].id)}\n- mensagens encaminhadas: *${blue67[i6].msg}*\n- comandos executados: *${blue67[i6].cmd}*\n- Figurinhas encaminhadas: *${blue67[i6].figu}*\n`;
             }
             if (!groupData.mark) {
               groupData.mark = {};
@@ -7562,8 +8220,8 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             quoted: info
           });
         } catch (e) {
-          console.error(e);
-          reply("ocorreu um erro 💔");
+          console.error('[RANKINATIVO] Erro:', e);
+          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
         }
         ;
         break;
@@ -7625,14 +8283,14 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             ;
           }
           ;
-          const userName = pushname || sender.split('@')[0];
+          const userName = pushname || getUserName(sender);
           const userStatus = isOwner ? 'Dono' : isPremium ? 'Premium' : isGroupAdmin ? 'Admin' : 'Membro';
           let profilePic = null;
           try {
             profilePic = await nazu.profilePictureUrl(sender, 'image');
           } catch (e) {}
           ;
-          const statusMessage = `📊 *Meu Status - ${userName}* 📊\n\n👤 *Nome*: ${userName}\n📱 *Número*: @${sender.split('@')[0]}\n⭐ *Status*: ${userStatus}\n\n${isGroup ? `\n📌 *No Grupo: ${groupName}*\n💬 Mensagens: ${groupMessages}\n⚒️ Comandos: ${groupCommands}\n🎨 Figurinhas: ${groupStickers}\n` : ''}\n\n🌐 *Geral (Todos os Grupos)*\n💬 Mensagens: ${totalMessages}\n⚒️ Comandos: ${totalCommands}\n🎨 Figurinhas: ${totalStickers}\n\n✨ *Bot*: ${nomebot} by ${nomedono} ✨`;
+          const statusMessage = `📊 *Meu Status - ${userName}* 📊\n\n👤 *Nome*: ${userName}\n📱 *Número*: @${getUserName(sender)}\n⭐ *Status*: ${userStatus}\n\n${isGroup ? `\n📌 *No Grupo: ${groupName}*\n💬 Mensagens: ${groupMessages}\n⚒️ Comandos: ${groupCommands}\n🎨 Figurinhas: ${groupStickers}\n` : ''}\n\n🌐 *Geral (Todos os Grupos)*\n💬 Mensagens: ${totalMessages}\n⚒️ Comandos: ${totalCommands}\n🎨 Figurinhas: ${totalStickers}\n\n✨ *Bot*: ${nomebot} by ${nomedono} ✨`;
           if (profilePic) {
             await nazu.sendMessage(from, {
               image: {
@@ -7906,7 +8564,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             statusColor = '🔴';
           }
           
-          const lastCheckTime = new Date(apiStatus.lastCheck).toLocaleString('pt-BR');
+          const lastCheckTime = new Date(apiStatus.lastCheck).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
           const keyPreview = KeyCog ? `${KeyCog.substring(0, 8)}...` : 'Não configurada';
           
           const statusMessage = [
@@ -7990,9 +8648,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             return reply(`❌ Comando *${cmdName}* não encontrado ou nunca foi usado.`);
           }
           const topUsersText = stats.topUsers.length > 0 ? stats.topUsers.map((user, index) => {
-            return `${index + 1}º @${user.userId.split('@')[0]} - ${user.count} usos`;
+            return `${index + 1}º @${getUserName(user.userId)} - ${user.count} usos`;
           }).join('\n') : 'Nenhum usuário registrado';
-          const lastUsed = new Date(stats.lastUsed).toLocaleString('pt-BR');
+          const lastUsed = new Date(stats.lastUsed).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
           const infoMessage = `📊 *Estatísticas do Comando: ${prefix}${stats.name}* 📊\n\n` + `📈 *Total de Usos*: ${stats.count}\n` + `👥 *Usuários Únicos*: ${stats.uniqueUsers}\n` + `🕒 *Último Uso*: ${lastUsed}\n\n` + `🏆 *Top Usuários*:\n${topUsersText}\n\n` + `✨ *Bot*: ${nomebot} by ${nomedono} ✨`;
           await nazu.sendMessage(from, {
             text: infoMessage,
@@ -8012,9 +8670,9 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const meta = await nazu.groupMetadata(from);
           const subject = meta.subject || "—";
           const desc = meta.desc?.toString() || "Sem descrição";
-          const createdAt = meta.creation ? new Date(meta.creation * 1000).toLocaleString('pt-BR') : "Desconhecida";
+          const createdAt = meta.creation ? new Date(meta.creation * 1000).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : "Desconhecida";
           const ownerJid = meta.owner || meta.participants.find(p => p.admin && p.isCreator)?.lid || meta.participants.find(p => p.admin && p.isCreator)?.id || buildUserId("unknown");
-          const ownerTag = `@${ownerJid.split('@')[0]}`;
+          const ownerTag = `@${getUserName(ownerJid)}`;
           const totalMembers = meta.participants.length;
           const totalAdmins = groupAdmins.length;
           let totalMsgs = 0,
@@ -8039,8 +8697,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             ["AntiStatus", !!groupData.antistatus],
             ["AntiDelete", !!groupData.antidel],
             ["AntiSticker", !!(groupData.antifig && groupData.antifig.enabled)],
-            ["AntiFake", !!groupData.antifake],
-            ["AntiPT", !!groupData.antipt]
           ];
           const resFlags = [
             ["AutoDL", !!groupData.autodl],
@@ -8074,7 +8730,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const linesHeader = [
             "╭───📊 STATUS DO GRUPO ───╮",
             `┊ 📝 Nome: ${subject}`,
-            `┊ 🆔 ID: ${from.split('@')[0]}`,
+            `┊ 🆔 ID: ${getUserName(from)}`,
             `┊ 👑 Dono: ${ownerTag}`,
             `┊ 📅 Criado: ${createdAt}`,
             `┊ 📄 Desc: ${desc.slice(0, 35)}${desc.length > 35 ? '...' : ''}`,
@@ -8129,7 +8785,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               groupPic,
               {
                 subject,
-                groupId: from.split('@')[0],
+                groupId: getUserName(from),
                 ownerTag,
                 createdAt,
                 desc,
@@ -8615,7 +9271,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             timestamp: Date.now()
           };
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-          await reply(`✅ Usuário @${menc_os3.split('@')[0]} bloqueado no grupo!\nMotivo: ${reason}`, {
+          await reply(`✅ Usuário @${getUserName(menc_os3)} bloqueado no grupo!\nMotivo: ${reason}`, {
             mentions: [menc_os3]
           });
         } catch (e) {
@@ -8632,16 +9288,16 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!groupData.blockedUsers) {
             return reply(`ℹ️ Não há usuários bloqueados neste grupo.`);
           }
-          const userToUnblock = groupData.blockedUsers[menc_os2] ? menc_os2 : 
-                               groupData.blockedUsers[menc_os2.split('@')[0]] ? menc_os2.split('@')[0] : null;
+          const userToUnblock = groupData.blockedUsers[menc_os2] ? menc_os2 :
+                               groupData.blockedUsers[getUserName(menc_os2)] ? getUserName(menc_os2) : null;
           if (!userToUnblock) {
-            return reply(`❌ O usuário @${menc_os2.split('@')[0]} não está bloqueado no grupo!`, {
+            return reply(`❌ O usuário @${getUserName(menc_os2)} não está bloqueado no grupo!`, {
               mentions: [menc_os2]
             });
           }
           delete groupData.blockedUsers[userToUnblock];
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-          await reply(`✅ Usuário @${menc_os2.split('@')[0]} desbloqueado no grupo!`, {
+          await reply(`✅ Usuário @${getUserName(menc_os2)} desbloqueado no grupo!`, {
             mentions: [menc_os2]
           });
         } catch (e) {
@@ -8654,7 +9310,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         if (!isGroup) return reply("isso so pode ser usado em grupo 💔");
         if (!isGroupAdmin) return reply("você precisa ser adm 💔");
         try {
-          const blockedUsers = groupData.blockedUsers ? Object.entries(groupData.blockedUsers).map(([user, data]) => `👤 *${user.split('@')[0]}* - Motivo: ${data.reason}`).join('\n') : 'Nenhum usuário bloqueado no grupo.';
+          const blockedUsers = groupData.blockedUsers ? Object.entries(groupData.blockedUsers).map(([user, data]) => `👤 *${getUserName(user)}* - Motivo: ${data.reason}`).join('\n') : 'Nenhum usuário bloqueado no grupo.';
           const message = `🔒 *Usuários Bloqueados no Grupo - ${groupName}* 🔒\n\n${blockedUsers}`;
           await reply(message);
         } catch (e) {
@@ -8768,7 +9424,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (!membros.length) return reply('❌ Nenhum membro para mencionar.');
           let msg = `📢 *Membros mencionados:* ${q ? `\n💬 *Mensagem:* ${q}` : ''}\n\n`;
           await nazu.sendMessage(from, {
-            text: msg + membros.map(m => `➤ @${m.split('@')[0]}`).join('\n'),
+            text: msg + membros.map(m => `➤ @${getUserName(m)}`).join('\n'),
             mentions: membros
           });
         } catch (e) {
@@ -8805,17 +9461,26 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const groupFilePath = pathz.join(GRUPOS_DIR, `${from}.json`);
           let data = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath, 'utf-8')) : {};
           data.schedule = data.schedule || {};
+          
+          // Handle disabling the schedule
           if (arg === 'off' || arg === 'desativar' || arg === 'remove' || arg === 'rm') {
             delete data.schedule.openTime;
             if (data.schedule?.lastRun) delete data.schedule.lastRun.open;
             fs.writeFileSync(groupFilePath, JSON.stringify(data, null, 2));
             return reply('✅ Agendamento diário para ABRIR o grupo foi removido.');
           }
-          const isValid = /^([01]?\d|2[0-3]):([0-5]\d)$/.test(arg);
-          if (!isValid) return reply('⏰ Informe um horário válido no formato HH:MM (24 horas). Ex.: 07:30');
+          
+          // Validate time format with enhanced validation
+          const timeValidation = validateTimeFormat(arg);
+          if (!timeValidation.valid) {
+            return reply(`⏰ ${timeValidation.error}\nExemplo: ${prefix}opengp 07:30`);
+          }
+          
+          // Save the schedule
           data.schedule.openTime = arg;
           fs.writeFileSync(groupFilePath, JSON.stringify(data, null, 2));
-          let msg = `✅ Agendamento salvo! O grupo será ABERTO todos os dias às ${arg}.`;
+          
+          let msg = `✅ Agendamento salvo! O grupo será ABERTO todos os dias às ${arg} (horário de São Paulo).`;
           if (!isBotAdmin) msg += '\n⚠️ Observação: Eu preciso ser administrador para efetivar a abertura no horário.';
           await reply(msg);
         } catch (e) {
@@ -8832,17 +9497,26 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           const groupFilePath = pathz.join(GRUPOS_DIR, `${from}.json`);
           let data = fs.existsSync(groupFilePath) ? JSON.parse(fs.readFileSync(groupFilePath, 'utf-8')) : {};
           data.schedule = data.schedule || {};
+          
+          // Handle disabling the schedule
           if (arg === 'off' || arg === 'desativar' || arg === 'remove' || arg === 'rm') {
             delete data.schedule.closeTime;
             if (data.schedule?.lastRun) delete data.schedule.lastRun.close;
             fs.writeFileSync(groupFilePath, JSON.stringify(data, null, 2));
             return reply('✅ Agendamento diário para FECHAR o grupo foi removido.');
           }
-          const isValid = /^([01]?\d|2[0-3]):([0-5]\d)$/.test(arg);
-          if (!isValid) return reply('⏰ Informe um horário válido no formato HH:MM (24 horas). Ex.: 22:30');
+          
+          // Validate time format with enhanced validation
+          const timeValidation = validateTimeFormat(arg);
+          if (!timeValidation.valid) {
+            return reply(`⏰ ${timeValidation.error}\nExemplo: ${prefix}closegp 22:30`);
+          }
+          
+          // Save the schedule
           data.schedule.closeTime = arg;
           fs.writeFileSync(groupFilePath, JSON.stringify(data, null, 2));
-          let msg = `✅ Agendamento salvo! O grupo será FECHADO todos os dias às ${arg}.`;
+          
+          let msg = `✅ Agendamento salvo! O grupo será FECHADO todos os dias às ${arg} (horário de São Paulo).`;
           if (!isBotAdmin) msg += '\n⚠️ Observação: Eu preciso ser administrador para efetivar o fechamento no horário.';
           await reply(msg);
         } catch (e) {
@@ -8873,13 +9547,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           mensagem += `📌 *Grupo 1*\n`;
           grupo1.forEach((p, i) => {
             
-            mensagem += `  ${i + 1}. ${p.includes('@') ? `@${p.split('@')[0]}` : p}\n`;
+            mensagem += `  ${i + 1}. ${p.includes('@') ? `@${getUserName(p)}` : p}\n`;
           });
           
           mensagem += `\n*Confrontos do Grupo 1*:\n`;
           confrontosGrupo1.forEach((confronto, i) => {
-            const p1 = confronto[0].includes('@') ? `@${confronto[0].split('@')[0]}` : confronto[0];
-            const p2 = confronto[1].includes('@') ? `@${confronto[1].split('@')[0]}` : confronto[1];
+            const p1 = confronto[0].includes('@') ? `@${getUserName(confronto[0])}` : confronto[0];
+            const p2 = confronto[1].includes('@') ? `@${getUserName(confronto[1])}` : confronto[1];
             
             mensagem += `  🥊 Partida ${i + 1}: ${p1} vs ${p2}\n`;
           });
@@ -8887,13 +9561,13 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           mensagem += `\n📌 *Grupo 2*\n`;
           grupo2.forEach((p, i) => {
             
-            mensagem += `  ${i + 1}. ${p.includes('@') ? `@${p.split('@')[0]}` : p}\n`;
+            mensagem += `  ${i + 1}. ${p.includes('@') ? `@${getUserName(p)}` : p}\n`;
           });
           
           mensagem += `\n*Confrontos do Grupo 2*:\n`;
           confrontosGrupo2.forEach((confronto, i) => {
-            const p1 = confronto[0].includes('@') ? `@${confronto[0].split('@')[0]}` : confronto[0];
-            const p2 = confronto[1].includes('@') ? `@${confronto[1].split('@')[0]}` : confronto[1];
+            const p1 = confronto[0].includes('@') ? `@${getUserName(confronto[0])}` : confronto[0];
+            const p2 = confronto[1].includes('@') ? `@${getUserName(confronto[1])}` : confronto[1];
             
             mensagem += `  🥊 Partida ${i + 1}: ${p1} vs ${p2}\n`;
           });
@@ -8987,7 +9661,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             vencedores.push(membrosDisponiveis[indice]);
             membrosDisponiveis.splice(indice, 1);
           }
-          const vencedoresText = vencedores.map((v, i) => `🏆 *#${i + 1}* - @${v.split('@')[0]}`).join('\n');
+          const vencedoresText = vencedores.map((v, i) => `🏆 *#${i + 1}* - @${getUserName(v)}`).join('\n');
           await reply(`🎉 *Resultado do Sorteio* 🎉\n\n${vencedoresText}`, {
             mentions: vencedores
           });
@@ -9260,34 +9934,6 @@ case 'divulgar':
           }
           fs.writeFileSync(__dirname + '/../database/cmdlimit.json', JSON.stringify(cmdLimitData, null, 2));
           await reply(`✅ Limite de comandos ${cmdLimitData[from].enabled ? `definido para ${cmdLimitData[from].limit} por dia` : 'desativado'}!`);
-        } catch (e) {
-          console.error(e);
-          await reply("Ocorreu um erro 💔");
-        }
-        break;
-      case 'antipt':
-        try {
-          if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-          if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-          if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-          
-          groupData.antipt = !groupData.antipt;
-          fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-          await reply(`✅ AntiPT ${groupData.antipt ? 'ativado' : 'desativado'}! Membros de Portugal serão banidos.`);
-        } catch (e) {
-          console.error(e);
-          await reply("Ocorreu um erro 💔");
-        }
-        break;
-      case 'antifake':
-        try {
-          if (!isGroup) return reply("Isso só pode ser usado em grupo 💔");
-          if (!isGroupAdmin) return reply("Você precisa ser adm 💔");
-          if (!isBotAdmin) return reply("Eu preciso ser adm para isso 💔");
-          
-          groupData.antifake = !groupData.antifake;
-          fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-          await reply(`✅ Antifake ${groupData.antifake ? 'ativado' : 'desativado'}! Membros de fora do Brasil/Portugal serão banidos.`);
         } catch (e) {
           console.error(e);
           await reply("Ocorreu um erro 💔");
@@ -9768,7 +10414,7 @@ Exemplos:
           let message = "📋 *Lista de Parcerias Ativas* 📋\n\n";
           for (const [userId, data] of Object.entries(parceriasData.partners)) {
             
-            message += `👤 @${userId.split('@')[0]} - Limite: ${data.limit} links | Enviados: ${data.count}\n`;
+            message += `👤 @${getUserName(userId)} - Limite: ${data.limit} links | Enviados: ${data.count}\n`;
           }
           await reply(message, {
             mentions: Object.keys(parceriasData.partners)
@@ -9802,7 +10448,7 @@ Exemplos:
             return reply("Uso inválido. Certifique-se de marcar um usuário e especificar um limite válido (número maior que 0).");
           }
           if (!AllgroupMembers.includes(userId)) {
-            return reply(`@${userId.split('@')[0]} não está no grupo.`, {
+            return reply(`@${getUserName(userId)} não está no grupo.`, {
               mentions: [userId]
             });
           }
@@ -9811,7 +10457,7 @@ Exemplos:
             count: 0
           };
           saveParceriasData(from, parceriasData);
-          await reply(`✅ @${userId.split('@')[0]} foi adicionado como parceiro com limite de ${limit} links de grupos.`, {
+          await reply(`✅ @${getUserName(userId)} foi adicionado como parceiro com limite de ${limit} links de grupos.`, {
             mentions: [userId]
           });
         } catch (e) {
@@ -9833,13 +10479,13 @@ Exemplos:
             return reply("Por favor, marque um usuário ou responda a uma mensagem.");
           }
           if (!parceriasData.partners[userId]) {
-            return reply(`@${userId.split('@')[0]} não é um parceiro.`, {
+            return reply(`@${getUserName(userId)} não é um parceiro.`, {
               mentions: [userId]
             });
           }
           delete parceriasData.partners[userId];
           saveParceriasData(from, parceriasData);
-          await reply(`✅ @${userId.split('@')[0]} não é mais um parceiro.`, {
+          await reply(`✅ @${getUserName(userId)} não é mais um parceiro.`, {
             mentions: [userId]
           });
         } catch (e) {
@@ -9895,7 +10541,7 @@ Exemplos:
             timestamp: Date.now()
           };
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
-          reply(`✅ @${menc_os2.split('@')[0]} foi adicionado à blacklist.\nMotivo: ${reason}`, {
+          reply(`✅ @${getUserName(menc_os2)} foi adicionado à blacklist.\nMotivo: ${reason}`, {
             mentions: [menc_os2]
           });
         } catch (e) {
@@ -9918,7 +10564,7 @@ Exemplos:
           if (!groupData.blacklist[menc_os2]) return reply("❌ Este usuário não está na blacklist.");
           delete groupData.blacklist[menc_os2];
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
-          reply(`✅ @${menc_os2.split('@')[0]} foi removido da blacklist.`, {
+          reply(`✅ @${getUserName(menc_os2)} foi removido da blacklist.`, {
             mentions: [menc_os2]
           });
         } catch (e) {
@@ -9939,7 +10585,7 @@ Exemplos:
           if (Object.keys(groupData.blacklist).length === 0) return reply("📋 A blacklist está vazia.");
           let text = "📋 *Lista de Usuários na Blacklist*\n\n";
           for (const [user, data] of Object.entries(groupData.blacklist)) {
-            text += `👤 @${user.split('@')[0]}\n📝 Motivo: ${data.reason}\n🕒 Adicionado em: ${new Date(data.timestamp).toLocaleString()}\n\n`;
+            text += `👤 @${getUserName(user)}\n📝 Motivo: ${data.reason}\n🕒 Adicionado em: ${new Date(data.timestamp).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}\n\n`;
           }
           reply(text, {
             mentions: Object.keys(groupData.blacklist)
@@ -9977,11 +10623,11 @@ Exemplos:
             await nazu.groupParticipantsUpdate(from, [menc_os2], 'remove');
             delete groupData.warnings[menc_os2];
             fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
-            reply(`🚫 @${menc_os2.split('@')[0]} recebeu 3 advertências e foi banido!\nÚltima advertência: ${reason}`, {
+            reply(`🚫 @${getUserName(menc_os2)} recebeu 3 advertências e foi banido!\nÚltima advertência: ${reason}`, {
               mentions: [menc_os2]
             });
           } else {
-            reply(`⚠️ @${menc_os2.split('@')[0]} recebeu uma advertência (${warningCount}/3).\nMotivo: ${reason}`, {
+            reply(`⚠️ @${getUserName(menc_os2)} recebeu uma advertência (${warningCount}/3).\nMotivo: ${reason}`, {
               mentions: [menc_os2]
             });
           }
@@ -10007,7 +10653,7 @@ Exemplos:
           groupData.warnings[menc_os2].pop();
           if (groupData.warnings[menc_os2].length === 0) delete groupData.warnings[menc_os2];
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData, null, 2));
-          reply(`✅ Uma advertência foi removida de @${menc_os2.split('@')[0]}. Advertências restantes: ${groupData.warnings[menc_os2]?.length || 0}/3`, {
+          reply(`✅ Uma advertência foi removida de @${getUserName(menc_os2)}. Advertências restantes: ${groupData.warnings[menc_os2]?.length || 0}/3`, {
             mentions: [menc_os2]
           });
         } catch (e) {
@@ -10031,11 +10677,11 @@ Exemplos:
           for (const [user, warnings] of Object.entries(groupData.warnings)) {
             try {
               if (Array.isArray(warnings)) {
-                text += `👤 @${user.split('@')[0]} (${warnings.length}/3)\n`;
+                text += `👤 @${getUserName(user)} (${warnings.length}/3)\n`;
                 warnings.forEach((warn, index) => {
                   text += `  ${index + 1}. Motivo: ${warn.reason}\n`;
-                  text += `     Por: @${warn.issuer.split('@')[0]}\n`;
-                  text += `     Em: ${new Date(warn.timestamp).toLocaleString()}\n`;
+                  text += `     Por: @${getUserName(warn.issuer)}\n`;
+                  text += `     Em: ${new Date(warn.timestamp).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}\n`;
                 });
                 text += "\n";
               }
@@ -10275,7 +10921,7 @@ Exemplos:
           groupData.mutedUsers[menc_os2] = true;
           fs.writeFileSync(groupFilePath, JSON.stringify(groupData));
           await nazu.sendMessage(from, {
-            text: `✅ @${menc_os2.split('@')[0]} foi mutado. Se enviar mensagens, será banido.`,
+            text: `✅ @${getUserName(menc_os2)} foi mutado. Se enviar mensagens, será banido.`,
             mentions: [menc_os2]
           }, {
             quoted: info
@@ -10302,7 +10948,7 @@ Exemplos:
             delete groupData.mutedUsers[menc_os2];
             fs.writeFileSync(groupFilePath, JSON.stringify(groupData));
             await nazu.sendMessage(from, {
-              text: `✅ @${menc_os2.split('@')[0]} foi desmutado e pode enviar mensagens novamente.`,
+              text: `✅ @${getUserName(menc_os2)} foi desmutado e pode enviar mensagens novamente.`,
               mentions: [menc_os2]
             }, {
               quoted: info
@@ -10459,7 +11105,7 @@ ${tempo.includes('nunca') ? '😂 Brincadeira! Nunca desista dos seus sonhos!' :
                            shipLevel >= 60 ? '😍 Ship promissor!' : 
                            shipLevel >= 40 ? '😊 Rolou uma química!' : 
                            shipLevel >= 20 ? '🤔 Meio forçado...' : '😅 Só na amizade!';
-          await reply(`💘 *${comentario}* 💘\n\n👑 **CASAL DO MOMENTO** �\n@${membro1.split('@')[0]} ❤️ @${membro2.split('@')[0]}\n\n� **Nível de ship:** *${shipLevel}%*\n🎯 **Chance de dar certo:** *${chance}%*\n\n${statusShip}\n\n${chance >= 70 ? '🎉 Já podem marcar o casamento!' : chance >= 50 ? '👀 Vale a pena investir!' : '😂 Melhor ficar só na amizade!'}`, {
+          await reply(`💘 *${comentario}* 💘\n\n👑 **CASAL DO MOMENTO** �\n@${getUserName(membro1)} ❤️ @${getUserName(membro2)}\n\n� **Nível de ship:** *${shipLevel}%*\n🎯 **Chance de dar certo:** *${chance}%*\n\n${statusShip}\n\n${chance >= 70 ? '🎉 Já podem marcar o casamento!' : chance >= 50 ? '👀 Vale a pena investir!' : '😂 Melhor ficar só na amizade!'}`, {
             mentions: [membro1, membro2]
           });
         } catch (e) {
@@ -10485,7 +11131,7 @@ ${tempo.includes('nunca') ? '😂 Brincadeira! Nunca desista dos seus sonhos!' :
           ;
           const shipLevel = Math.floor(Math.random() * 101);
           const chance = Math.floor(Math.random() * 101);
-          const nomeShip = `${menc_os2.split('@')[0].slice(0,3)}${par.split('@')[0].slice(-3)}`;
+          const nomeShip = `${getUserName(menc_os2).slice(0,3)}${getUserName(par).slice(-3)}`;
           const comentarios = [
             'Encontrei o par perfeito!', 'Match feito no céu!', 'Combinação aprovada!',
             'Ship name já tá pronto!', 'Quero ver essa dupla!', 'Shippando forte!'
@@ -10497,7 +11143,7 @@ ${tempo.includes('nunca') ? '😂 Brincadeira! Nunca desista dos seus sonhos!' :
                            shipLevel >= 70 ? '🎆 Ship de qualidade!' : 
                            shipLevel >= 50 ? '😊 Tem potencial!' : 
                            shipLevel >= 30 ? '🤔 Pode rolar...' : '😅 Força demais!';
-          await reply(`${emoji} *${comentario}* ${emoji}\n\n👑 **SHIP SELECIONADO** �\n@${menc_os2.split('@')[0]} ✨ @${par.split('@')[0]}\n\n💫 **Ship name:** *${nomeShip}*\n� **Nível de ship:** *${shipLevel}%*\n🎯 **Compatibilidade:** *${chance}%*\n\n${statusShip}\n\n${chance >= 75 ? '🎉 Relacionamento dos sonhos!' : chance >= 50 ? '👀 Merece uma chance!' : '😂 Melhor só shippar mesmo!'}`, {
+          await reply(`${emoji} *${comentario}* ${emoji}\n\n👑 **SHIP SELECIONADO** �\n@${getUserName(menc_os2)} ✨ @${getUserName(par)}\n\n💫 **Ship name:** *${nomeShip}*\n� **Nível de ship:** *${shipLevel}%*\n🎯 **Compatibilidade:** *${chance}%*\n\n${statusShip}\n\n${chance >= 75 ? '🎉 Relacionamento dos sonhos!' : chance >= 50 ? '👀 Merece uma chance!' : '😂 Melhor só shippar mesmo!'}`, {
             mentions: [menc_os2, par]
           });
         } catch (e) {
@@ -10552,7 +11198,7 @@ ${isPositive ? '🎉 O destino sorri para você!' : '😅 Mas não desista dos s
           if (!isModoBn) return reply('❌ O modo brincadeira está desativado nesse grupo! Hora de liberar a diversão! 🎉🎲');
           
           const usuario = menc_os2 || sender;
-          const nome = menc_os2 ? menc_os2.split('@')[0] : pushname;
+          const nome = menc_os2 ? getUserName(menc_os2) : pushname;
           const nivelSorte = Math.floor(Math.random() * 101);
           
           const comentarios = [
@@ -10602,7 +11248,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           let membros = groupAdmins;
           let msg = `📢 *Mencionando os admins do grupo:* ${q ? `\n💬 *Mensagem:* ${q}` : ''}\n\n`;
           await nazu.sendMessage(from, {
-            text: msg + membros.map(m => `➤ @${m.split('@')[0]}`).join('\n'),
+            text: msg + membros.map(m => `➤ @${getUserName(m)}`).join('\n'),
             mentions: membros
           });
         } catch (e) {
@@ -10613,7 +11259,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
       case 'perfil':
         try {
           const target = sender;
-          const targetId = target.split('@')[0];
+          const targetId = getUserName(target);
           const targetName = `@${targetId}`;
           const levels = {
             puta: Math.floor(Math.random() * 101),
@@ -10643,7 +11289,8 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
               bio = status.status || bio;
               bioSetAt = new Date(status.setAt).toLocaleString('pt-BR', {
                 dateStyle: 'short',
-                timeStyle: 'short'
+                timeStyle: 'short',
+                timeZone: 'America/Sao_Paulo'
               });
             }
             ;
@@ -10755,7 +11402,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           var context;
           context = frasekk[Math.floor(Math.random() * frasekk.length)];
           var ABC;
-          ABC = `${emojis2} @${sender.split('@')[0]} ${context}\n\n`;
+          ABC = `${emojis2} @${getUserName(sender)} ${context}\n\n`;
           var mencts;
           mencts = [sender];
           for (var i = 0; i < q; i++) {
@@ -10884,7 +11531,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
             games: {}
           };
           const target = menc_os2 ? menc_os2 : sender;
-          const targetName = `@${target.split('@')[0]}`;
+          const targetName = `@${getUserName(target)}`;
           const level = Math.floor(Math.random() * 101);
           let responses = fs.existsSync(__dirname + '/funcs/json/gamestext.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/gamestext.json')) : {};
           const responseText = responses[command].replaceAll('#nome#', targetName).replaceAll('#level#', level) || `📊 ${targetName} tem *${level}%* de ${command}! 🔥`;
@@ -11003,7 +11650,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
             games: {}
           };
           const target = menc_os2 ? menc_os2 : sender;
-          const targetName = `@${target.split('@')[0]}`;
+          const targetName = `@${getUserName(target)}`;
           const level = Math.floor(Math.random() * 101);
           let responses = fs.existsSync(__dirname + '/funcs/json/gamestext2.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/gamestext2.json')) : {};
           const responseText = responses[command].replaceAll('#nome#', targetName).replaceAll('#level#', level) || `📊 ${targetName} tem *${level}%* de ${command}! 🔥`;
@@ -11105,7 +11752,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           let responseText = ranksData[cleanedCommand] || `📊 *Ranking de ${cleanedCommand.replace('rank', '')}*:\n\n`;
           top5.forEach((m, i) => {
             
-            responseText += `🏅 *#${i + 1}* - @${m.split('@')[0]}\n`;
+            responseText += `🏅 *#${i + 1}* - @${getUserName(m)}\n`;
           });
           let media = gamesData.ranks[cleanedCommand];
           if (media?.image) {
@@ -11202,7 +11849,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           let responseText = ranksData[cleanedCommand] + '\n\n' || `📊 *Ranking de ${cleanedCommand.replace('rank', '')}*:\n\n`;
           top5.forEach((m, i) => {
             
-            responseText += `🏅 *#${i + 1}* - @${m.split('@')[0]}\n`;
+            responseText += `🏅 *#${i + 1}* - @${getUserName(m)}\n`;
           });
           let media = gamesData.ranks[cleanedCommand];
           if (media?.image) {
@@ -11269,7 +11916,7 @@ ${nivelSorte >= 70 ? '🎉 Hoje é seu dia de sorte!' : nivelSorte >= 40 ? '🤔
           let GamezinData = fs.existsSync(__dirname + '/funcs/json/markgame.json') ? JSON.parse(fs.readFileSync(__dirname + '/funcs/json/markgame.json')) : {
             ranks: {}
           };
-          let responseText = GamezinData[command].replaceAll('#nome#', `@${menc_os2.split('@')[0]}`) || `Voce acabou de dar um(a) ${command} no(a) @${menc_os2.split('@')[0]}`;
+          let responseText = GamezinData[command].replaceAll('#nome#', `@${getUserName(menc_os2)}`) || `Voce acabou de dar um(a) ${command} no(a) @${getUserName(menc_os2)}`;
           let media = gamesData.games2[command];
           if (media?.image) {
             await nazu.sendMessage(from, {
@@ -11398,13 +12045,13 @@ ${groupData.rules.length}. ${q}`);
           if (!menc_os2) return reply(`Marque o usuário que deseja promover a moderador. Ex: ${prefix}addmod @usuario`);
           const modToAdd = menc_os2;
           if (groupData.moderators.includes(modToAdd)) {
-            return reply(`@${modToAdd.split('@')[0]} já é um moderador.`, {
+            return reply(`@${getUserName(modToAdd)} já é um moderador.`, {
               mentions: [modToAdd]
             });
           }
           groupData.moderators.push(modToAdd);
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-          await reply(`✅ @${modToAdd.split('@')[0]} foi promovido a moderador do grupo!`, {
+          await reply(`✅ @${getUserName(modToAdd)} foi promovido a moderador do grupo!`, {
             mentions: [modToAdd]
           });
         } catch (e) {
@@ -11420,13 +12067,13 @@ ${groupData.rules.length}. ${q}`);
           const modToRemove = menc_os2;
           const modIndex = groupData.moderators.indexOf(modToRemove);
           if (modIndex === -1) {
-            return reply(`@${modToRemove.split('@')[0]} não é um moderador.`, {
+            return reply(`@${getUserName(modToRemove)} não é um moderador.`, {
               mentions: [modToRemove]
             });
           }
           groupData.moderators.splice(modIndex, 1);
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-          await reply(`✅ @${modToRemove.split('@')[0]} não é mais um moderador do grupo.`, {
+          await reply(`✅ @${getUserName(modToRemove)} não é mais um moderador do grupo.`, {
             mentions: [modToRemove]
           });
         } catch (e) {
@@ -11444,7 +12091,7 @@ ${groupData.rules.length}. ${q}`);
           let modsMessage = `🛡️ *Moderadores do Grupo ${groupName}* 🛡️\n\n`;
           const mentionedUsers = [];
           groupData.moderators.forEach(modJid => {
-            modsMessage += `➥ @${modJid.split('@')[0]}\n`;
+            modsMessage += `➥ @${getUserName(modJid)}\n`;
             mentionedUsers.push(modJid);
           });
           await reply(modsMessage, {
@@ -11531,18 +12178,18 @@ ${groupData.rules.length}. ${q}`);
           
           groupData.groupOwners = groupData.groupOwners || [];
           if (groupData.groupOwners.includes(ownerToAdd)) {
-            return reply(`@${ownerToAdd.split('@')[0]} já é um dono do grupo.`, {
+            return reply(`@${getUserName(ownerToAdd)} já é um dono do grupo.`, {
               mentions: [ownerToAdd]
             });
           }
           if (!groupAdmins.includes(ownerToAdd)) {
-            return reply(`@${ownerToAdd.split('@')[0]} precisa ser administrador para ser adicionado como dono do grupo.`, {
+            return reply(`@${getUserName(ownerToAdd)} precisa ser administrador para ser adicionado como dono do grupo.`, {
               mentions: [ownerToAdd]
             });
           }
           groupData.groupOwners.push(ownerToAdd);
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-          await reply(`✅ @${ownerToAdd.split('@')[0]} foi adicionado como dono do grupo! Agora pode promover/rebaixar livremente com anti-arquivamento ativo.`, {
+          await reply(`✅ @${getUserName(ownerToAdd)} foi adicionado como dono do grupo! Agora pode promover/rebaixar livremente com anti-arquivamento ativo.`, {
             mentions: [ownerToAdd]
           });
         } catch (e) {
@@ -11561,13 +12208,13 @@ ${groupData.rules.length}. ${q}`);
           groupData.groupOwners = groupData.groupOwners || [];
           const ownerIndex = groupData.groupOwners.indexOf(ownerToRemove);
           if (ownerIndex === -1) {
-            return reply(`@${ownerToRemove.split('@')[0]} não é um dono do grupo.`, {
+            return reply(`@${getUserName(ownerToRemove)} não é um dono do grupo.`, {
               mentions: [ownerToRemove]
             });
           }
           groupData.groupOwners.splice(ownerIndex, 1);
           fs.writeFileSync(groupFile, JSON.stringify(groupData, null, 2));
-          await reply(`✅ @${ownerToRemove.split('@')[0]} foi removido como dono do grupo.`, {
+          await reply(`✅ @${getUserName(ownerToRemove)} foi removido como dono do grupo.`, {
             mentions: [ownerToRemove]
           });
         } catch (e) {
@@ -11587,7 +12234,7 @@ ${groupData.rules.length}. ${q}`);
           let ownersMessage = `🛡️ *Donos do Grupo ${groupName}* 🛡️\n\n`;
           const mentionedOwners = [];
           groupData.groupOwners.forEach(ownerJid => {
-            ownersMessage += `➥ @${ownerJid.split('@')[0]}\n`;
+            ownersMessage += `➥ @${getUserName(ownerJid)}\n`;
             mentionedOwners.push(ownerJid);
           });
           await reply(ownersMessage, {
@@ -11972,10 +12619,158 @@ ${groupData.rules.length}. ${q}`);
         }
         break;
   
+      // Rental expiration management commands
+      case 'rentalstats':
+        if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+        if (!rentalExpirationManager) return reply('❌ Sistema de gerenciamento de expiração de aluguel não está ativo.');
+        
+        const stats = rentalExpirationManager.getStats();
+        const message = `
+📊 **Estatísticas do Sistema de Expiração de Aluguel** 📊
+
+⏰ **Status do Sistema:**
+• Ativo: ${stats.isRunning ? '✅ Sim' : '❌ Não'}
+• Última verificação: ${stats.lastCheckTime ? new Date(stats.lastCheckTime).toLocaleString('pt-BR') : 'Nunca'}
+
+📈 **Estatísticas Gerais:**
+• Total de verificações: ${stats.totalChecks}
+• Avisos enviados: ${stats.warningsSent}
+• Avisos finais enviados: ${stats.finalWarningsSent}
+• Aluguéis expirados processados: ${stats.expiredProcessed}
+• Erros: ${stats.errors}
+
+⚙️ **Configurações:**
+• Intervalo de verificação: ${stats.config.checkInterval}
+• Dias para aviso: ${stats.config.warningDays}
+• Dias para aviso final: ${stats.config.finalWarningDays}
+• Limpeza automática: ${stats.config.enableAutoCleanup ? '✅ Ativada' : '❌ Desativada'}
+• Notificações: ${stats.config.enableNotifications ? '✅ Ativadas' : '❌ Desativadas'}
+
+📝 **Arquivo de Log:**
+• Local: ${stats.config.logFile}
+
+🔧 **Comandos Disponíveis:**
+• ${prefix}rentalstats - Ver estatísticas
+• ${prefix}rentaltest - Testar sistema manualmente
+• ${prefix}rentalconfig - Configurar sistema
+• ${prefix}rentalclean - Limpar logs antigos`;
+        
+        await reply(message);
+        break;
+
+      case 'rentaltest':
+        if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+        if (!rentalExpirationManager) return reply('❌ Sistema de gerenciamento de expiração de aluguel não está ativo.');
+        
+        await reply('🔄 Iniciando teste manual do sistema de expiração de aluguel...');
+        
+        try {
+          await rentalExpirationManager.checkExpiredRentals();
+          await reply('✅ Teste concluído com sucesso! Verifique as estatísticas para mais detalhes.');
+        } catch (error) {
+          console.error('❌ Error during rental test:', error);
+          await reply(`❌ Ocorreu um erro durante o teste: ${error.message}`);
+        }
+        break;
+
+      case 'rentalconfig':
+        if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+        if (!q) return reply(`Uso: ${prefix}rentalconfig <opção> <valor>\n\nOpções disponíveis:\n• interval <cron-expression>\n• warning <dias>\n• final <dias>\n• cleanup <horas>\n• notifications <on|off>\n• autocleanup <on|off>\n\nExemplo: ${prefix}rentalconfig warning 7`);
+        
+        const [option, value] = q.split(' ', 2);
+        
+        if (!rentalExpirationManager) return reply('❌ Sistema de gerenciamento de expiração de aluguel não está ativo.');
+        
+        try {
+          switch (option) {
+            case 'interval':
+              rentalExpirationManager.config.checkInterval = value;
+              await reply(`✅ Intervalo de verificação atualizado para: ${value}`);
+              break;
+              
+            case 'warning':
+              rentalExpirationManager.config.warningDays = parseInt(value);
+              await reply(`✅ Dias para aviso inicial atualizados para: ${value}`);
+              break;
+              
+            case 'final':
+              rentalExpirationManager.config.finalWarningDays = parseInt(value);
+              await reply(`✅ Dias para aviso final atualizados para: ${value}`);
+              break;
+              
+            case 'cleanup':
+              rentalExpirationManager.config.cleanupDelayHours = parseInt(value);
+              await reply(`✅ Atraso para limpeza automática atualizado para: ${value} horas`);
+              break;
+              
+            case 'notifications':
+              rentalExpirationManager.config.enableNotifications = value.toLowerCase() === 'on';
+              await reply(`✅ Notificações ${rentalExpirationManager.config.enableNotifications ? 'ativadas' : 'desativadas'}`);
+              break;
+              
+            case 'autocleanup':
+              rentalExpirationManager.config.enableAutoCleanup = value.toLowerCase() === 'on';
+              await reply(`✅ Limpeza automática ${rentalExpirationManager.config.enableAutoCleanup ? 'ativada' : 'desativada'}`);
+              break;
+              
+            default:
+              await reply(`❌ Opção inválida: ${option}\nUse ${prefix}rentalconfig para ver as opções disponíveis.`);
+          }
+        } catch (error) {
+          console.error('❌ Error updating rental config:', error);
+          await reply(`❌ Ocorreu um erro ao atualizar a configuração: ${error.message}`);
+        }
+        break;
+
+      case 'rentalclean':
+        if (!isOwner) return reply('🚫 Este comando é apenas para o dono do bot!');
+        if (!rentalExpirationManager) return reply('❌ Sistema de gerenciamento de expiração de aluguel não está ativo.');
+        
+        try {
+          const statsBefore = rentalExpirationManager.getStats();
+          await rentalExpirationManager.resetStats();
+          await reply(`✅ Estatísticas resetadas com sucesso!\n\nAntes:\n• Verificações: ${statsBefore.totalChecks}\n• Avisos: ${statsBefore.warningsSent}\n• Erros: ${statsBefore.errors}\n\nDepois:\n• Verificações: 0\n• Avisos: 0\n• Erros: 0`);
+        } catch (error) {
+          console.error('❌ Error cleaning rental stats:', error);
+          await reply(`❌ Ocorreu um erro ao limpar as estatísticas: ${error.message}`);
+        }
+        break;
+
       default:
-        if (isCmd) await nazu.react('❌', {
-          key: info.key
-        });
+        if (isCmd) {
+          const cmdNotFoundConfig = loadCmdNotFoundConfig();
+          if (cmdNotFoundConfig.enabled) {
+            const userName = pushname || getUserName(sender);
+            const commandName = command || body.trim().slice(groupPrefix.length).split(/ +/).shift().trim();
+            
+            const notFoundMessage = formatMessageWithFallback(
+              cmdNotFoundConfig.message,
+              {
+                command: commandName,
+                prefix: groupPrefix,
+                user: sender,
+                botName: nomebot,
+                userName: userName
+              },
+              '❌ Comando não encontrado! Tente ' + groupPrefix + 'menu para ver todos os comandos disponíveis.'
+            );
+            
+            try {
+              await reply(notFoundMessage);
+              
+              console.log(`🔍 Comando não encontrado: "${commandName}" por ${userName} (${sender}) no grupo ${isGroup ? groupMetadata.subject : 'privado'}`);
+            } catch (error) {
+              console.error('❌ Erro ao enviar mensagem de comando não encontrado:', error);
+              await nazu.react('❌', {
+                key: info.key
+              });
+            }
+          } else {
+            await nazu.react('❌', {
+              key: info.key
+            });
+          }
+        }
         const msgPrefix = loadMsgPrefix();
         if (['prefix', 'prefixo'].includes(budy2) && msgPrefix) {
           await reply(msgPrefix.replace('#prefixo#', prefix));

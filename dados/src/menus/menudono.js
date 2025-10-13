@@ -29,6 +29,8 @@ ${middleBorder}${menuItemIcon}${prefix}numerodono
 ${middleBorder}${menuItemIcon}${prefix}nomedono
 ${middleBorder}${menuItemIcon}${prefix}nomebot
 ${middleBorder}${menuItemIcon}${prefix}apikey
+${middleBorder}${menuItemIcon}${prefix}configcmdnotfound
+${middleBorder}${menuItemIcon}${prefix}setcmdmsg
 ${middleBorder}${menuItemIcon}${prefix}fotomenu
 ${middleBorder}${menuItemIcon}${prefix}videomenu
 ${middleBorder}${menuItemIcon}${prefix}botoes
