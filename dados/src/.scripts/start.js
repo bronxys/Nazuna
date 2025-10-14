@@ -6,7 +6,6 @@ import path from 'path';
 import { spawn, execSync } from 'child_process';
 import readline from 'readline/promises';
 import os from 'os';
-import { performance } from 'perf_hooks';
 
 const CONFIG_PATH = path.join(process.cwd(), 'dados', 'src', 'config.json');
 const NODE_MODULES_PATH = path.join(process.cwd(), 'node_modules');
@@ -25,52 +24,22 @@ const colors = {
   bold: '\x1b[1m',
 };
 
-// Enhanced logging with timestamps
-const logger = {
-  info: (text) => console.log(`${colors.cyan}[${new Date().toISOString()}]${colors.reset} ${text}`),
-  success: (text) => console.log(`${colors.green}[${new Date().toISOString()}]${colors.reset} ${text}`),
-  warning: (text) => console.log(`${colors.yellow}[${new Date().toISOString()}]${colors.reset} ${text}`),
-  error: (text) => console.log(`${colors.red}[${new Date().toISOString()}]${colors.reset} ${text}`),
-  debug: (text) => process.env.DEBUG === 'true' && console.log(`${colors.cyan}[DEBUG]${colors.reset} ${text}`),
-};
-
-const mensagem = (text) => logger.success(text);
-const aviso = (text) => logger.error(text);
-const info = (text) => logger.info(text);
+const mensagem = (text) => console.log(`${colors.green}${text}${colors.reset}`);
+const aviso = (text) => console.log(`${colors.red}${text}${colors.reset}`);
+const info = (text) => console.log(`${colors.cyan}${text}${colors.reset}`);
 const separador = () => console.log(`${colors.blue}============================================${colors.reset}`);
 
 const getVersion = () => {
   try {
     const packageJson = JSON.parse(fsSync.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
     return packageJson.version || 'Desconhecida';
-  } catch (error) {
-    logger.warning(`Não foi possível obter a versão: ${error.message}`);
+  } catch {
     return 'Desconhecida';
   }
 };
 
 let botProcess = null;
-let restartCount = 0;
-const MAX_RESTARTS = 5;
-const RESTART_DELAY = 5000; // 5 seconds
 const version = getVersion();
-
-// System monitoring
-const getSystemResources = () => {
-  const totalMemory = os.totalmem();
-  const freeMemory = os.freemem();
-  const usedMemory = totalMemory - freeMemory;
-  const memoryUsage = (usedMemory / totalMemory) * 100;
-  
-  return {
-    memoryUsage: memoryUsage.toFixed(2),
-    freeMemory: Math.round(freeMemory / 1024 / 1024),
-    uptime: process.uptime(),
-    platform: os.platform(),
-    arch: os.arch(),
-    cpus: os.cpus().length,
-  };
-};
 
 async function setupTermuxAutostart() {
   if (!isTermux) {
@@ -134,53 +103,43 @@ am startservice --user 0 \\
 }
 
 function setupGracefulShutdown() {
-  const shutdown = (signal) => {
-    logger.info(`🛑 Recebido sinal ${signal}. Encerrando o Nazuna... Até logo!`);
-    
+  const shutdown = () => {
+    mensagem('🛑 Encerrando o Nazuna... Até logo!');
     if (botProcess) {
-      logger.info('🔄 Encerrando processo do bot...');
       botProcess.removeAllListeners();
-      botProcess.kill('SIGTERM');
-      
-      // Force kill after 5 seconds if still running
-      setTimeout(() => {
-        if (botProcess && !botProcess.killed) {
-          logger.warning('⚠️ Forçando encerramento do processo...');
-          botProcess.kill('SIGKILL');
-        }
-      }, 5000);
+      botProcess.kill();
     }
-    
     process.exit(0);
   };
 
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('uncaughtException', (error) => {
-    logger.error(`❌ Exceção não capturada: ${error.message}`);
-    logger.error(error.stack);
-    shutdown('uncaughtException');
-  });
-  process.on('unhandledRejection', (reason, promise) => {
-    logger.error(`❌ Rejeição não tratada em ${promise}: ${reason}`);
-    shutdown('unhandledRejection');
-  });
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 
   if (isWindows) {
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     });
-    rl.on('SIGINT', () => shutdown('SIGINT'));
+    rl.on('SIGINT', shutdown);
   }
 }
 
+async function displayHeader() {
+  const header = [
+    `${colors.bold}🚀 Nazuna - Conexão WhatsApp${colors.reset}`,
+    `${colors.bold}📦 Versão: ${version}${colors.reset}`,
+  ];
+
+  separador();
+  for (const line of header) {
+    console.log(line);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  separador();
+  console.log();
+}
+
 async function checkPrerequisites() {
-  const startTime = performance.now();
-  logger.info('🔍 Verificando pré-requisitos...');
-  
-  let allChecksPassed = true;
-  
   if (!fsSync.existsSync(CONFIG_PATH)) {
     aviso('⚠️ Arquivo de configuração (config.json) não encontrado! Iniciando configuração automática...');
     try {
@@ -193,7 +152,7 @@ async function checkPrerequisites() {
     } catch (error) {
       aviso(`❌ Falha na configuração: ${error.message}`);
       mensagem('📝 Tente executar manualmente: npm run config');
-      allChecksPassed = false;
+      process.exit(1);
     }
   }
 
@@ -209,29 +168,13 @@ async function checkPrerequisites() {
     } catch (error) {
       aviso(`❌ Falha na instalação dos módulos: ${error.message}`);
       mensagem('📦 Tente executar manualmente: npm run config:install');
-      allChecksPassed = false;
+      process.exit(1);
     }
   }
 
-  // Check connect file
   if (!fsSync.existsSync(CONNECT_FILE)) {
     aviso(`⚠️ Arquivo de conexão (${CONNECT_FILE}) não encontrado!`);
     aviso('🔍 Verifique a instalação do projeto.');
-    allChecksPassed = false;
-  }
-  
-  // Check Node.js version
-  const nodeVersion = process.version;
-  const majorVersion = parseInt(nodeVersion.replace('v', '').split('.')[0]);
-  if (majorVersion < 20) {
-    aviso(`⚠️ Versão do Node.js (${nodeVersion}) é inferior à recomendada (>=20.0.0)`);
-    allChecksPassed = false;
-  }
-  
-  const endTime = performance.now();
-  logger.info(`✅ Verificação de pré-requisitos concluída em ${((endTime - startTime) / 1000).toFixed(2)}s`);
-  
-  if (!allChecksPassed) {
     process.exit(1);
   }
 }
@@ -241,8 +184,6 @@ function startBot(codeMode = false) {
   if (codeMode) args.push('--code');
 
   info(`📷 Iniciando com ${codeMode ? 'código de pareamento' : 'QR Code'}`);
-  logger.info(`📋 Argumentos: ${args.join(' ')}`);
-  logger.info(`🖥️ Recursos do sistema: ${JSON.stringify(getSystemResources())}`);
 
   botProcess = spawn('node', args, {
     stdio: 'inherit',
@@ -250,65 +191,38 @@ function startBot(codeMode = false) {
   });
 
   botProcess.on('error', (error) => {
-    logger.error(`❌ Erro ao iniciar o processo do bot: ${error.message}`);
+    aviso(`❌ Erro ao iniciar o processo do bot: ${error.message}`);
     restartBot(codeMode);
   });
 
   botProcess.on('close', (code) => {
-    logger.info(`⚠️ O bot terminou com código de saída: ${code}`);
-    
     if (code !== 0) {
       aviso(`⚠️ O bot terminou com erro (código: ${code}).`);
       restartBot(codeMode);
-    } else {
-      logger.info('✅ Bot encerrado normalmente');
-      restartCount = 0; // Reset restart count on normal shutdown
     }
-  });
-
-  botProcess.on('exit', (code, signal) => {
-    logger.info(`🔚 Processo do bot saiu com código: ${code}, sinal: ${signal}`);
   });
 
   return botProcess;
 }
 
 function restartBot(codeMode) {
-  restartCount++;
-  
-  if (restartCount >= MAX_RESTARTS) {
-    logger.error(`❌ Número máximo de reinícios (${MAX_RESTARTS}) atingido. Encerrando para evitar loop infinito.`);
-    logger.error('🔍 Verifique os logs para identificar a causa do problema.');
-    process.exit(1);
-  }
-  
-  logger.warning(`🔄 Reiniciando o bot (${restartCount}/${MAX_RESTARTS}) em ${RESTART_DELAY / 1000} segundos...`);
-  
+  aviso('🔄 Reiniciando o bot em 1 segundo...');
   setTimeout(() => {
-    if (botProcess) {
-      botProcess.removeAllListeners();
-      botProcess.kill();
-    }
+    if (botProcess) botProcess.removeAllListeners();
     startBot(codeMode);
-  }, RESTART_DELAY);
+  }, 1000);
 }
 
 async function checkAutoConnect() {
   try {
-    logger.debug('🔍 Verificando sessão existente...');
-    
     if (!fsSync.existsSync(QR_CODE_DIR)) {
-      logger.debug('📁 Criando diretório de QR Code...');
       await fs.mkdir(QR_CODE_DIR, { recursive: true });
       return false;
     }
-    
     const files = await fs.readdir(QR_CODE_DIR);
-    const hasSession = files.length > 2;
-    
-    return hasSession;
+    return files.length > 2;
   } catch (error) {
-    logger.error(`❌ Erro ao verificar diretório de QR Code: ${error.message}`);
+    aviso(`❌ Erro ao verificar diretório de QR Code: ${error.message}`);
     return false;
   }
 }
@@ -321,7 +235,7 @@ async function promptConnectionMethod() {
 
   console.log(`${colors.yellow}🔧 Escolha o método de conexão:${colors.reset}`);
   console.log(`${colors.yellow}1. 📷 Conectar via QR Code${colors.reset}`);
-  console.log(`${colors.yellow}2. � Conectar via código de pareamento${colors.reset}`);
+  console.log(`${colors.yellow}2. 🔑 Conectar via código de pareamento${colors.reset}`);
   console.log(`${colors.yellow}3. 🚪 Sair${colors.reset}`);
 
   const answer = await rl.question('➡️ Digite o número da opção desejada: ');
@@ -330,7 +244,7 @@ async function promptConnectionMethod() {
 
   switch (answer.trim()) {
     case '1':
-      mensagem('� Iniciando conexão via QR Code...');
+      mensagem('📷 Iniciando conexão via QR Code...');
       return { method: 'qr' };
     case '2':
       mensagem('🔑 Iniciando conexão via código de pareamento...');
@@ -344,31 +258,8 @@ async function promptConnectionMethod() {
   }
 }
 
-async function displayHeader() {
-  const systemInfo = getSystemResources();
-  const header = [
-    `${colors.bold}🚀 Nazuna - Conexão WhatsApp${colors.reset}`,
-    `${colors.bold}📦 Versão: ${version}${colors.reset}`,
-    `${colors.bold}💾 Uso de Memória: ${systemInfo.memoryUsage}%${colors.reset}`,
-    `${colors.bold}🖥️ Plataforma: ${systemInfo.platform} (${systemInfo.arch})${colors.reset}`,
-    `${colors.bold}🔧 CPUs: ${systemInfo.cpus}${colors.reset}`,
-  ];
-
-  separador();
-  for (const line of header) {
-    console.log(line);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  separador();
-  console.log();
-}
-
 async function main() {
-  const startTime = performance.now();
-  
   try {
-    logger.info('🚀 Iniciando processo de inicialização do Nazuna...');
-    
     setupGracefulShutdown();
     await displayHeader();
     await checkPrerequisites();
@@ -382,19 +273,8 @@ async function main() {
       const { method } = await promptConnectionMethod();
       startBot(method === 'code');
     }
-    
-    const endTime = performance.now();
-    logger.info(`✅ Inicialização concluída em ${((endTime - startTime) / 1000).toFixed(2)}s`);
-    
-    // Log system status periodically
-    setInterval(() => {
-      const resources = getSystemResources();
-      logger.debug(`📊 Status do sistema: Memória ${resources.memoryUsage}%, Uptime ${Math.round(resources.uptime / 60)}m`);
-    }, 60000); // Every minute
-    
   } catch (error) {
-    logger.error(`❌ Erro inesperado durante a inicialização: ${error.message}`);
-    logger.error(error.stack);
+    aviso(`❌ Erro inesperado: ${error.message}`);
     process.exit(1);
   }
 }
