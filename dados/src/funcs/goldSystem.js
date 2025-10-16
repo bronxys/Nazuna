@@ -1,10 +1,19 @@
 // ====== Enhanced Gold System ======
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Configuração de caminhos para o ambiente ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Define ECONOMY_FILE path
+const ECONOMY_FILE = path.join(__dirname, '..', '..', 'dados', 'database', 'economy.json');
 
 function loadEconomy() {
   try {
-    const data = loadJsonFile(ECONOMY_FILE, { users: {}, shop: {}, jobCatalog: {} });
+    // Read and parse JSON file directly
+    const data = JSON.parse(fs.readFileSync(ECONOMY_FILE, 'utf8'));
     // Validate data structure
     if (!data.users) data.users = {};
     if (!data.shop) data.shop = {};

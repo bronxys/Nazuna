@@ -1,5 +1,12 @@
 // Lista central de todos os módulos de menu que queremos carregar.
 // O nome da chave será o nome no objeto final. O valor é o caminho do arquivo.
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+// Configuração de caminhos para o ambiente ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const menuModules = {
     menu: "./menu.js",
     menuButtons: "./menuButtons.js",

@@ -1,6 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import cron from 'node-cron';
+import { fileURLToPath } from 'url';
+
+// Configuração de caminhos para o ambiente ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class RentalExpirationManager {
   constructor(nazu, config = {}) {

@@ -1,12 +1,14 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
-import { promisify } from 'util';
 import { fileURLToPath } from 'url';
+import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+// Configuração de caminhos para o ambiente ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const execAsync = promisify(exec);
 
 class MediaCleaner {
     constructor() {

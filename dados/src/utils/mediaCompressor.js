@@ -4,9 +4,11 @@ import { promisify } from 'util';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const execAsync = promisify(exec);
+// Configuração de caminhos para o ambiente ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const execAsync = promisify(exec);
 
 class MediaCompressor {
     constructor() {
