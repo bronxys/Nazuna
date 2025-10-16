@@ -3474,7 +3474,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         }
 
         if (sub === 'depositar' || sub === 'dep') {
-          const amount = parseAmount(q.split(' ')[0], me.wallet);
+          const amount = parseAmount(q, me.wallet);
           if (!isFinite(amount) || amount <= 0) return reply('❌ Informe um valor válido (ou "all").');
           if (amount > me.wallet) return reply('❌ Você não tem tudo isso na carteira.');
           
