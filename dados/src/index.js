@@ -3474,7 +3474,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         }
 
         if (sub === 'depositar' || sub === 'dep') {
-          const amount = parseAmount(q, me.wallet);
+          const amount = await parseAmount(q, me.wallet);
           if (!isFinite(amount) || amount <= 0) return reply('❌ Informe um valor válido (ou "all").');
           if (amount > me.wallet) return reply('❌ Você não tem tudo isso na carteira.');
           
@@ -3504,7 +3504,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           return reply(response);
         }
         if (sub === 'sacar' || sub === 'saque') {
-          const amount = parseAmount(q.split(' ')[0], me.bank);
+          const amount = await parseAmount(q, me.bank);
           if (!isFinite(amount) || amount <= 0) return reply('❌ Informe um valor válido (ou "all").');
           if (amount > me.bank) return reply('❌ Saldo insuficiente no banco.');
           
@@ -3531,7 +3531,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
 
         if (sub === 'transferir' || sub === 'pix') {
           if (!mentioned) return reply('Marque o usuário e informe o valor. Ex: '+prefix+sub+' @user 100');
-          const amount = parseAmount(args.slice(-1)[0], me.wallet);
+          const amount = await parseAmount(args.slice(-1)[0], me.wallet);
           if (!isFinite(amount) || amount <= 0) return reply('Informe um valor válido.');
           if (amount > me.wallet) return reply('Você não tem esse valor na carteira.');
           if (mentioned === sender) return reply('Você não pode transferir para si mesmo.');
@@ -3643,7 +3643,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           const have = me.materials?.[matKey] || 0;
           if (have<=0) return reply('Você não possui esse material.');
           const qtyArg = args[1]||'all';
-          const qty = ['all','tudo','max'].includes((qtyArg||'').toLowerCase()) ? have : parseAmount(qtyArg, have);
+          const qty = ['all','tudo','max'].includes((qtyArg||'').toLowerCase()) ? have : await parseAmount(qtyArg, have);
           if (!isFinite(qty) || qty<=0) return reply('Quantidade inválida.');
           const gain = qty * price;
           me.materials[matKey] = have - qty;
@@ -3689,7 +3689,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         }
 
         if (sub === 'apostar' || sub === 'bet') {
-          const amount = parseAmount(args[0], me.wallet);
+          const amount = await parseAmount(args[0], me.wallet);
           if (!isFinite(amount) || amount <= 0) return reply('Valor inválido.');
           if (amount > me.wallet) return reply('Saldo insuficiente.');
           const win = Math.random() < 0.47;
@@ -3697,7 +3697,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           me.wallet -= amount; saveEconomy(econ); return reply(`💥 Você perdeu ${fmt(amount)}.`);
         }
         if (sub === 'slots') {
-          const amount = parseAmount(args[0]||'100', me.wallet);
+          const amount = await parseAmount(args[0]||'100', me.wallet);
           if (!isFinite(amount) || amount <= 0) return reply('Valor inválido.');
           if (amount > me.wallet) return reply('Saldo insuficiente.');
           const symbols = ['🍒','🍋','🍉','⭐','🔔'];
