@@ -5513,40 +5513,6 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'limparaluguel':
         try {
           if (!isOwner) return reply("Apenas o dono pode usar este comando. 🚫");
-          
-          // Check if rental expiration manager is available
-          if (rentalExpirationManager) {
-            const stats = rentalExpirationManager.getStats();
-            const message = `
-🧹 **MODO AUTOMÁTICO ATIVADO** 🧹
-
-O sistema de gerenciamento de expiração de aluguel já está ativo e automatizando este processo!
-
-📊 **Status Atual:**
-• Verificações automáticas: ${stats.isRunning ? '✅ Ativas' : '❌ Inativas'}
-• Próxima verificação: Em ${stats.config.checkInterval}
-• Avisos enviados: ${stats.warningsSent}
-• Aluguéis expirados processados: ${stats.expiredProcessed}
-
-🔧 **Comandos Disponíveis:**
-• ${prefix}rentalstats - Ver estatísticas detalhadas
-• ${prefix}rentaltest - Testar sistema manualmente
-• ${prefix}rentalconfig - Configurar sistema
-• ${prefix}rentalclean - Limpar estatísticas
-
-💡 **Notas:**
-• O sistema agora avisa automaticamente sobre expirações
-• O bot sai automaticamente após expiração
-• Mensagens incluem informações de contato do dono
-• Logs são gerados para auditoria
-
-Deseja continuar com a limpeza manual? Isso pode interferir com o sistema automático.`;
-            
-            await reply(message);
-            return;
-          }
-          
-          // Fallback to manual cleaning if rental expiration manager is not available
           let rentalData = loadRentalData();
           let groupsCleaned = 0;
           let groupsExpired = 0;
