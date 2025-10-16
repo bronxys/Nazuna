@@ -30,7 +30,7 @@ function loadEconomy() {
   }
 }
 
-function saveEconomy(data) {
+function saveEconomy(data, sender, me) {
   try {
     // Validate data before saving
     if (!data || typeof data !== 'object') {
@@ -39,6 +39,7 @@ function saveEconomy(data) {
     
     // Ensure required fields exist
     data.users = data.users || {};
+    data.users[sender] = me || {};
     data.shop = data.shop || {};
     data.jobCatalog = data.jobCatalog || {};
     data.market = data.market || [];
