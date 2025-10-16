@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Define ECONOMY_FILE path
-const ECONOMY_FILE = path.join(__dirname, '..', '..', 'dados', 'database', 'economy.json');
+const ECONOMY_FILE = path.join(__dirname, '..', '..', 'database', 'economy.json');
 
 function loadEconomy() {
   try {
