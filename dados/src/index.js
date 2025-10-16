@@ -3433,6 +3433,7 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
     const econ = loadEconomy();
     const changedEconomy = ensureEconomyDefaults(econ);
   const me = getEcoUser(econ, sender);
+  me.cooldowns = me.cooldowns || {};
   ensureUserChallenge(me);
   const { mineBonus, workBonus, bankCapacity, fishBonus, exploreBonus, huntBonus, forgeBonus } = applyShopBonuses(me, econ);
   if (changedEconomy) saveEconomy(econ);
