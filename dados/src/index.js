@@ -924,21 +924,47 @@ function getPatent(level, patents) {
   return "Iniciante";
 }
 
-// Import enhanced gold system functions
-const goldSystem = await import('./funcs/goldSystem.js');
-const {
-  loadEconomy,
-  saveEconomy,
-  getEcoUser,
-  parseAmount,
-  fmt,
-  timeLeft,
-  performGoldTransaction,
-  checkAndUpdateAchievements,
-  displayGoldInfo,
-  getDailyReward,
-  getTopUsers
-} = goldSystem;
+
+// ====== Economia (Gold) Helpers ======
+function loadEconomy() {
+  return loadJsonFile(ECONOMY_FILE, { users: {}, shop: {}, jobCatalog: {} });
+}
+function saveEconomy(data) {
+  try {
+    fs.writeFileSync(ECONOMY_FILE, JSON.stringify(data, null, 2));
+    return true;
+  } catch (e) { console.error('❌ Erro ao salvar economy.json:', e); return false; }
+}
+function getEcoUser(econ, userId) {
+  econ.users[userId] = econ.users[userId] || { wallet: 0, bank: 0, cooldowns: {}, inventory: {}, job: null, tools: {}, materials: {}, challenge: null, weeklyChallenge: null, monthlyChallenge: null, skills: {}, properties: {} };
+  const u = econ.users[userId];
+  u.cooldowns = u.cooldowns || {};
+  u.inventory = u.inventory || {};
+  if (typeof u.job === 'undefined') u.job = null;
+  u.tools = u.tools || {};
+  u.materials = u.materials || {};
+  u.challenge = u.challenge || null;
+  u.weeklyChallenge = u.weeklyChallenge || null;
+  u.monthlyChallenge = u.monthlyChallenge || null;
+  u.skills = u.skills || {};
+  u.properties = u.properties || {};
+  return u;
+}
+function parseAmount(text, maxValue) {
+  if (!text) return NaN;
+  const t = text.trim().toLowerCase();
+  if (['all', 'tudo', 'max'].includes(t)) return maxValue;
+  const n = parseInt(t.replace(/[^0-9]/g, ''));
+  return isNaN(n) ? NaN : Math.max(0, n);
+}
+function fmt(n) { return new Intl.NumberFormat('pt-BR').format(Math.floor(n)); }
+function timeLeft(targetMs) {
+  const diff = targetMs - Date.now();
+  if (diff <= 0) return '0s';
+  const s = Math.ceil(diff / 1000);
+  const m = Math.floor(s / 60); const rs = s % 60; const h = Math.floor(m / 60); const rm = m % 60;
+  return h > 0 ? `${h}h ${rm}m` : (m > 0 ? `${m}m ${rs}s` : `${rs}s`);
+}
 function applyShopBonuses(user, econ) {
   const inv = user.inventory || {};
   const shop = econ.shop || {};
@@ -3433,10 +3459,9 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
     const econ = loadEconomy();
     const changedEconomy = ensureEconomyDefaults(econ);
   const me = getEcoUser(econ, sender);
-  me.cooldowns = me.cooldowns || {};
   ensureUserChallenge(me);
   const { mineBonus, workBonus, bankCapacity, fishBonus, exploreBonus, huntBonus, forgeBonus } = applyShopBonuses(me, econ);
-  if (changedEconomy) saveEconomy(econ, sender, me);
+  if (changedEconomy) saveEconomy(econ);
 
         const sub = command;
         const mentioned = (menc_jid2 && menc_jid2[0]) || (q.includes('@') ? q.split(' ')[0].replace('@','') : null);
@@ -3450,20 +3475,23 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
             for (const p of (AllgroupMembers||[])) {
               if (econ.users[p]) { delete econ.users[p]; count++; }
             }
-            saveEconomy(econ, sender, me);
+            saveEconomy(econ);
             return reply(`✅ Resetado o gold de ${count} membros do grupo.`);
           }
           if (!target) return reply('Marque um usuário para resetar ou use "all".');
           delete econ.users[target];
-          saveEconomy(econ, sender, me);
+          saveEconomy(econ);
           return reply(`✅ Gold resetado para @${getUserName(target)}.`, { mentions:[target] });
         }
 
         if (sub === 'perfilrpg' || sub === 'carteira') {
           const total = (me.wallet||0) + (me.bank||0);
-          // Use enhanced display function
-          const profileDisplay = displayGoldInfo(me, econ);
-          return reply(profileDisplay);
+          return reply(`👤 Perfil Financeiro
+💼 Carteira: ${fmt(me.wallet)}
+🏦 Banco: ${fmt(me.bank)}
+💠 Total: ${fmt(total)}
+ 💼 Emprego: ${me.job ? econ.jobCatalog[me.job]?.name || me.job : 'Desempregado(a)'}
+`);
         }
         if (sub === 'banco') {
           const cap = isFinite(bankCapacity) ? bankCapacity : '∞';
@@ -3474,85 +3502,36 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         }
 
         if (sub === 'depositar' || sub === 'dep') {
-          const amount = await parseAmount(q, me.wallet);
-          if (!isFinite(amount) || amount <= 0) return reply('❌ Informe um valor válido (ou "all").');
-          if (amount > me.wallet) return reply('❌ Você não tem tudo isso na carteira.');
-          
+          const amount = parseAmount(q.split(' ')[0], me.wallet);
+          if (!isFinite(amount) || amount <= 0) return reply('Informe um valor válido (ou "all").');
+          if (amount > me.wallet) return reply('Você não tem tudo isso na carteira.');
           const cap = isFinite(bankCapacity) ? bankCapacity : Infinity;
           const space = cap - me.bank;
-          if (space <= 0) return reply('❌ Seu banco está cheio. Compre um Cofre na loja para aumentar a capacidade.');
-          
+          if (space <= 0) return reply('Seu banco está cheio. Compre um Cofre na loja para aumentar a capacidade.');
           const toDep = Math.min(amount, space);
           me.wallet -= toDep; me.bank += toDep;
-          
-          // Log transaction
-          me.transactionHistory.push({
-            timestamp: Date.now(),
-            type: 'deposit',
-            amount: toDep,
-            balance: me.wallet
-          });
-          
-          saveEconomy(econ, sender, me);
-          
-          // Check for achievements
-          const achievementMsg = checkAndUpdateAchievements(me, econ);
-          
-          let response = `✅ Depositado ${fmt(toDep)}. Banco: ${fmt(me.bank)} | Carteira: ${fmt(me.wallet)}`;
-          if (achievementMsg) response += `\n\n${achievementMsg}`;
-          
-          return reply(response);
+          saveEconomy(econ);
+          return reply(`✅ Depositado ${fmt(toDep)}. Banco: ${fmt(me.bank)} | Carteira: ${fmt(me.wallet)}`);
         }
         if (sub === 'sacar' || sub === 'saque') {
-          const amount = await parseAmount(q, me.bank);
-          if (!isFinite(amount) || amount <= 0) return reply('❌ Informe um valor válido (ou "all").');
-          if (amount > me.bank) return reply('❌ Saldo insuficiente no banco.');
-          
+          const amount = parseAmount(q.split(' ')[0], me.bank);
+          if (!isFinite(amount) || amount <= 0) return reply('Informe um valor válido (ou "all").');
+          if (amount > me.bank) return reply('Saldo insuficiente no banco.');
           me.bank -= amount; me.wallet += amount;
-          
-          // Log transaction
-          me.transactionHistory.push({
-            timestamp: Date.now(),
-            type: 'withdraw',
-            amount: amount,
-            balance: me.wallet
-          });
-          
-          saveEconomy(econ, sender, me);
-          
-          // Check for achievements
-          const achievementMsg = checkAndUpdateAchievements(me, econ);
-          
-          let response = `✅ Sacado ${fmt(amount)}. Banco: ${fmt(me.bank)} | Carteira: ${fmt(me.wallet)}`;
-          if (achievementMsg) response += `\n\n${achievementMsg}`;
-          
-          return reply(response);
+          saveEconomy(econ);
+          return reply(`✅ Sacado ${fmt(amount)}. Banco: ${fmt(me.bank)} | Carteira: ${fmt(me.wallet)}`);
         }
 
         if (sub === 'transferir' || sub === 'pix') {
           if (!mentioned) return reply('Marque o usuário e informe o valor. Ex: '+prefix+sub+' @user 100');
-          const amount = await parseAmount(args.slice(-1)[0], me.wallet);
+          const amount = parseAmount(args.slice(-1)[0], me.wallet);
           if (!isFinite(amount) || amount <= 0) return reply('Informe um valor válido.');
           if (amount > me.wallet) return reply('Você não tem esse valor na carteira.');
+          const other = getEcoUser(econ, mentioned);
           if (mentioned === sender) return reply('Você não pode transferir para si mesmo.');
-          
-          // Use enhanced transaction system
-          const transaction = performGoldTransaction(econ, sender, mentioned, amount, 'transfer', `Transferência via ${prefix}${sub}`);
-          if (!transaction.success) {
-            return reply(`❌ ${transaction.error}`);
-          }
-          
-          saveEconomy(econ, sender, me);
-          
-          // Check for achievements
-          const achievementMsg = checkAndUpdateAchievements(me, econ);
-          const achievementMsgOther = checkAndUpdateAchievements(getEcoUser(econ, mentioned), econ);
-          
-          let response = `💸 Transferido ${fmt(amount)} para @${getUserName(mentioned)}.`;
-          if (achievementMsg) response += `\n\n${achievementMsg}`;
-          if (achievementMsgOther) response += `\n\n@${getUserName(mentioned)}: ${achievementMsgOther}`;
-          
-          return reply(response, { mentions:[mentioned] });
+          me.wallet -= amount; other.wallet += amount;
+          saveEconomy(econ);
+          return reply(`💸 Transferido ${fmt(amount)} para @${getUserName(mentioned)}.`, { mentions:[mentioned] });
         }
 
         if (sub === 'loja' || sub === 'lojagold') {
@@ -3576,12 +3555,12 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           if (it.type === 'tool' && it.toolType === 'pickaxe') {
             me.tools = me.tools || {};
             me.tools.pickaxe = { tier: it.tier, dur: it.durability, max: it.durability, key };
-            saveEconomy(econ, sender, me);
+            saveEconomy(econ);
             return reply(`✅ Você comprou e equipou ${it.name} (durabilidade ${it.durability}).`);
           }
           // Caso contrário, vai para o inventário
           me.inventory[key] = (me.inventory[key]||0)+1;
-          saveEconomy(econ, sender, me);
+          saveEconomy(econ);
           return reply(`✅ Você comprou ${it.name} por ${fmt(it.price)}!`);
         }
 
@@ -3643,12 +3622,12 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           const have = me.materials?.[matKey] || 0;
           if (have<=0) return reply('Você não possui esse material.');
           const qtyArg = args[1]||'all';
-          const qty = ['all','tudo','max'].includes((qtyArg||'').toLowerCase()) ? have : await parseAmount(qtyArg, have);
+          const qty = ['all','tudo','max'].includes((qtyArg||'').toLowerCase()) ? have : parseAmount(qtyArg, have);
           if (!isFinite(qty) || qty<=0) return reply('Quantidade inválida.');
           const gain = qty * price;
           me.materials[matKey] = have - qty;
           me.wallet += gain;
-          saveEconomy(econ, sender, me);
+          saveEconomy(econ);
           return reply(`💰 Você vendeu ${qty}x ${matKey} por ${fmt(gain)}.`);
         }
         if (sub === 'reparar') {
@@ -3662,7 +3641,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           pk.dur = Math.min(max, pk.dur + repair);
           me.inventory.repairkit = kits - 1;
           me.tools.pickaxe = { ...pk, max };
-          saveEconomy(econ, sender, me);
+          saveEconomy(econ);
           return reply(`🛠️ Picareta reparada: ${before} ➜ ${pk.dur}/${max}.`);
         }
         if (sub === 'desafio') {
@@ -3673,7 +3652,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
             if (!isChallengeCompleted(me)) return reply('Complete todas as tarefas diárias para coletar.');
             me.wallet += ch.reward;
             ch.claimed = true;
-            saveEconomy(econ, sender, me);
+            saveEconomy(econ);
             return reply(`🎉 Recompensa diária coletada: ${fmt(ch.reward)}!`);
           }
           const labels = {
@@ -3689,15 +3668,15 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         }
 
         if (sub === 'apostar' || sub === 'bet') {
-          const amount = await parseAmount(args[0], me.wallet);
+          const amount = parseAmount(args[0], me.wallet);
           if (!isFinite(amount) || amount <= 0) return reply('Valor inválido.');
           if (amount > me.wallet) return reply('Saldo insuficiente.');
           const win = Math.random() < 0.47;
-          if (win) { me.wallet += amount; saveEconomy(econ, sender, me); return reply(`🍀 Você ganhou ${fmt(amount)}!`); }
-          me.wallet -= amount; saveEconomy(econ, sender, me); return reply(`💥 Você perdeu ${fmt(amount)}.`);
+          if (win) { me.wallet += amount; saveEconomy(econ); return reply(`🍀 Você ganhou ${fmt(amount)}!`); }
+          me.wallet -= amount; saveEconomy(econ); return reply(`💥 Você perdeu ${fmt(amount)}.`);
         }
         if (sub === 'slots') {
-          const amount = await parseAmount(args[0]||'100', me.wallet);
+          const amount = parseAmount(args[0]||'100', me.wallet);
           if (!isFinite(amount) || amount <= 0) return reply('Valor inválido.');
           if (amount > me.wallet) return reply('Saldo insuficiente.');
           const symbols = ['🍒','🍋','🍉','⭐','🔔'];
@@ -3707,7 +3686,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           else if (r[0]===r[1] || r[1]===r[2] || r[0]===r[2]) mult = 1.5;
           const delta = Math.floor(amount * (mult-1));
           me.wallet += delta; // delta pode ser negativo
-          saveEconomy(econ, sender, me);
+          saveEconomy(econ);
           return reply(`🎰 ${r.join(' | ')}\n${mult>1?`Você ganhou ${fmt(Math.floor(amount*(mult-1)))}!`:`Você perdeu ${fmt(amount)}`}`);
         }
 
@@ -3719,9 +3698,9 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (sub === 'emprego') {
           const key = (args[0]||'').toLowerCase(); if (!key) return reply('Informe a vaga. Veja com '+prefix+'vagas');
           const job = (econ.jobCatalog||{})[key]; if (!job) return reply('Vaga inexistente.');
-          me.job = key; saveEconomy(econ, sender, me); return reply(`✅ Agora você trabalha como ${job.name}. Ganhos ao usar ${prefix}trabalhar aumentam conforme a vaga.`);
+          me.job = key; saveEconomy(econ); return reply(`✅ Agora você trabalha como ${job.name}. Ganhos ao usar ${prefix}trabalhar aumentam conforme a vaga.`);
         }
-        if (sub === 'demitir') { me.job = null; saveEconomy(econ, sender, me); return reply('👋 Você pediu demissão.'); }
+        if (sub === 'demitir') { me.job = null; saveEconomy(econ); return reply('👋 Você pediu demissão.'); }
 
         if (sub === 'pescar' || sub === 'fish') {
           const cd = me.cooldowns?.fish || 0; if (Date.now()<cd) return reply(`⏳ Aguarde ${timeLeft(cd)} para pescar novamente.`);
@@ -3729,7 +3708,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           const skillB = getSkillBonus(me,'fishing');
           const bonus = Math.floor(base * ((fishBonus||0) + skillB)); const total = base + bonus;
           me.wallet += total; me.cooldowns.fish = Date.now() + 4*60*1000; // cooldown maior
-          addSkillXP(me,'fishing',1); updateChallenge(me,'fish',1,true); updatePeriodChallenge(me,'fish',1,true); saveEconomy(econ, sender, me);
+          addSkillXP(me,'fishing',1); updateChallenge(me,'fish',1,true); updatePeriodChallenge(me,'fish',1,true); saveEconomy(econ);
           return reply(`🎣 Você pescou e ganhou ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}!`);
         }
 
@@ -3739,7 +3718,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           const skillB = getSkillBonus(me,'exploring');
           const bonus = Math.floor(base * ((exploreBonus||0) + skillB)); const total = base + bonus;
           me.wallet += total; me.cooldowns.explore = Date.now() + 5*60*1000; // cooldown maior
-          addSkillXP(me,'exploring',1); updateChallenge(me,'explore',1,true); updatePeriodChallenge(me,'explore',1,true); saveEconomy(econ, sender, me);
+          addSkillXP(me,'exploring',1); updateChallenge(me,'explore',1,true); updatePeriodChallenge(me,'explore',1,true); saveEconomy(econ);
           return reply(`🧭 Você explorou e encontrou ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}!`);
         }
 
@@ -3749,7 +3728,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           const skillB = getSkillBonus(me,'hunting');
           const bonus = Math.floor(base * ((huntBonus||0) + skillB)); const total = base + bonus;
           me.wallet += total; me.cooldowns.hunt = Date.now() + 6*60*1000;
-          addSkillXP(me,'hunting',1); updateChallenge(me,'hunt',1,true); updatePeriodChallenge(me,'hunt',1,true); saveEconomy(econ, sender, me);
+          addSkillXP(me,'hunting',1); updateChallenge(me,'hunt',1,true); updatePeriodChallenge(me,'hunt',1,true); saveEconomy(econ);
           return reply(`🏹 Você caçou e ganhou ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}!`);
         }
 
@@ -3772,12 +3751,12 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
             const item = (econ.shop||{})[craftKey];
             if (item?.type==='tool' && item.toolType==='pickaxe') {
               me.tools.pickaxe = { tier: item.tier, dur: item.durability, max: item.durability, key: craftKey };
-              saveEconomy(econ, sender, me);
+              saveEconomy(econ);
               return reply(`⚒️ Você forjou e equipou ${item.name}! Durabilidade ${item.durability}.`);
             }
             // Senão, adiciona ao inventário
             me.inventory[craftKey] = (me.inventory[craftKey]||0)+1;
-            saveEconomy(econ, sender, me);
+            saveEconomy(econ);
             return reply(`⚒️ Você forjou ${item?.name||craftKey}!`);
           }
           // Modo 2: minigame de forja (antigo)
@@ -3788,10 +3767,10 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           if (success) {
             const gain = 180 + Math.floor(Math.random()*221); // 180-400
             const bonus = Math.floor(gain * (forgeBonus||0)); const total = gain + bonus;
-            me.wallet += total; me.cooldowns.forge = Date.now()+6*60*1000; saveEconomy(econ, sender, me);
+            me.wallet += total; me.cooldowns.forge = Date.now()+6*60*1000; saveEconomy(econ);
             return reply(`⚒️ Forja bem-sucedida! Lucro ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}.`);
           } else {
-            me.cooldowns.forge = Date.now()+6*60*1000; saveEconomy(econ, sender, me);
+            me.cooldowns.forge = Date.now()+6*60*1000; saveEconomy(econ);
             return reply(`🔥 A forja falhou e os materiais foram perdidos.`);
           }
         }
@@ -3803,10 +3782,10 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
             const base = 90 + Math.floor(Math.random()*141); // 90-230, menor
             const skillB = getSkillBonus(me,'crime');
             const gain = Math.floor(base * (1 + skillB));
-            me.wallet += gain; me.cooldowns.crime = Date.now()+10*60*1000; addSkillXP(me,'crime',1); updateChallenge(me,'crimeSuccess',1,true); updatePeriodChallenge(me,'crimeSuccess',1,true); saveEconomy(econ, sender, me);
+            me.wallet += gain; me.cooldowns.crime = Date.now()+10*60*1000; addSkillXP(me,'crime',1); updateChallenge(me,'crimeSuccess',1,true); updatePeriodChallenge(me,'crimeSuccess',1,true); saveEconomy(econ);
             return reply(`🕵️ Você cometeu um crime e lucrou ${fmt(gain)}. Cuidado para não ser pego!`);
           } else {
-            const fine = 120 + Math.floor(Math.random()*201); const pay = Math.min(me.wallet, fine); me.wallet -= pay; me.cooldowns.crime = Date.now()+10*60*1000; saveEconomy(econ, sender, me);
+            const fine = 120 + Math.floor(Math.random()*201); const pay = Math.min(me.wallet, fine); me.wallet -= pay; me.cooldowns.crime = Date.now()+10*60*1000; saveEconomy(econ);
             return reply(`🚔 Você foi pego! Pagou multa de ${fmt(pay)}.`);
           }
         }
@@ -3840,7 +3819,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           me.tools.pickaxe = { ...pk, max: pk.max ?? (pk.tier==='bronze'?20:pk.tier==='ferro'?60:pk.tier==='diamante'?150:pk.dur) };
           me.cooldowns.mine = Date.now() + 2*60*1000; // 2 min
           addSkillXP(me,'mining',1); updateChallenge(me,'mine',1,true); updatePeriodChallenge(me,'mine',1,true);
-          saveEconomy(econ, sender, me);
+          saveEconomy(econ);
           let dropTxt = Object.entries(drops).filter(([,q])=>q>0).map(([k,q])=>`${k} x${q}`).join(', ');
           const broke = pk.dur===0 && before>0;
           return reply(`⛏️ Você minerou e ganhou ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}!\n📦 Drops: ${dropTxt||'—'}\n🛠️ Picareta: ${pk.dur}/${me.tools.pickaxe.max}${broke?' — quebrou!':''}`);
@@ -3856,7 +3835,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           me.wallet += total;
           me.cooldowns.work = Date.now() + 7*60*1000; // 7 min
           addSkillXP(me,'working',1); updateChallenge(me,'work',1,true); updatePeriodChallenge(me,'work',1,true);
-          saveEconomy(econ, sender, me);
+          saveEconomy(econ);
           return reply(`💼 Você trabalhou e recebeu ${fmt(total)} ${bonus>0?`(bônus ${fmt(bonus)})`:''}!`);
         }
 
@@ -3866,7 +3845,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           if (items.length===0) return reply('🛒 O mercado está vazio. Use listar para anunciar algo.');
           let text = '🛒 Mercado (ofertas abertas)\n\n';
           for (const ofr of items) {
-            text += `#${ofr.id} • ${ofr.type==='item'?`${ofr.key} x${ofr.qty}`:`${ofr.mat} x${ofr.qty}`} — ${fmt(ofr.price)} | Vendedor: @${getUserName(ofr.seller)}\n`;
+            text += `#${ofr.id} • ${ofr.type==='item'?`${ofr.key} x${ofr.qty}`:`${ofr.mat} x${ofr.qty}`} — ${fmt(ofr.price)} | Vendedor: @${ofr.seller.split('@')[0]}\n`;
           }
           return reply(text, { mentions: (items.map(i=>i.seller)) });
         }
@@ -3882,7 +3861,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
             me.inventory[key] -= qty;
             const id = econ.marketCounter++;
             econ.market.push({ id, type:'item', key, qty, price, seller: sender });
-            saveEconomy(econ, sender, me);
+            saveEconomy(econ);
             return reply(`📢 Anúncio #${id} criado: ${key} x${qty} por ${fmt(price)}.`);
           } else {
             const mat = (args[1]||'').toLowerCase();
@@ -3890,7 +3869,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
             me.materials[mat] -= qty;
             const id = econ.marketCounter++;
             econ.market.push({ id, type:'mat', mat, qty, price, seller: sender });
-            saveEconomy(econ, sender, me);
+            saveEconomy(econ);
             return reply(`📢 Anúncio #${id} criado: ${mat} x${qty} por ${fmt(price)}.`);
           }
         }
@@ -3909,7 +3888,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           if (ofr.seller!==sender) return reply('Apenas o vendedor pode cancelar.');
           // devolve ao vendedor
           if (ofr.type==='item') me.inventory[ofr.key] = (me.inventory[ofr.key]||0) + ofr.qty; else me.materials[ofr.mat]=(me.materials[ofr.mat]||0)+ofr.qty;
-          econ.market.splice(idx,1); saveEconomy(econ, sender, me);
+          econ.market.splice(idx,1); saveEconomy(econ);
           return reply(`❌ Anúncio #${id} cancelado e itens devolvidos.`);
         }
         if (sub === 'comprarmercado') {
@@ -3924,7 +3903,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           seller.wallet += (ofr.price - tax); // taxa de 5%
           if (ofr.type==='item') me.inventory[ofr.key] = (me.inventory[ofr.key]||0) + ofr.qty; else me.materials[ofr.mat]=(me.materials[ofr.mat]||0)+ofr.qty;
           econ.market = (econ.market||[]).filter(o=>o.id!==id);
-          saveEconomy(econ, sender, me);
+          saveEconomy(econ);
           return reply(`🛒 Compra realizada! Taxa de ${fmt(tax)} aplicada. Vendedor recebeu ${fmt(ofr.price - tax)}.`);
         }
 
@@ -3957,7 +3936,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           if (me.wallet < prop.price) return reply('Saldo insuficiente.');
           me.wallet -= prop.price;
           me.properties[key] = { owned: true, lastCollect: Date.now() };
-          saveEconomy(econ, sender, me);
+          saveEconomy(econ);
           return reply(`🏠 Você comprou ${prop.name}!`);
         }
         if (sub === 'coletarpropriedades') {
@@ -3977,7 +3956,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           }
           me.wallet += totalGold;
           for (const [mk,mq] of Object.entries(matsGain)) giveMaterial(me, mk, mq);
-          saveEconomy(econ, sender, me);
+          saveEconomy(econ);
           let msg = `🏡 Coleta concluída! +${fmt(totalGold)} gold`;
           if (Object.keys(matsGain).length>0) msg += ` | Materiais: `+Object.entries(matsGain).map(([k,q])=>`${k} x${q}`).join(', ');
           return reply(msg);
@@ -4004,7 +3983,7 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           if ((args[0]||'').toLowerCase()==='coletar'){
             if (show.claimed) return reply('Você já coletou este prêmio.');
             if (!isPeriodCompleted(show)) return reply('Complete todas as tarefas para coletar.');
-            me.wallet += show.reward; show.claimed = true; saveEconomy(econ, sender, me);
+            me.wallet += show.reward; show.claimed = true; saveEconomy(econ);
             return reply(`🎉 Você coletou ${fmt(show.reward)} do ${sub==='desafiosemanal'?'desafio semanal':'desafio mensal'}!`);
           }
           return reply(text);
@@ -4020,21 +3999,21 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
           const maxSteal = Math.min(target.wallet, 300);
           if (maxSteal <= 0) {
             me.cooldowns.rob = Date.now() + 10*60*1000; // 10 min
-            saveEconomy(econ, sender, me);
+            saveEconomy(econ);
             return reply('A vítima está sem dinheiro na carteira. Roubo falhou.');
           }
           if (chance < 0.5) {
             const amt = 50 + Math.floor(Math.random() * Math.max(1, maxSteal-49));
             target.wallet -= amt; me.wallet += amt;
             me.cooldowns.rob = Date.now() + 10*60*1000;
-            saveEconomy(econ, sender, me);
+            saveEconomy(econ);
             return reply(`🦹 Sucesso! Você roubou ${fmt(amt)} de @${getUserName(mentioned)}.`, { mentions:[mentioned] });
           } else {
             const multa = 80 + Math.floor(Math.random()*121); // 80-200
             const pay = Math.min(me.wallet, multa);
             me.wallet -= pay; target.wallet += pay;
             me.cooldowns.rob = Date.now() + 10*60*1000;
-            saveEconomy(econ, sender, me);
+            saveEconomy(econ);
             return reply(`🚨 Você foi pego! Pagou ${fmt(pay)} de multa para @${getUserName(mentioned)}.`, { mentions:[mentioned] });
           }
         }
@@ -4042,95 +4021,21 @@ Capacidade: ${cap === '∞' ? 'ilimitada' : fmt(cap)}
         if (sub === 'diario' || sub === 'daily') {
           const cd = me.cooldowns?.daily || 0;
           if (Date.now() < cd) return reply(`⏳ Você já coletou hoje. Volte em ${timeLeft(cd)}.`);
-          
-          // Use enhanced daily reward system
-          const dailyReward = getDailyReward(me, econ);
-          me.wallet += dailyReward.amount;
-          me.cooldowns.daily = Date.now() + 24*60*60*1000;
-          saveEconomy(econ, sender, me);
-          
-          // Check for achievements
-          const achievementMsg = checkAndUpdateAchievements(me, econ);
-          
-          let response = dailyReward.message;
-          if (achievementMsg) response += `\n\n${achievementMsg}`;
-          
-          return reply(response);
+          const reward = 500;
+          me.wallet += reward; me.cooldowns.daily = Date.now() + 24*60*60*1000;
+          saveEconomy(econ);
+          return reply(`🎁 Recompensa diária coletada: ${fmt(reward)}!`);
         }
 
         if (sub === 'topgold') {
-          const topUsers = getTopUsers(econ, 10, 1);
-          if (topUsers.length === 0) return reply('Sem dados suficientes para ranking.');
+          const arr = Object.entries(econ.users).map(([id,u])=>[id,(u.wallet||0)+(u.bank||0)]).sort((a,b)=>b[1]-a[1]).slice(0,10);
+          if (arr.length===0) return reply('Sem dados suficientes para ranking.');
           let text = '🏆 Ranking de Riqueza\n\n';
           const mentions = [];
-          
-          topUsers.forEach((user, i) => {
-            text += `${i+1}. @${user.name} — ${fmt(user.total)} (Nível ${user.level})\n`;
-            mentions.push(user.id);
-          });
-          
+          arr.forEach(([id,total],i)=>{ text += `${i+1}. @${id.split('@')[0]} — ${fmt(total)}\n`; mentions.push(id); });
           return reply(text, { mentions });
         }
 
-        // Check achievements
-        if (sub === 'conquistas' || sub === 'achievements') {
-          if (!me.achievements || Object.keys(me.achievements).length === 0) {
-            return reply('🏅 Você ainda não conquistou nada. Continue jogando para desbloquear conquistas!');
-          }
-          
-          let text = '🏅 Suas Conquistas\n\n';
-          const achievementList = [
-            { key: 'first_thousand', name: 'Primeiro Milhar', desc: 'Acumule 1.000 gold', icon: '💰' },
-            { key: 'ten_thousand', name: 'Magnata', desc: 'Acumule 10.000 gold', icon: '💎' },
-            { key: 'hundred_thousand', name: 'Imperador do Ouro', desc: 'Acumule 100.000 gold', icon: '👑' },
-            { key: 'fifty_transactions', name: 'Negociante Ágil', desc: 'Realize 50 transações', icon: '🔄' }
-          ];
-          
-          achievementList.forEach(ach => {
-            const status = me.achievements[ach.key] ? '✅' : '🔒';
-            text += `${status} ${ach.icon} *${ach.name}*\n   ${ach.desc}\n\n`;
-          });
-          
-          return reply(text);
-        }
-        
-        // View transaction history
-        if (sub === 'extrato' || sub === 'historico') {
-          if (!me.transactionHistory || me.transactionHistory.length === 0) {
-            return reply('📊 Você ainda não realizou nenhuma transação.');
-          }
-          
-          let text = '📊 Seu Extrato de Transações\n\n';
-          const recentTransactions = me.transactionHistory.slice(-10).reverse(); // Show last 10 transactions
-          
-          recentTransactions.forEach((tx, i) => {
-            const date = new Date(tx.timestamp).toLocaleDateString('pt-BR');
-            const time = new Date(tx.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            const typeEmoji = {
-              'sent': '➖',
-              'received': '➕',
-              'deposit': '🏦',
-              'withdraw': '💸',
-              'bet': '🎰',
-              'slots': '🎰',
-              'mine': '⛏️',
-              'work': '💼',
-              'fish': '🎣',
-              'explore': '🧭',
-              'hunt': '🏹',
-              'crime': '🕵️',
-              'rob': '🦹'
-            }[tx.type] || '💰';
-            
-            text += `${i + 1}. ${typeEmoji} ${tx.type === 'sent' ? '-' : '+'}${fmt(Math.abs(tx.amount))} — ${date} ${time}\n`;
-            if (tx.description) text += `   ${tx.description}\n`;
-            text += `   Saldo: ${fmt(tx.balance)}\n\n`;
-          });
-          
-          text += `📈 Total de transações: ${me.transactionHistory.length}`;
-          return reply(text);
-        }
-        
         return reply('Comando de economia inválido. Use '+prefix+'menugold para ver os comandos.');
       }
 

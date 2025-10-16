@@ -86,15 +86,5 @@ ${middleBorder}
 ${middleBorder}${menuItemIcon} ${prefix}desafio
 ${middleBorder}${menuItemIcon} ${prefix}desafio coletar
 ${bottomBorder}
-${menuTopBorder}${separatorIcon} ${menuTitleIcon} CONQUISTAS ${menuTitleIcon}
-${middleBorder}
-${middleBorder}${menuItemIcon} ${prefix}conquistas
-${middleBorder}${menuItemIcon} ${prefix}diario
-${bottomBorder}
-${menuTopBorder}${separatorIcon} ${menuTitleIcon} EXTRATO ${menuTitleIcon}
-${middleBorder}
-${middleBorder}${menuItemIcon} ${prefix}extrato
-${middleBorder}${menuItemIcon} ${prefix}historico
-${bottomBorder}
 `;
 }
