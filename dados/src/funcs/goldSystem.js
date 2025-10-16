@@ -47,15 +47,6 @@ function saveEconomy(data) {
     data.materialsPrices = data.materialsPrices || { pedra: 2, ferro: 6, ouro: 12, diamante: 30 };
     data.recipes = data.recipes || {};
     
-    // Create backup before saving
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = ECONOMY_FILE + '.backup.' + timestamp;
-    try {
-      fs.writeFileSync(backupPath, JSON.stringify(data, null, 2));
-    } catch (backupError) {
-      console.error('⚠️ Não foi possível criar backup:', backupError);
-    }
-    
     fs.writeFileSync(ECONOMY_FILE, JSON.stringify(data, null, 2));
     return true;
   } catch (e) { 
