@@ -30,7 +30,6 @@ class MediaCleaner {
      * Inicia limpeza automática de mídia
      */
     async startMediaCleaning() {
-        console.log('🧹 Iniciando limpeza automática de mídia...');
         
         try {
             // Cria diretórios necessários
@@ -47,7 +46,6 @@ class MediaCleaner {
             // Limpa downloads antigos
             await this.cleanOldDownloads();
             
-            console.log('✅ Limpeza automática de mídia concluída');
         } catch (error) {
             console.error('❌ Erro na limpeza automática de mídia:', error.message);
         }
@@ -63,7 +61,6 @@ class MediaCleaner {
             } catch {
                 try {
                     await fs.mkdir(dir, { recursive: true });
-                    console.log(`📁 Diretório criado: ${dir}`);
                 } catch (error) {
                     console.warn(`⚠️ Não foi possível criar diretório ${dir}:`, error.message);
                 }
@@ -78,15 +75,12 @@ class MediaCleaner {
         try {
             const exists = await fs.access(dirPath).then(() => true).catch(() => false);
             if (!exists) {
-                console.log(`📁 Diretório não existe: ${dirPath}`);
                 return { deletedFiles: 0, freedSpace: 0 };
             }
 
             const files = await fs.readdir(dirPath);
             let deletedFiles = 0;
             let freedSpace = 0;
-
-            console.log(`🔍 Analisando diretório: ${dirPath} (${files.length} arquivos)`);
 
             for (const file of files) {
                 const filePath = path.join(dirPath, file);
@@ -103,7 +97,6 @@ class MediaCleaner {
                         freedSpace += stats.size;
                         await fs.unlink(filePath);
                         deletedFiles++;
-                        console.log(`🗑️ Arquivo removido: ${file} (${this.formatBytes(stats.size)})`);
                     }
                 } catch (error) {
                     console.warn(`⚠️ Erro ao processar arquivo ${file}:`, error.message);
@@ -111,7 +104,6 @@ class MediaCleaner {
             }
 
             if (deletedFiles > 0) {
-                console.log(`✅ ${dirPath}: ${deletedFiles} arquivos removidos, ${this.formatBytes(freedSpace)} liberados`);
             }
 
             return { deletedFiles, freedSpace };
@@ -239,7 +231,6 @@ class MediaCleaner {
                             
                             if (age > this.maxMediaAge) {
                                 await fs.unlink(file);
-                                console.log(`🗑️ Download antigo removido: ${path.basename(file)}`);
                             }
                         } catch (error) {
                             console.warn(`⚠️ Erro ao processar download ${file}:`, error.message);
@@ -280,8 +271,6 @@ class MediaCleaner {
                 return { success: true, freedSpace: 0 };
             }
 
-            console.log(`📏 Diretório ${dirPath} excede limite (${this.formatBytes(currentSize)}/${this.formatBytes(this.maxDirSize)})`);
-
             const files = await fs.readdir(dirPath);
             const fileStats = [];
 
@@ -317,13 +306,10 @@ class MediaCleaner {
                     remainingSize -= file.size;
                     freedSpace += file.size;
                     deletedFiles++;
-                    console.log(`🗑️ Arquivo antigo removido por limite: ${file.name} (${this.formatBytes(file.size)})`);
                 } catch (error) {
                     console.warn(`⚠️ Erro ao remover arquivo ${file.name}:`, error.message);
                 }
             }
-
-            console.log(`✅ Limite aplicado: ${deletedFiles} arquivos removidos, ${this.formatBytes(freedSpace)} liberados`);
             
             return { success: true, deletedFiles, freedSpace };
         } catch (error) {
@@ -336,7 +322,6 @@ class MediaCleaner {
      * Comprime mídia grande
      */
     async compressLargeMedia() {
-        console.log('📦 Iniciando compressão de mídia grande...');
         
         for (const dir of this.mediaDirs) {
             try {
@@ -490,7 +475,6 @@ class MediaCleaner {
      * Inicia limpeza programada
      */
     startScheduledCleaning() {
-        console.log('⏰ Iniciando limpeza programada de mídia...');
         
         // Limpeza rápida a cada 10 minutos
         setInterval(async () => {

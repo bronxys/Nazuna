@@ -163,8 +163,6 @@ class AutoRestarter {
             maxRestarts: this.maxRestarts
         });
 
-        console.log(`🔄 Reinicialização ${this.restartCount}/${this.maxRestarts} iniciada: ${reason}`);
-
         try {
             // Força limpeza antes do restart
             await this.performEmergencyCleanup();
@@ -184,7 +182,6 @@ class AutoRestarter {
      * Força reinicialização imediata
      */
     async forceRestart(reason) {
-        console.log(`🚨 RESTART FORÇADO: ${reason}`);
         
         try {
             await this.logEvent('force_restart', reason);
@@ -204,7 +201,6 @@ class AutoRestarter {
      */
     async performEmergencyCleanup() {
         try {
-            console.log('🧹 Executando limpeza emergencial...');
             
             // Força garbage collection se disponível
             if (global.gc) {
@@ -232,7 +228,6 @@ class AutoRestarter {
                 }
             }
 
-            console.log('✅ Limpeza emergencial concluída');
         } catch (error) {
             console.warn('⚠️ Erro na limpeza emergencial:', error.message);
         }
@@ -300,7 +295,6 @@ class AutoRestarter {
      */
     async restartProcess() {
         try {
-            console.log('🔄 Iniciando novo processo...');
             
             // Argumentos do processo atual
             const args = process.argv.slice(1);
@@ -325,7 +319,6 @@ class AutoRestarter {
             this.childProcess = child;
             
             child.on('spawn', () => {
-                console.log(`✅ Novo processo iniciado com PID: ${child.pid}`);
             });
 
             child.on('error', async (error) => {
@@ -338,7 +331,6 @@ class AutoRestarter {
             
             // Agenda finalização do processo atual
             setTimeout(() => {
-                console.log('👋 Finalizando processo anterior...');
                 process.exit(0);
             }, 5000);
             
@@ -356,8 +348,6 @@ class AutoRestarter {
         if (this.isShuttingDown) return;
         this.isShuttingDown = true;
 
-        console.log(`🛑 Shutdown gracioso iniciado (${signal})`);
-        
         try {
             await this.logEvent('graceful_shutdown', signal);
             
@@ -378,8 +368,6 @@ class AutoRestarter {
                 global.gc();
             }
 
-            console.log('✅ Shutdown gracioso concluído');
-            
             // Finaliza processo após breve delay
             setTimeout(() => {
                 process.exit(signal === 'MAX_RESTARTS_REACHED' ? 1 : 0);
@@ -412,8 +400,6 @@ class AutoRestarter {
             const logLine = JSON.stringify(logEntry) + '\n';
             await fs.appendFile(this.logFile, logLine);
             
-            // Também imprime no console para depuração
-            console.log(`📝 [${type}]`, typeof data === 'string' ? data : JSON.stringify(data));
         } catch (error) {
             console.error('❌ Erro ao escrever log:', error.message);
         }
@@ -426,9 +412,6 @@ class AutoRestarter {
         try {
             await this.loadRestartState();
             
-            console.log('🔄 Sistema de auto-restart iniciado');
-            console.log(`📊 Reinicializações hoje: ${this.restartCount}/${this.maxRestarts}`);
-            
             await this.logEvent('auto_restart_started', {
                 restartCount: this.restartCount,
                 maxRestarts: this.maxRestarts,
@@ -437,7 +420,6 @@ class AutoRestarter {
 
             // Verifica se foi reiniciado
             if (process.env.NAZUNA_RESTARTED === 'true') {
-                console.log('✅ Bot reiniciado com sucesso!');
                 await this.logEvent('restart_success', {
                     previousRestartCount: process.env.NAZUNA_RESTART_COUNT || 'unknown'
                 });
@@ -453,7 +435,6 @@ class AutoRestarter {
     async stop() {
         this.isShuttingDown = true;
         await this.logEvent('auto_restart_stopped', 'Manual stop');
-        console.log('🔄 Sistema de auto-restart parado');
     }
 
     /**

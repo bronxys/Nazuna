@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import * as crypto from 'crypto';
 import WaLib from '@cognima/walib';
+import PerformanceOptimizer from './utils/performanceOptimizer.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -1499,8 +1500,28 @@ const getMenuDesignWithDefaults = (botName, userName) => {
   return processedDesign;
 };
 
+const performanceOptimizer = new PerformanceOptimizer();
+await performanceOptimizer.initialize();
+  
 async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirationManager = null) {
   var config = JSON.parse(fs.readFileSync(__dirname + '/config.json'));
+  
+  async function getCachedGroupMetadata(groupId) {
+    try {
+      const cached = await performanceOptimizer.modules.cacheManager.getIndexGroupMeta(groupId);
+      if (cached) {
+        return cached;
+      }
+      
+      const freshData = await nazu.groupMetadata(groupId).catch(() => ({}));
+      
+      await performanceOptimizer.modules.cacheManager.setIndexGroupMeta(groupId, freshData);
+      
+      return freshData;
+    } catch (error) {
+      return await nazu.groupMetadata(groupId).catch(() => ({}));
+    }
+  }
   var {
     numerodono,
     nomedono,
@@ -1511,33 +1532,24 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
   } = config;
   var KeyCog = config.apikey || '';
 
-  // Função para validar API Key
   function isValidApiKey(key) {
     if (!key || typeof key !== 'string') return false;
     if (key.trim() === '') return false;
     if (key.length < 10) return false;
     
-    // Verifica se a chave contém caracteres alfanuméricos básicos
     const validChars = /^[a-zA-Z0-9\-_]+$/;
     return validChars.test(key.trim());
   }
 
-  // Validação da API Key
   if (!KeyCog || KeyCog.trim() === '') {
-    console.warn('⚠️ API key não configurada. Sistema de IA e downloads automáticos estarão desativados.');
     KeyCog = false;
   } else if (!isValidApiKey(KeyCog)) {
-    console.warn('⚠️ API key parece inválida. Sistema de IA e downloads automáticos podem não funcionar.');
     KeyCog = false;
-  } else {
-    console.log('✅ API key configurada e validada com sucesso.');
   }
 
-  // Função centralizada para lidar com downloads automáticos
   async function handleAutoDownload(nazu, from, url, info) {
     try {
       if (url.includes('tiktok.com')) {
-        // Verificar se tem API key antes de fazer download automático
         if (!KeyCog) {
           console.warn('⚠️ TikTok autodl ignorado: API Key não configurada');
           return false;
@@ -1559,7 +1571,6 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
           return false;
         }
       } else if (url.includes('instagram.com')) {
-        // Verificar se tem API key antes de fazer download automático
         if (!KeyCog) {
           console.warn('⚠️ Instagram autodl ignorado: API Key não configurada');
           return false;
@@ -1579,7 +1590,6 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
           return false;
         }
       } else if (url.includes('pinterest.com') || url.includes('pin.it')) {
-        // Pinterest não requer API key
         const datinha = await pinterest.dl(url);
         if (datinha.ok) {
           await nazu.sendMessage(from, {
@@ -1756,7 +1766,7 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
     const sender_ou_n = (menc_jid2 && menc_jid2.length > 0) ? menc_jid2[0] : menc_prt || sender;
     const groupFile = pathz.join(__dirname, '..', 'database', 'grupos', `${from}.json`);
     let groupData = {};
-    const groupMetadata = !isGroup ? {} : await nazu.groupMetadata(from).catch(() => ({}));
+    const groupMetadata = !isGroup ? {} : await getCachedGroupMetadata(from).catch(() => ({}));
     const groupName = groupMetadata?.subject || '';
     if (isGroup) {
       if (!fs.existsSync(groupFile)) {
@@ -2385,8 +2395,6 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
             const nowMin = getNowMinutes();
             const today = getTodayStr();
             
-            // Log worker start for debugging
-            console.log(`[Schedule Worker] Running at ${nowMin}min (${today}) - Checking ${files.length} groups`);
             
             for (const f of files) {
               const groupId = f.replace(/\.json$/, '');
@@ -2402,17 +2410,12 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
               const schedule = data.schedule || {};
               const lastRun = schedule.lastRun || {};
               
-              // Log current time and schedule info for debugging
-              console.log(`[Schedule Check] Group: ${groupId}, Current Time: ${nowMin}min, Today: ${today}`);
-              console.log(`[Schedule Check] Open Time: ${schedule.openTime}, Close Time: ${schedule.closeTime}`);
-              console.log(`[Schedule Check] Last Run - Open: ${lastRun.open}, Close: ${lastRun.close}`);
               
               // Handle opening schedule
               if (schedule.openTime) {
                 const t = parseTimeToMinutes(schedule.openTime);
                 if (t !== null && t === nowMin && lastRun.open !== today) {
                   try {
-                    console.log(`[Schedule Action] Opening group ${groupId} at ${schedule.openTime}`);
                     await nazuInstance.groupSettingUpdate(groupId, 'not_announcement');
                     await nazuInstance.sendMessage(groupId, { text: '🔓 Grupo aberto automaticamente pelo agendamento diário.' });
                     schedule.lastRun = schedule.lastRun || {};
@@ -2430,7 +2433,6 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
                 const t = parseTimeToMinutes(schedule.closeTime);
                 if (t !== null && t === nowMin && lastRun.close !== today) {
                   try {
-                    console.log(`[Schedule Action] Closing group ${groupId} at ${schedule.closeTime}`);
                     await nazuInstance.groupSettingUpdate(groupId, 'announcement');
                     await nazuInstance.sendMessage(groupId, { text: '🔒 Grupo fechado automaticamente pelo agendamento diário.' });
                     schedule.lastRun = schedule.lastRun || {};
@@ -2444,7 +2446,6 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
               }
             }
           } catch (err) {
-            console.error('[Schedule Worker] Error:', err);
           }
         }, 60 * 1000); // Check every minute for precise timing
       } catch (e) {
@@ -3149,7 +3150,6 @@ async function NazuninhaBotExec(nazu, info, store, messagesCache, rentalExpirati
             }, pathz.join(__dirname, 'index.js'), KeyCog, nazu, nmrdn);
             
             if (respAssist.erro === 'Sistema de IA temporariamente desativado') {
-              console.log('🚨 Sistema de IA temporariamente desativado devido a problemas de API key.');
               return;
             }
             
@@ -5207,7 +5207,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
             message += '📋 *Grupos com Aluguel*:\n\n';
             let index = 1;
             for (const [groupId, info] of Object.entries(groupRentals)) {
-              const groupMetadata = await nazu.groupMetadata(groupId).catch(() => ({
+              const groupMetadata = await getCachedGroupMetadata(groupId).catch(() => ({
                 subject: 'Desconhecido'
               }));
               const groupName = groupMetadata.subject || 'Sem Nome';
@@ -5335,7 +5335,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               successCount++;
               summary += `✅ ${groupId}: ${extendResult.message}\n`;
               try {
-                const groupMeta = await nazu.groupMetadata(groupId);
+                const groupMeta = await getCachedGroupMetadata(groupId);
                 const msg = `🎉 Atenção, ${groupMeta.subject}! Adicionados ${extraDays} dias extras de aluguel.\nNova expiração: ${new Date(rentalData.groups[groupId].expiresAt).toLocaleDateString('pt-BR')}.\nMotivo: ${motivo}`;
                 await nazu.sendMessage(groupId, {
                   text: msg
@@ -5436,7 +5436,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           for (const groupId in rentalData.groups) {
             const rentalStatus = getGroupRentalStatus(groupId);
             if (rentalStatus.active || rentalStatus.permanent) continue;
-            const groupMetadata = await nazu.groupMetadata(groupId).catch(() => null);
+            const groupMetadata = await getCachedGroupMetadata(groupId).catch(() => null);
             if (!groupMetadata) {
               delete rentalData.groups[groupId];
               groupsCleaned++;
@@ -7670,7 +7670,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
           if (groupsPremium.length > 0) {
             for (let i = 0; i < groupsPremium.length; i++) {
               try {
-                const groupInfo = await nazu.groupMetadata(groupsPremium[i]);
+                const groupInfo = await getCachedGroupMetadata(groupsPremium[i]);
                 
                 teks += `🔹 ${i + 1}. ${groupInfo.subject}\n`;
               } catch {
@@ -7874,7 +7874,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
               // Get group metadata with error handling
               let metadata;
               try {
-                metadata = await nazu.groupMetadata(groupId).catch(() => null);
+                metadata = await getCachedGroupMetadata(groupId).catch(() => null);
               } catch (metaError) {
                 console.log(`[LIMPAR RANK GLOBAL] Error getting metadata for group ${groupId}:`, metaError.message);
                 failedGroups.push(`${groupId}: Erro ao obter metadados`);
@@ -8538,7 +8538,7 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
       case 'dadosgp':
         try {
           if (!isGroup) return reply("❌ Este comando só funciona em grupos!");
-          const meta = await nazu.groupMetadata(from);
+          const meta = await getCachedGroupMetadata(from);
           const subject = meta.subject || "—";
           const desc = meta.desc?.toString() || "Sem descrição";
           const createdAt = meta.creation ? new Date(meta.creation * 1000).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : "Desconhecida";
@@ -10087,13 +10087,13 @@ Exemplos:
           const admins = groupAdmins || [];
           const fantasmas = contador.filter(u => (u.msg || 0) <= limite && !admins.includes(u.id) && u.id !== botNumber && u.id !== sender && u.id !== nmrdn).map(u => u.id);
           if (!fantasmas.length) return reply(`🎉 Nenhum fantasma com até ${limite} msg.`);
-          const antes = (await nazu.groupMetadata(from)).participants.map(p => p.lid || p.id);
+          const antes = (await getCachedGroupMetadata(from)).participants.map(p => p.lid || p.id);
           try {
             await nazu.groupParticipantsUpdate(from, fantasmas, 'remove');
           } catch (e) {
             console.error("Erro ao remover:", e);
           }
-          const depois = (await nazu.groupMetadata(from)).participants.map(p => p.lid || p.id);
+          const depois = (await getCachedGroupMetadata(from)).participants.map(p => p.lid || p.id);
           const removidos = fantasmas.filter(jid => antes.includes(jid) && !depois.includes(jid)).length;
           reply(removidos === 0 ? `⚠️ Nenhum fantasma pôde ser removido com até ${limite} msg.` : `✅ ${removidos} fantasma(s) removido(s).`);
         } catch (e) {

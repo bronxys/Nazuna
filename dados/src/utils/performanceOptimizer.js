@@ -53,8 +53,6 @@ class PerformanceOptimizer {
     }
 
     async initialize() {
-        console.log('🔧 Inicializando sistema de otimização...');
-        
         try {
             // Inicializa módulos essenciais
             await this.initializeModules();
@@ -64,7 +62,6 @@ class PerformanceOptimizer {
             this.startPerformanceReporting();
             
             this.isInitialized = true;
-            console.log('✅ Sistema de otimização inicializado com sucesso!');
             
             return true;
         } catch (error) {
@@ -93,7 +90,6 @@ class PerformanceOptimizer {
                         await this.modules[module.name].initialize();
                     }
                     
-                    console.log(`✅ Módulo ${module.name} inicializado`);
                 } catch (error) {
                     console.error(`❌ Erro ao inicializar ${module.name}:`, error.message);
                     this.modules[module.name] = null;
@@ -113,7 +109,6 @@ class PerformanceOptimizer {
             await this.optimizeCaches();
         }, this.config.cacheOptimizationInterval);
 
-        console.log('🔄 Sistema de otimização automática iniciado');
     }
 
     async performAutoOptimization() {
@@ -142,7 +137,6 @@ class PerformanceOptimizer {
             const duration = Date.now() - startTime;
             this.stats.totalOptimizations++;
             
-            console.log(`🚀 Otimização automática concluída em ${duration}ms`);
             
         } catch (error) {
             console.error('❌ Erro na otimização automática:', error.message);
@@ -188,7 +182,6 @@ class PerformanceOptimizer {
             
             if (freed > 0) {
                 this.stats.memoryFreed += freed;
-                console.log(`🧹 Garbage collection: ${Math.round(freed / 1024 / 1024)}MB liberados`);
             }
         }
     }
@@ -212,7 +205,6 @@ class PerformanceOptimizer {
             modulesActive: Object.keys(this.modules).filter(k => this.modules[k] !== null).length
         };
         
-        console.log('📊 Relatório de Performance:', report);
         return report;
     }
 
@@ -224,7 +216,6 @@ class PerformanceOptimizer {
             // Força garbage collection
             this.forceGarbageCollection();
             
-            console.log('💾 Memória otimizada');
         } catch (error) {
             console.error('❌ Erro ao liberar memória:', error.message);
         }
@@ -235,7 +226,6 @@ class PerformanceOptimizer {
             if (this.modules.mediaCleaner) {
                 const cleaned = await this.modules.mediaCleaner.performEmergencyCleanup();
                 this.stats.diskFreed += cleaned.totalSize || 0;
-                console.log(`💽 Espaço em disco liberado: ${Math.round(cleaned.totalSize / 1024 / 1024)}MB`);
             }
         } catch (error) {
             console.error('❌ Erro ao liberar espaço em disco:', error.message);
@@ -246,7 +236,6 @@ class PerformanceOptimizer {
         try {
             if (this.modules.cacheManager) {
                 await this.modules.cacheManager.optimizeMemory();
-                console.log('🗄️ Caches otimizados');
             }
         } catch (error) {
             console.error('❌ Erro ao otimizar caches:', error.message);
@@ -305,8 +294,7 @@ class PerformanceOptimizer {
     }
 
     async emergencyCleanup() {
-        console.log('🚨 Iniciando limpeza de emergência...');
-        
+    
         try {
             const tasks = [];
             
@@ -326,7 +314,6 @@ class PerformanceOptimizer {
             // Força garbage collection
             this.forceGarbageCollection();
             
-            console.log('✅ Limpeza de emergência concluída');
             
             return results;
         } catch (error) {
@@ -355,7 +342,6 @@ class PerformanceOptimizer {
     }
 
     async shutdown() {
-        console.log('🛑 Parando sistema de otimização...');
         
         // Para todos os timers
         Object.values(this.timers).forEach(timer => {

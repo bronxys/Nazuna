@@ -98,7 +98,6 @@ class SystemMonitor {
 
             if (deletedCount > 0) {
                 const freedMB = Math.round(freedSpace / (1024 * 1024));
-                console.log(`🧹 Limpeza automática: ${deletedCount} arquivos removidos, ${freedMB}MB liberados`);
             }
 
             return { deletedCount, freedSpace };
@@ -127,8 +126,6 @@ class SystemMonitor {
                 }
                 this.mediaCache.delete(key);
             }
-
-            console.log(`🗃️ Cache de mídia limpo: ${toRemove.length} itens removidos, ~${Math.round(freedMemory / (1024 * 1024))}MB liberados`);
             
             return { cleared: toRemove.length, freedMemory };
         } catch (error) {
@@ -170,7 +167,6 @@ class SystemMonitor {
 
             if (compressedCount > 0) {
                 const savedMB = Math.round(spaceSaved / (1024 * 1024));
-                console.log(`📦 Compressão automática: ${compressedCount} arquivos comprimidos, ${savedMB}MB economizados`);
             }
 
             return { compressedCount, spaceSaved };
@@ -187,7 +183,6 @@ class SystemMonitor {
         try {
             if (global.gc) {
                 global.gc();
-                console.log('🗑️ Garbage collection executado manualmente');
             } else {
                 console.warn('⚠️ Garbage collection não disponível (execute com --expose-gc)');
             }
@@ -214,7 +209,6 @@ class SystemMonitor {
      * Executa limpeza emergencial
      */
     async performEmergencyCleanup() {
-        console.log('🚨 Iniciando limpeza emergencial do sistema...');
         
         const results = {
             tempFiles: await this.cleanTempFiles(),
@@ -230,8 +224,6 @@ class SystemMonitor {
 
         const totalFreed = results.tempFiles.freedSpace + results.mediaCompression.spaceSaved;
         const totalFreedMB = Math.round(totalFreed / (1024 * 1024));
-
-        console.log(`✅ Limpeza emergencial concluída: ${totalFreedMB}MB liberados`);
         
         return results;
     }
@@ -273,7 +265,6 @@ class SystemMonitor {
             }
 
             if (deletedLogs > 0) {
-                console.log(`📜 ${deletedLogs} arquivos de log antigos removidos`);
             }
         } catch (error) {
             console.error('❌ Erro na limpeza de logs:', error.message);
@@ -287,17 +278,14 @@ class SystemMonitor {
         if (this.isMonitoring) return;
         
         this.isMonitoring = true;
-        console.log('👁️ Sistema de monitoramento iniciado');
 
         const monitor = async () => {
             try {
                 const needsCleanup = await this.needsEmergencyCleanup();
                 
                 if (needsCleanup.critical) {
-                    console.log('🚨 CRÍTICO: Sistema com recursos muito baixos!');
                     await this.performEmergencyCleanup();
                 } else if (needsCleanup.disk || needsCleanup.memory) {
-                    console.log('⚠️ Recursos do sistema baixos, executando limpeza...');
                     await this.cleanTempFiles();
                     await this.cleanMediaCache();
                     this.forceGarbageCollection();
@@ -319,7 +307,6 @@ class SystemMonitor {
      */
     stopMonitoring() {
         this.isMonitoring = false;
-        console.log('👁️ Sistema de monitoramento parado');
     }
 
     /**

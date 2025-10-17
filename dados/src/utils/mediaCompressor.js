@@ -64,7 +64,6 @@ class MediaCompressor {
             await this.ensureTempDirectory();
             await this.checkDependencies();
             this.startQueueProcessor();
-            console.log('🗜️ Compressor de mídia inicializado');
         } catch (error) {
             console.error('❌ Erro ao inicializar compressor:', error.message);
         }
@@ -78,7 +77,6 @@ class MediaCompressor {
             await fs.access(this.tempDir);
         } catch {
             await fs.mkdir(this.tempDir, { recursive: true });
-            console.log(`📁 Diretório de compressão criado: ${this.tempDir}`);
         }
     }
 
@@ -94,7 +92,6 @@ class MediaCompressor {
         for (const dep of dependencies) {
             try {
                 await execAsync(dep.cmd, { timeout: 5000 });
-                console.log(`✅ ${dep.name} disponível`);
             } catch (error) {
                 console.warn(`⚠️ ${dep.name} não disponível:`, error.message);
             }
@@ -131,8 +128,6 @@ class MediaCompressor {
             };
 
             this.compressionQueue.push(compressionTask);
-            
-            console.log(`📋 Arquivo adicionado à fila de compressão: ${path.basename(filePath)} (${this.formatBytes(stats.size)})`);
             
             return {
                 success: true,
@@ -189,15 +184,12 @@ class MediaCompressor {
 
         try {
             const result = await this.processCompressionTask(task);
-            console.log(`✅ Compressão concluída: ${path.basename(task.filePath)} - ${result.compressionRatio}% de redução`);
         } catch (error) {
             console.error(`❌ Erro na compressão de ${path.basename(task.filePath)}:`, error.message);
             
-            // Tenta novamente se não excedeu o limite
             if (task.retries < task.maxRetries) {
                 task.retries++;
-                this.compressionQueue.unshift(task); // Coloca no início da fila
-                console.log(`🔄 Reagendando compressão (tentativa ${task.retries + 1}/${task.maxRetries + 1})`);
+                this.compressionQueue.unshift(task);
             }
         } finally {
             this.activeCompressions--;
@@ -327,7 +319,6 @@ class MediaCompressor {
             
             cmd += ` -y "${outputPath}"`;
             
-            console.log(`🎬 Comprimindo vídeo: ${path.basename(inputPath)}`);
             await execAsync(cmd, { timeout: 300000 }); // 5 minutos timeout
 
             const stats = await fs.stat(outputPath);
@@ -389,8 +380,6 @@ class MediaCompressor {
     async compressBatch(filePaths, options = {}) {
         const results = [];
         
-        console.log(`📦 Iniciando compressão em lote: ${filePaths.length} arquivos`);
-        
         for (const filePath of filePaths) {
             try {
                 const result = await this.compressFile(filePath, options);
@@ -402,7 +391,6 @@ class MediaCompressor {
         }
         
         const successful = results.filter(r => r.result.success).length;
-        console.log(`✅ Compressão em lote concluída: ${successful}/${filePaths.length} arquivos processados`);
         
         return results;
     }
@@ -510,7 +498,6 @@ class MediaCompressor {
      */
     updateSettings(newSettings) {
         this.settings = { ...this.settings, ...newSettings };
-        console.log('⚙️ Configurações de compressão atualizadas');
     }
 
     /**
@@ -533,7 +520,6 @@ class MediaCompressor {
             }
 
             if (cleanedCount > 0) {
-                console.log(`🧹 ${cleanedCount} arquivos temporários de compressão removidos`);
             }
         } catch (error) {
             console.error('❌ Erro na limpeza de arquivos temporários:', error.message);
@@ -544,7 +530,6 @@ class MediaCompressor {
      * Para o compressor e limpa recursos
      */
     async stop() {
-        console.log('🛑 Parando compressor de mídia...');
         
         // Aguarda compressões ativas terminarem
         while (this.activeCompressions > 0) {
@@ -554,7 +539,6 @@ class MediaCompressor {
         // Limpa arquivos temporários
         await this.cleanupTemp();
         
-        console.log('✅ Compressor de mídia parado');
     }
 }
 

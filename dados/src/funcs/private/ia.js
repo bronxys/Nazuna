@@ -181,7 +181,6 @@ Uma API Key é como uma "senha especial" que permite ao bot acessar os serviços
     // Incrementar contador após envio bem-sucedido
     incrementNotificationCount();
     apiKeyStatus.notificationSent = true;
-    console.log('📧 Notificação sobre API key enviada ao dono');
   } catch (notifyError) {
     console.error('❌ Erro ao notificar dono sobre API key:', notifyError.message);
   }

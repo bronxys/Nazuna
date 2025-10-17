@@ -67,7 +67,6 @@ class RentalExpirationManager {
     this.cronJob.start();
     this.isRunning = true;
     
-    console.log('✅ RentalExpirationManager scheduler started');
     this.log('Scheduler started with interval: ' + this.config.checkInterval);
   }
 
@@ -81,7 +80,6 @@ class RentalExpirationManager {
     }
     
     this.isRunning = false;
-    console.log('⏹️ RentalExpirationManager scheduler stopped');
     this.log('Scheduler stopped');
   }
 
@@ -155,7 +153,6 @@ class RentalExpirationManager {
       const duration = Date.now() - startTime;
       await this.log(`Rental check completed. Processed: ${processedCount}, Warnings: ${warningCount}, Final Warnings: ${finalWarningCount}, Expired: ${expiredCount}. Duration: ${duration}ms`);
 
-      console.log(`✅ Rental expiration check completed. Processed ${processedCount} groups.`);
     } catch (error) {
       console.error('❌ Critical error in rental expiration check:', error);
       await this.log(`Critical error in rental check: ${error.message}`);
@@ -316,7 +313,6 @@ O aluguel deste grupo expirou e o bot está saindo agora. Para voltar a usar o b
       }
 
       await this.log(`Bot left group ${groupId} after rental expiration`);
-      console.log(`✅ Bot left expired rental group: ${groupMetadata.subject}`);
     } catch (error) {
       console.error(`❌ Error during auto-cleanup for group ${groupId}:`, error);
       await this.log(`Error during auto-cleanup for group ${groupId}: ${error.message}`);
