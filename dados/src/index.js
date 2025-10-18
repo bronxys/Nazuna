@@ -8947,48 +8947,68 @@ Exemplo: ${prefix}tradutor espanhol | Olá mundo! ✨`);
         ;
         break;
       case 'rename':
-      case 'roubar':
-        try {
-          if (!isQuotedSticker) return reply('Você usou de forma errada... Marque uma figurinha.');
-          var author;
-          author = q.split(`/`)[0];
-          var packname;
-          packname = q.split(`/`)[1];
-          if (!q || !author || !packname) return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
-          var encmediats;
-          encmediats = await getFileBuffer(info.message.extendedTextMessage.contextInfo.quotedMessage.stickerMessage, 'sticker');
-          await sendSticker(nazu, from, {
-            sticker: `data:image/jpeg;base64,${encmediats.toString('base64')}`,
-            author: packname,
-            packname: author,
-            rename: true
-          }, {
-            quoted: info
-          });
-        } catch (e) {
-          console.error(e);
-          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
-        }
-        ;
-        break;
+case 'roubar':
+  try {
+    if (!isQuotedSticker) return reply('Você usou de forma errada... Marque uma figurinha.');
+    let author = "";
+    let packname = "";
+    if (!q) {
+      return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
+    }
+    if (q.includes("/")) {
+      author = q.split("/")[0] || "";
+      packname = q.split("/")[1] || "";
+    } else {
+      packname = q;
+      author = "";
+    }
+    if (!packname) {
+      return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
+    }
+    const encmediats = await getFileBuffer(
+      info.message.extendedTextMessage.contextInfo.quotedMessage.stickerMessage,
+      'sticker'
+    );
+    await sendSticker(nazu, from, {
+      sticker: `data:image/jpeg;base64,${encmediats.toString('base64')}`,
+      author: packname,
+      packname: author,
+      rename: true
+    }, {
+      quoted: info
+    });
+  } catch (e) {
+    console.error(e);
+    await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
+  }
+  break;
       case 'rgtake':
-        try {
-          const [author, pack] = q.split('/');
-          if (!q || !author || !pack) return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
-          const filePath = __dirname + '/../database/users/take.json';
-          const dataTake = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf-8')) : {};
-          dataTake[sender] = {
-            author,
-            pack
-          };
-          fs.writeFileSync(filePath, JSON.stringify(dataTake, null, 2), 'utf-8');
-          reply(`Autor e pacote salvos com sucesso!\nAutor: ${author}\nPacote: ${pack}`);
-        } catch (e) {
-          console.error(e);
-          await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
-        }
-        ;
-        break;
+  try {
+    let author = "";
+    let pack = "";
+    if (!q) {
+      return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
+    }
+    if (q.includes("/")) {
+      author = q.split("/")[0] || "";
+      pack = q.split("/")[1] || "";
+    } else {
+      pack = q;
+      author = "";
+    }
+    if (!pack) {
+      return reply(`Formato errado, utilize:\n${prefix}${command} Autor/Pack\nEx: ${prefix}${command} By:/Hiudy`);
+    }
+    const filePath = __dirname + '/../database/users/take.json';
+    const dataTake = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf-8')) : {};
+    dataTake[sender] = { author, pack };
+    fs.writeFileSync(filePath, JSON.stringify(dataTake, null, 2), 'utf-8');
+    reply(`Autor e pacote salvos com sucesso!\nAutor: ${author || "(vazio)"}\nPacote: ${pack}`);
+  } catch (e) {
+    console.error(e);
+    await reply("❌ Ocorreu um erro interno. Tente novamente em alguns minutos.");
+  }
+  break;
       case 'take':
         try {
           if (!isQuotedSticker) return reply('Você usou de forma errada... Marque uma figurinha.');

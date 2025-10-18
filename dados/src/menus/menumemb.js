@@ -51,6 +51,7 @@ ${bottomBorder}
 ${menuTopBorder}${separatorIcon} *${FFMenu}*
 ${middleBorder}
 ${middleBorder}${menuItemIcon}${prefix}likeff
+${middleBorder}${menuItemIcon}${prefix}infoff
 ${bottomBorder}
 `;
 }
