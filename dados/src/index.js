@@ -12186,6 +12186,58 @@ ${groupData.rules.length}. ${q}`);
   }
   break;
   
+  case 'infoff':
+  try {
+    if (!q) return reply('⚠️ Por favor, digite o UID do jogador Free Fire.\n\nEx: ' + prefix + command + ' 123456789');
+
+    const uid = q.trim();
+    const region = 'br';
+
+    const infoRes = await axios.get(`https://freefireapis.shardweb.app/api/info_player?uid=${uid}&region=${region}`);
+    const data = infoRes.data;
+
+    if (!data || !data.basicInfo) {
+      return reply('❌ Não foi possível obter as informações do jogador. Verifique o UID e tente novamente.');
+    }
+
+    const basic = data.basicInfo;
+    const social = data.socialInfo || {};
+    const pet = data.petInfo || {};
+    const clan = data.clanBasicInfo || {};
+
+    let msg = `🎮 *Informações do Jogador Free Fire* 🎮\n\n`;
+    msg += `👤 *Nickname:* ${basic.nickname || 'N/A'}\n`;
+    msg += `🆔 *ID da Conta:* ${basic.accountId || 'N/A'}\n`;
+    msg += `🌍 *Região:* ${basic.region || 'N/A'}\n`;
+    msg += `📈 *Nível:* ${basic.level || 'N/A'}\n`;
+    msg += `🔥 *EXP:* ${basic.exp || 'N/A'}\n`;
+    msg += `⭐ *Likes:* ${basic.liked || '0'}\n`;
+    msg += `🏆 *Rank Máximo:* ${basic.maxRank || 'N/A'}\n`;
+    msg += `📊 *Pontos de Rank:* ${basic.rankingPoints || '0'}\n`;
+    msg += `🏅 *Rank Atual:* ${basic.rank || 'N/A'}\n`;
+    msg += `🐾 *Pet:* ${pet.name || 'Nenhum'}\n`;
+    msg += `👥 *Clã:* ${clan.name || 'Nenhum'}\n`;
+    msg += `📅 *Criado em:* ${basic.createAt ? new Date(parseInt(basic.createAt) * 1000).toLocaleDateString('pt-BR') : 'N/A'}\n`;
+    msg += `🕒 *Último Login:* ${basic.lastLoginAt ? new Date(parseInt(basic.lastLoginAt) * 1000).toLocaleString('pt-BR') : 'N/A'}`;
+
+    if (basic.avatars && basic.avatars.webp) {
+      const avatarUrl = basic.avatars.webp;
+      try {
+        const avatarResponse = await axios.get(avatarUrl, { responseType: 'arraybuffer' });
+        const avatarBuffer = Buffer.from(avatarResponse.data);
+        await nazu.sendMessage(from, { sticker: avatarBuffer }, { quoted: info });
+      } catch (err) {
+        console.error('Erro ao enviar figurinha do avatar:', err);
+      }
+    }
+
+    await reply(msg);
+  } catch (e) {
+    console.error('Erro no comando infoff:', e);
+    reply('❌ Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.');
+  }
+  break;
+  
   case 'msgprefix':
   try {
     if (!isOwner) return reply('Apenas o dono pode configurar isso.');
