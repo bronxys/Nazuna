@@ -12225,7 +12225,14 @@ ${groupData.rules.length}. ${q}`);
       try {
         const avatarResponse = await axios.get(avatarUrl, { responseType: 'arraybuffer' });
         const avatarBuffer = Buffer.from(avatarResponse.data);
-        await nazu.sendMessage(from, { sticker: avatarBuffer }, { quoted: info });
+        await sendSticker(nazu, from, {
+            sticker: avatarBuffer,
+            author: `『${pushname}』\n『${nomebot}』\n『${nomedono}』\n『cognima.com.br』`,
+            packname: '👤 Usuario(a)ᮀ۟❁’￫\n🤖 Botᮀ۟❁’￫\n👑 Donoᮀ۟❁’￫\n🌐 Siteᮀ۟❁’￫',
+            type: 'image'
+          }, {
+            quoted: info
+          });
       } catch (err) {
         console.error('Erro ao enviar figurinha do avatar:', err);
       }
