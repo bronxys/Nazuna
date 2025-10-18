@@ -12220,25 +12220,15 @@ ${groupData.rules.length}. ${q}`);
     msg += `📅 *Criado em:* ${basic.createAt ? new Date(parseInt(basic.createAt) * 1000).toLocaleDateString('pt-BR') : 'N/A'}\n`;
     msg += `🕒 *Último Login:* ${basic.lastLoginAt ? new Date(parseInt(basic.lastLoginAt) * 1000).toLocaleString('pt-BR') : 'N/A'}`;
 
-    if (basic.avatars && basic.avatars.webp) {
-      const avatarUrl = basic.avatars.webp;
+    if (basic.avatars && basic.avatars.png) {
+      const avatarUrl = basic.avatars.png;
       try {
-        const avatarResponse = await axios.get(avatarUrl, { responseType: 'arraybuffer' });
-        const avatarBuffer = Buffer.from(avatarResponse.data);
-        await sendSticker(nazu, from, {
-            sticker: avatarBuffer,
-            author: `『${pushname}』\n『${nomebot}』\n『${nomedono}』\n『cognima.com.br』`,
-            packname: '👤 Usuario(a)ᮀ۟❁’￫\n🤖 Botᮀ۟❁’￫\n👑 Donoᮀ۟❁’￫\n🌐 Siteᮀ۟❁’￫',
-            type: 'image'
-          }, {
-            quoted: info
-          });
+        await nazu.sendMessage(from, {image: {url: avatarUrl}, caption: msg}, {quoted: info});
       } catch (err) {
-        console.error('Erro ao enviar figurinha do avatar:', err);
+        await reply(msg);
       }
     }
 
-    await reply(msg);
   } catch (e) {
     console.error('Erro no comando infoff:', e);
     reply('❌ Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.');
